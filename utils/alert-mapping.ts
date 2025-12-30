@@ -92,12 +92,16 @@ export function mapDashboardAlertToAppAlert(apiAlert: DashboardAlert): AppAlert 
  * <AlertCard alert={appAlert} />
  */
 export function mapAlertsApiAlertToAppAlert(apiAlert: ApiAlert): AppAlert {
-	// Map API category to app category (network → connectivity, revenue → sales)
+	// Map API category to app category
+	// Note: Alerts API uses different category names than booth/dashboard APIs:
+	// - Alerts API: "network", "revenue"
+	// - Booth/Dashboard APIs: "system", "sales"
+	// Both map to the same app categories: "connectivity", "sales"
 	const categoryMap: Record<string, AppAlert["category"]> = {
 		hardware: "hardware",
 		supplies: "supplies",
-		network: "connectivity",
-		revenue: "sales",
+		network: "connectivity", // Alerts API uses "network", booth APIs use "system"
+		revenue: "sales", // Alerts API uses "revenue", booth APIs use "sales"
 	};
 
 	return {

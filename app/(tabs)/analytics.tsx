@@ -49,7 +49,7 @@ import { useThemeColor } from "@/hooks/use-theme-color";
 // Global booth selection store
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 // Utilities - extracted for separation of concerns
-import { formatProductName, formatPaymentMethod } from "@/utils";
+import { formatCurrency, formatProductName, formatPaymentMethod } from "@/utils";
 
 type ChartPeriod = "week" | "month";
 
@@ -152,13 +152,6 @@ export default function AnalyticsScreen() {
 		return Math.max(maxAmount * 1.1, 1);
 	}, [chartData]);
 
-	// Format currency
-	const formatCurrency = (amount: number): string => {
-		return `$${amount.toLocaleString("en-US", {
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
-		})}`;
-	};
 
 	// Format time
 	const formatTime = (timestamp: string): string => {

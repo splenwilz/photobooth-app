@@ -145,17 +145,18 @@ export function EditProductModal({
 
 		Keyboard.dismiss();
 
-		// Build pricing request for this specific product
-		const pricingRequest = buildPricingRequest(
-			product.id,
-			basePriceNum,
-			extraCopyPriceNum,
-		);
-
-		// Add reason for the update
-		pricingRequest.reason = `Updated ${product.name} pricing via mobile app`;
-
 		try {
+			// Build pricing request for this specific product
+			// This may throw if product ID is unknown
+			const pricingRequest = buildPricingRequest(
+				product.id,
+				basePriceNum,
+				extraCopyPriceNum,
+			);
+
+			// Add reason for the update
+			pricingRequest.reason = `Updated ${product.name} pricing via mobile app`;
+
 			await updatePricingMutation.mutateAsync({
 				boothId,
 				...pricingRequest,
@@ -178,11 +179,14 @@ export function EditProductModal({
 			handleClose();
 		} catch (error) {
 			console.error("[EditProductModal] Failed to update pricing:", error);
-			Alert.alert(
-				"Update Failed",
-				"Failed to update pricing. Please try again.",
-				[{ text: "OK" }],
-			);
+
+			// Show more specific error message if it's a product ID error
+			const errorMessage =
+				error instanceof Error && error.message.includes("Unknown product ID")
+					? error.message
+					: "Failed to update pricing. Please try again.";
+
+			Alert.alert("Update Failed", errorMessage, [{ text: "OK" }]);
 		}
 	};
 
