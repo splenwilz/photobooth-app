@@ -30,6 +30,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 // API
+import { useAlerts } from "@/api/alerts/queries";
 import { useBoothOverview } from "@/api/booths/queries";
 import type { BoothOverviewItem } from "@/api/booths/types";
 import { CustomHeader } from "@/components/custom-header";
@@ -46,7 +47,7 @@ import {
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
-import type { Booth, BoothStatus } from "@/types/photobooth";
+import type { Booth, BoothStatus, OperationMode } from "@/types/photobooth";
 
 type FilterStatus = "all" | "online" | "offline";
 
@@ -55,13 +56,22 @@ type FilterStatus = "all" | "online" | "offline";
  * Handles null/undefined fields gracefully
  */
 function mapApiBoothToLocal(apiBooth: BoothOverviewItem): Booth {
+	// DEBUG: Log the raw API response to diagnose status mapping issues
+	console.log("[BoothsScreen] Raw booth data:", {
+		booth_id: apiBooth.booth_id,
+		booth_name: apiBooth.booth_name,
+		booth_status: apiBooth.booth_status,
+		booth_status_type: typeof apiBooth.booth_status,
+		full_response: JSON.stringify(apiBooth, null, 2),
+	});
+
 	// Safely get operation mode - default to 'coin' if null/undefined
-	const operationMode =
+	const operationMode: OperationMode =
 		apiBooth.operation?.mode?.toLowerCase() === "freeplay"
 			? "freeplay"
 			: "coin";
 
-	return {
+	const mappedBooth: Booth = {
 		id: apiBooth.booth_id,
 		name: apiBooth.booth_name,
 		location: apiBooth.booth_address || "No address",
@@ -73,6 +83,15 @@ function mapApiBoothToLocal(apiBooth: BoothOverviewItem): Booth {
 		credits: apiBooth.credits?.balance ?? 0,
 		lastUpdated: apiBooth.last_updated,
 	};
+
+	// DEBUG: Log the mapped result
+	console.log("[BoothsScreen] Mapped booth:", {
+		id: mappedBooth.id,
+		name: mappedBooth.name,
+		status: mappedBooth.status,
+	});
+
+	return mappedBooth;
 }
 
 /**
@@ -97,11 +116,24 @@ export default function BoothsScreen() {
 		refetch,
 	} = useBoothOverview();
 
+	// Fetch alerts for notification badge
+	// @see GET /api/v1/analytics/alerts
+	const { data: alertsData } = useAlerts();
+	const unreadAlerts = useMemo(() => {
+		if (!alertsData?.alerts) return 0;
+		return alertsData.alerts.filter((a) => !a.is_read).length;
+	}, [alertsData?.alerts]);
+
 	// Only show refresh indicator when screen is focused (prevents frozen loader)
 	const isRefetching = isFocused && isQueryRefetching;
 
 	// Global booth selection from Zustand store
 	const { selectedBoothId, setSelectedBoothId } = useBoothStore();
+
+	// Navigation handlers
+	const handleNotificationPress = () => {
+		router.push("/(tabs)/alerts");
+	};
 
 	// Local state
 	const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
@@ -187,7 +219,11 @@ export default function BoothsScreen() {
 				style={[styles.container, { backgroundColor }]}
 				edges={["top"]}
 			>
-				<CustomHeader title="Booths" />
+				<CustomHeader 
+					title="Booths" 
+					onNotificationPress={handleNotificationPress}
+					notificationCount={unreadAlerts}
+				/>
 				<View style={styles.loadingContainer}>
 					<ActivityIndicator size="large" color={BRAND_COLOR} />
 					<ThemedText style={[styles.loadingText, { color: textSecondary }]}>
@@ -203,7 +239,11 @@ export default function BoothsScreen() {
 			style={[styles.container, { backgroundColor }]}
 			edges={["top"]}
 		>
-			<CustomHeader title="Booths" />
+			<CustomHeader 
+				title="Booths" 
+				onNotificationPress={handleNotificationPress}
+				notificationCount={unreadAlerts}
+			/>
 
 			<ScrollView
 				style={styles.content}

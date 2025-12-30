@@ -26,85 +26,37 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 // API hooks
+import { useAlerts } from "@/api/alerts/queries";
 import {
   useBoothDetail,
   useBoothList,
   useDashboardOverview,
 } from "@/api/booths/queries";
-import type { BoothDetailAlert, DashboardAlert } from "@/api/booths/types";
 import { CustomHeader } from "@/components/custom-header";
+// Dashboard section components - extracted for separation of concerns
+import {
+  BoothHardwareSection,
+  HardwareSummaryCard,
+  SystemInfoCard,
+} from "@/components/dashboard";
 import { ThemedText } from "@/components/themed-text";
 import { AlertCard } from "@/components/ui/alert-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatCard } from "@/components/ui/stat-card";
-import { StatusCard } from "@/components/ui/status-card";
-import {
-  BorderRadius,
-  BRAND_COLOR,
-  Spacing,
-  StatusColors,
-  withAlpha,
-} from "@/constants/theme";
+import { BorderRadius, BRAND_COLOR, Spacing, StatusColors, withAlpha } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
-import type { Alert as AppAlert } from "@/types/photobooth";
+// Utilities - extracted for separation of concerns
+import {
+  formatCurrency,
+  getBoothStatusColor,
+  mapBoothAlertToAppAlert,
+  mapDashboardAlertToAppAlert,
+} from "@/utils";
 
+/** Revenue time period selector type */
 type RevenuePeriod = "today" | "week" | "month" | "year";
-
-/**
- * Maps API alert to app Alert type for AlertCard component
- * API uses: type (string like "printer_error"), severity ('critical'|'warning'|'info')
- * App uses: type ('critical'|'warning'|'info'), category ('hardware'|'supplies'|etc)
- */
-function mapApiAlertToAppAlert(apiAlert: BoothDetailAlert): AppAlert {
-	// Map API category to app AlertCategory, defaulting to 'hardware'
-	const categoryMap: Record<string, AppAlert["category"]> = {
-		hardware: "hardware",
-		supplies: "supplies",
-		connectivity: "connectivity",
-		sales: "sales",
-		system: "connectivity", // Map "system" category to "connectivity"
-	};
-
-	return {
-		id: apiAlert.id,
-		type: apiAlert.severity, // API severity → app type (AlertType)
-		category: categoryMap[apiAlert.category] ?? "hardware",
-		title: apiAlert.title,
-		message: apiAlert.message,
-		boothId: apiAlert.booth_id,
-		boothName: apiAlert.booth_name,
-		timestamp: apiAlert.timestamp,
-		isRead: apiAlert.is_read,
-	};
-}
-
-/**
- * Maps Dashboard overview alert to app Alert type
- * Dashboard alerts have slightly different structure (category is required)
- */
-function mapDashboardAlertToAppAlert(apiAlert: DashboardAlert): AppAlert {
-	const categoryMap: Record<string, AppAlert["category"]> = {
-		hardware: "hardware",
-		supplies: "supplies",
-		connectivity: "connectivity",
-		sales: "sales",
-		system: "connectivity",
-	};
-
-	return {
-		id: apiAlert.id,
-		type: apiAlert.severity, // API severity → app type (AlertType)
-		category: categoryMap[apiAlert.category] ?? "hardware",
-		title: apiAlert.title,
-		message: apiAlert.message,
-		boothId: apiAlert.booth_id,
-		boothName: apiAlert.booth_name,
-		timestamp: apiAlert.timestamp,
-		isRead: apiAlert.is_read,
-	};
-}
 
 /**
  * Dashboard Screen Component
@@ -168,10 +120,10 @@ export default function DashboardScreen() {
 		(b) => b.id === selectedBoothId,
 	);
 
-	// Get unread alerts count - works for both modes
-	const unreadAlerts = isAllMode
-		? (dashboardOverview?.recent_alerts?.filter((a) => !a.is_read).length ?? 0)
-		: (boothDetail?.recent_alerts?.filter((a) => !a.is_read).length ?? 0);
+	// Fetch alerts for notification badge - uses same API as other screens
+	// @see GET /api/v1/analytics/alerts
+	const { data: alertsData } = useAlerts();
+	const unreadAlerts = alertsData?.alerts?.filter((a) => !a.is_read).length ?? 0;
 
 	// Get revenue stats for selected period - works for both modes
 	const revenueStats = isAllMode
@@ -205,136 +157,6 @@ export default function DashboardScreen() {
 		router.push("/(tabs)/booths");
 	};
 
-	// Format currency
-	const formatCurrency = (amount: number): string => {
-		return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-	};
-
-	// Get status color for booth
-	const getBoothStatusColor = (status: string): string => {
-		switch (status) {
-			case "online":
-				return StatusColors.success;
-			case "warning":
-				return StatusColors.warning;
-			case "offline":
-			case "error":
-				return StatusColors.error;
-			default:
-				return StatusColors.neutral;
-		}
-	};
-
-	/**
-	 * Printer Status Mapping
-	 * Online → healthy (connected, ready, supplies > 25%)
-	 * Error → error (has error message)
-	 * Offline → unknown (not detected/disconnected)
-	 * Low Supplies → warning (paper or ink ≤ 25%)
-	 * unknown → unknown
-	 */
-	const mapPrinterStatus = (
-		status: string | undefined,
-	): "healthy" | "warning" | "error" | "unknown" => {
-		if (!status) return "unknown";
-		const lower = status.toLowerCase();
-		if (lower === "online" || lower === "ok" || lower === "ready")
-			return "healthy";
-		if (lower === "low supplies" || lower === "low") return "warning";
-		if (lower === "error") return "error";
-		if (lower === "offline") return "unknown";
-		return "unknown";
-	};
-
-	const getPrinterStatusColor = (status: string | undefined): string => {
-		const mapped = mapPrinterStatus(status);
-		switch (mapped) {
-			case "healthy":
-				return StatusColors.success;
-			case "warning":
-				return StatusColors.warning;
-			case "error":
-				return StatusColors.error;
-			default:
-				return StatusColors.neutral;
-		}
-	};
-
-	/**
-	 * Payment Controller Status Mapping
-	 * Connected → healthy (active or idle, working)
-	 * Disconnected → warning (was connected, now unplugged)
-	 * Not Configured → unknown (never set up)
-	 * Error → error (connection error)
-	 * Unknown → unknown
-	 */
-	const mapPaymentControllerStatus = (
-		status: string | undefined,
-	): "healthy" | "warning" | "error" | "unknown" => {
-		if (!status) return "unknown";
-		const lower = status.toLowerCase();
-		if (
-			lower === "connected" ||
-			lower === "active" ||
-			lower === "idle" ||
-			lower === "ok"
-		)
-			return "healthy";
-		if (lower === "disconnected") return "warning";
-		if (lower === "error") return "error";
-		if (lower === "not configured") return "unknown";
-		return "unknown";
-	};
-
-	const getPaymentControllerStatusColor = (
-		status: string | undefined,
-	): string => {
-		const mapped = mapPaymentControllerStatus(status);
-		switch (mapped) {
-			case "healthy":
-				return StatusColors.success;
-			case "warning":
-				return StatusColors.warning;
-			case "error":
-				return StatusColors.error;
-			default:
-				return StatusColors.neutral;
-		}
-	};
-
-	/**
-	 * Camera Status Mapping (generic)
-	 * Online/OK/Ready → healthy
-	 * Warning → warning
-	 * Error → error
-	 * Offline/Unknown → unknown
-	 */
-	const mapCameraStatus = (
-		status: string | undefined,
-	): "healthy" | "warning" | "error" | "unknown" => {
-		if (!status) return "unknown";
-		const lower = status.toLowerCase();
-		if (lower === "online" || lower === "ok" || lower === "ready")
-			return "healthy";
-		if (lower === "warning") return "warning";
-		if (lower === "error") return "error";
-		return "unknown";
-	};
-
-	const getCameraStatusColor = (status: string | undefined): string => {
-		const mapped = mapCameraStatus(status);
-		switch (mapped) {
-			case "healthy":
-				return StatusColors.success;
-			case "warning":
-				return StatusColors.warning;
-			case "error":
-				return StatusColors.error;
-			default:
-				return StatusColors.neutral;
-		}
-	};
-
 	// Loading state
 	if (!isHydrated || isLoadingList) {
 		return (
@@ -360,7 +182,7 @@ export default function DashboardScreen() {
 				<CustomHeader
 					title="Dashboard"
 					onNotificationPress={handleNotificationPress}
-					notificationCount={0}
+					notificationCount={unreadAlerts}
 				/>
 				<View style={[styles.container, styles.centered]}>
 					<IconSymbol name="photo.stack" size={64} color={textSecondary} />
@@ -635,309 +457,16 @@ export default function DashboardScreen() {
 								}
 							/>
 
-							{/* All Booths Mode: Show aggregated hardware summary */}
+							{/* All Booths Mode: Aggregated hardware summary */}
 							{isAllMode && dashboardOverview?.hardware_summary && (
-								<>
-									{/* Printers Summary */}
-									<View
-										style={[
-											styles.hardwareSummaryCard,
-											{ backgroundColor: cardBg, borderColor },
-										]}
-									>
-										<View style={styles.hardwareSummaryHeader}>
-											<IconSymbol
-												name="printer"
-												size={20}
-												color={BRAND_COLOR}
-											/>
-											<ThemedText type="defaultSemiBold">Printers</ThemedText>
-										</View>
-										<View style={styles.hardwareSummaryRow}>
-											<View style={styles.hardwareSummaryItem}>
-												<View
-													style={[
-														styles.summaryDot,
-														{ backgroundColor: StatusColors.success },
-													]}
-												/>
-												<ThemedText
-													style={[
-														styles.summaryLabel,
-														{ color: textSecondary },
-													]}
-												>
-													Online
-												</ThemedText>
-												<ThemedText type="defaultSemiBold">
-													{dashboardOverview.hardware_summary.printers.online}
-												</ThemedText>
-											</View>
-											<View style={styles.hardwareSummaryItem}>
-												<View
-													style={[
-														styles.summaryDot,
-														{ backgroundColor: StatusColors.error },
-													]}
-												/>
-												<ThemedText
-													style={[
-														styles.summaryLabel,
-														{ color: textSecondary },
-													]}
-												>
-													Error
-												</ThemedText>
-												<ThemedText type="defaultSemiBold">
-													{dashboardOverview.hardware_summary.printers.error}
-												</ThemedText>
-											</View>
-											<View style={styles.hardwareSummaryItem}>
-												<View
-													style={[
-														styles.summaryDot,
-														{ backgroundColor: StatusColors.neutral },
-													]}
-												/>
-												<ThemedText
-													style={[
-														styles.summaryLabel,
-														{ color: textSecondary },
-													]}
-												>
-													Offline
-												</ThemedText>
-												<ThemedText type="defaultSemiBold">
-													{dashboardOverview.hardware_summary.printers.offline}
-												</ThemedText>
-											</View>
-										</View>
-									</View>
-
-									{/* Payment Controllers Summary */}
-									<View
-										style={[
-											styles.hardwareSummaryCard,
-											{ backgroundColor: cardBg, borderColor },
-										]}
-									>
-										<View style={styles.hardwareSummaryHeader}>
-											<IconSymbol
-												name="creditcard"
-												size={20}
-												color={BRAND_COLOR}
-											/>
-											<ThemedText type="defaultSemiBold">
-												Payment Controllers
-											</ThemedText>
-										</View>
-										<View style={styles.hardwareSummaryRow}>
-											<View style={styles.hardwareSummaryItem}>
-												<View
-													style={[
-														styles.summaryDot,
-														{ backgroundColor: StatusColors.success },
-													]}
-												/>
-												<ThemedText
-													style={[
-														styles.summaryLabel,
-														{ color: textSecondary },
-													]}
-												>
-													Connected
-												</ThemedText>
-												<ThemedText type="defaultSemiBold">
-													{
-														dashboardOverview.hardware_summary
-															.payment_controllers.connected
-													}
-												</ThemedText>
-											</View>
-											<View style={styles.hardwareSummaryItem}>
-												<View
-													style={[
-														styles.summaryDot,
-														{ backgroundColor: StatusColors.warning },
-													]}
-												/>
-												<ThemedText
-													style={[
-														styles.summaryLabel,
-														{ color: textSecondary },
-													]}
-												>
-													Disconnected
-												</ThemedText>
-												<ThemedText type="defaultSemiBold">
-													{
-														dashboardOverview.hardware_summary
-															.payment_controllers.disconnected
-													}
-												</ThemedText>
-											</View>
-											<View style={styles.hardwareSummaryItem}>
-												<View
-													style={[
-														styles.summaryDot,
-														{ backgroundColor: StatusColors.neutral },
-													]}
-												/>
-												<ThemedText
-													style={[
-														styles.summaryLabel,
-														{ color: textSecondary },
-													]}
-												>
-													Not Configured
-												</ThemedText>
-												<ThemedText type="defaultSemiBold">
-													{
-														dashboardOverview.hardware_summary
-															.payment_controllers.not_configured
-													}
-												</ThemedText>
-											</View>
-										</View>
-									</View>
-								</>
+								<HardwareSummaryCard
+									hardwareSummary={dashboardOverview.hardware_summary}
+								/>
 							)}
 
-							{/* Single Booth Mode: Show detailed hardware status */}
-							{!isAllMode && boothDetail && (
-								<>
-									{/* Camera Status */}
-									{boothDetail.hardware?.camera ? (
-										<StatusCard
-											title="Camera"
-											status={mapCameraStatus(
-												boothDetail.hardware.camera.status,
-											)}
-											subtitle={
-												boothDetail.hardware.camera.model ??
-												boothDetail.hardware.camera.name ??
-												"Unknown"
-											}
-											infoText={
-												boothDetail.hardware.camera.error ??
-												`${boothDetail.hardware.camera.total_captures?.toLocaleString() ?? 0} total captures`
-											}
-											icon={
-												<IconSymbol
-													name="camera"
-													size={20}
-													color={getCameraStatusColor(
-														boothDetail.hardware.camera.status,
-													)}
-												/>
-											}
-										/>
-									) : (
-										<StatusCard
-											title="Camera"
-											status="unknown"
-											subtitle="Not connected"
-											infoText="No camera data available"
-											icon={
-												<IconSymbol
-													name="camera"
-													size={20}
-													color={StatusColors.neutral}
-												/>
-											}
-										/>
-									)}
-
-									{/* Printer Status with supply levels */}
-									{boothDetail.hardware?.printer ? (
-										<StatusCard
-											title="Printer"
-											status={mapPrinterStatus(
-												boothDetail.hardware.printer.status,
-											)}
-											subtitle={
-												boothDetail.hardware.printer.model ??
-												boothDetail.hardware.printer.name ??
-												"Unknown"
-											}
-											progress={
-												boothDetail.hardware.printer.paper_percent ?? undefined
-											}
-											progressLabel="Paper"
-											secondaryProgress={
-												boothDetail.hardware.printer.ink_percent ?? undefined
-											}
-											secondaryProgressLabel="Ink"
-											infoText={
-												boothDetail.hardware.printer.error ??
-												`~${boothDetail.hardware.printer.prints_remaining} prints remaining`
-											}
-											icon={
-												<IconSymbol
-													name="printer"
-													size={20}
-													color={getPrinterStatusColor(
-														boothDetail.hardware.printer.status,
-													)}
-												/>
-											}
-										/>
-									) : (
-										<StatusCard
-											title="Printer"
-											status="unknown"
-											subtitle="Not connected"
-											infoText="No printer data available"
-											icon={
-												<IconSymbol
-													name="printer"
-													size={20}
-													color={StatusColors.neutral}
-												/>
-											}
-										/>
-									)}
-
-									{/* Payment Controller Status */}
-									{boothDetail.hardware?.payment_controller ? (
-										<StatusCard
-											title="Payment Controller"
-											status={mapPaymentControllerStatus(
-												boothDetail.hardware.payment_controller.status,
-											)}
-											subtitle={
-												boothDetail.hardware.payment_controller.payment_methods
-											}
-											infoText={
-												boothDetail.hardware.payment_controller.error ??
-												`${boothDetail.hardware.payment_controller.transactions_today} transactions today`
-											}
-											icon={
-												<IconSymbol
-													name="creditcard"
-													size={20}
-													color={getPaymentControllerStatusColor(
-														boothDetail.hardware.payment_controller.status,
-													)}
-												/>
-											}
-										/>
-									) : (
-										<StatusCard
-											title="Payment Controller"
-											status="unknown"
-											subtitle="Not connected"
-											infoText="No payment controller data available"
-											icon={
-												<IconSymbol
-													name="creditcard"
-													size={20}
-													color={StatusColors.neutral}
-												/>
-											}
-										/>
-									)}
-								</>
+							{/* Single Booth Mode: Detailed hardware status */}
+							{!isAllMode && boothDetail?.hardware && (
+								<BoothHardwareSection hardware={boothDetail.hardware} />
 							)}
 						</View>
 
@@ -945,96 +474,7 @@ export default function DashboardScreen() {
 						{!isAllMode && boothDetail && (
 							<View style={styles.section}>
 								<SectionHeader title="System Info" />
-
-								<View
-									style={[
-										styles.systemInfoCard,
-										{ backgroundColor: cardBg, borderColor },
-									]}
-								>
-									<View style={styles.systemInfoRow}>
-										<View style={styles.systemInfoItem}>
-											<ThemedText
-												style={[
-													styles.systemInfoLabel,
-													{ color: textSecondary },
-												]}
-											>
-												Booth Uptime
-											</ThemedText>
-											<ThemedText type="defaultSemiBold">
-												{boothDetail.system?.app_uptime_formatted ?? "N/A"}
-											</ThemedText>
-										</View>
-										<View style={styles.systemInfoItem}>
-											<ThemedText
-												style={[
-													styles.systemInfoLabel,
-													{ color: textSecondary },
-												]}
-											>
-												System Uptime
-											</ThemedText>
-											<ThemedText type="defaultSemiBold">
-												{boothDetail.system?.system_uptime_formatted ?? "N/A"}
-											</ThemedText>
-										</View>
-										<View style={styles.systemInfoItem}>
-											<ThemedText
-												style={[
-													styles.systemInfoLabel,
-													{ color: textSecondary },
-												]}
-											>
-												App Version
-											</ThemedText>
-											<ThemedText type="defaultSemiBold">
-												v{boothDetail.system?.app_version ?? "?"}
-											</ThemedText>
-										</View>
-									</View>
-									<View style={styles.systemInfoRow}>
-										<View style={styles.systemInfoItem}>
-											<ThemedText
-												style={[
-													styles.systemInfoLabel,
-													{ color: textSecondary },
-												]}
-											>
-												CPU
-											</ThemedText>
-											<ThemedText type="defaultSemiBold">
-												{boothDetail.system?.cpu_percent?.toFixed(1) ?? 0}%
-											</ThemedText>
-										</View>
-										<View style={styles.systemInfoItem}>
-											<ThemedText
-												style={[
-													styles.systemInfoLabel,
-													{ color: textSecondary },
-												]}
-											>
-												Memory
-											</ThemedText>
-											<ThemedText type="defaultSemiBold">
-												{boothDetail.system?.memory_percent?.toFixed(1) ?? 0}%
-											</ThemedText>
-										</View>
-										<View style={styles.systemInfoItem}>
-											<ThemedText
-												style={[
-													styles.systemInfoLabel,
-													{ color: textSecondary },
-												]}
-											>
-												Disk
-											</ThemedText>
-											<ThemedText type="defaultSemiBold">
-												{boothDetail.system?.disk_percent?.toFixed(1) ?? 0}%
-											</ThemedText>
-										</View>
-									</View>
-								</View>
+								<SystemInfoCard system={boothDetail.system} />
 							</View>
 						)}
 
@@ -1088,7 +528,7 @@ export default function DashboardScreen() {
 									.map((alert) => (
 										<AlertCard
 											key={alert.id}
-											alert={mapApiAlertToAppAlert(alert)}
+											alert={mapBoothAlertToAppAlert(alert)}
 											onPress={() => console.log("Alert pressed:", alert.id)}
 										/>
 									))
@@ -1271,24 +711,6 @@ const styles = StyleSheet.create({
 		height: 40,
 		marginHorizontal: Spacing.md,
 	},
-	systemInfoCard: {
-		padding: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 1,
-	},
-	systemInfoRow: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		marginBottom: Spacing.sm,
-	},
-	systemInfoItem: {
-		flex: 1,
-		alignItems: "center",
-	},
-	systemInfoLabel: {
-		fontSize: 11,
-		marginBottom: 2,
-	},
 	noAlertsCard: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -1299,34 +721,5 @@ const styles = StyleSheet.create({
 	},
 	noAlertsText: {
 		fontSize: 14,
-	},
-	// Hardware Summary Styles (All Booths Mode)
-	hardwareSummaryCard: {
-		padding: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 1,
-		marginBottom: Spacing.sm,
-	},
-	hardwareSummaryHeader: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: Spacing.sm,
-		marginBottom: Spacing.md,
-	},
-	hardwareSummaryRow: {
-		flexDirection: "row",
-		justifyContent: "space-around",
-	},
-	hardwareSummaryItem: {
-		alignItems: "center",
-		gap: 4,
-	},
-	summaryDot: {
-		width: 8,
-		height: 8,
-		borderRadius: 4,
-	},
-	summaryLabel: {
-		fontSize: 11,
 	},
 });

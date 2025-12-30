@@ -41,12 +41,15 @@ import {
 	withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+// Utilities - using shared formatRelativeTime from utils
+import { formatRelativeTime } from "@/utils";
 
 type FilterSeverity = "all" | AlertSeverity;
 type FilterCategory = "all" | AlertCategory;
 
 /**
  * Get icon for alert severity
+ * @see IconSymbol - Available icon names
  */
 function getSeverityIcon(severity: AlertSeverity): string {
 	switch (severity) {
@@ -63,6 +66,7 @@ function getSeverityIcon(severity: AlertSeverity): string {
 
 /**
  * Get color for alert severity
+ * @see StatusColors - Theme status colors
  */
 function getSeverityColor(severity: AlertSeverity): string {
 	switch (severity) {
@@ -75,24 +79,6 @@ function getSeverityColor(severity: AlertSeverity): string {
 		default:
 			return StatusColors.info;
 	}
-}
-
-/**
- * Format relative time (e.g., "2 hours ago")
- */
-function formatRelativeTime(timestamp: string): string {
-	const now = new Date();
-	const date = new Date(timestamp);
-	const diffMs = now.getTime() - date.getTime();
-	const diffMins = Math.floor(diffMs / (1000 * 60));
-	const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-	const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-	if (diffMins < 1) return "Just now";
-	if (diffMins < 60) return `${diffMins}m ago`;
-	if (diffHours < 24) return `${diffHours}h ago`;
-	if (diffDays < 7) return `${diffDays}d ago`;
-	return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 /**
@@ -199,32 +185,25 @@ export default function AlertsScreen() {
 	// Only show refresh indicator when screen is focused (prevents frozen loader)
 	const isRefetching = isFocused && isQueryRefetching;
 
-	const alerts = data?.alerts || [];
+	// Memoize alerts array to prevent useMemo dependency warnings
+	const alerts = useMemo(() => data?.alerts ?? [], [data?.alerts]);
 
 	// Filter alerts locally (API doesn't support multiple filters at once)
 	const filteredAlerts = useMemo(() => {
 		return alerts.filter((alert) => {
-			if (filterSeverity !== "all" && alert.severity !== filterSeverity) {
-				return false;
-			}
-			if (filterCategory !== "all" && alert.category !== filterCategory) {
-				return false;
-			}
+			if (filterSeverity !== "all" && alert.severity !== filterSeverity) return false;
+			if (filterCategory !== "all" && alert.category !== filterCategory) return false;
 			return true;
 		});
 	}, [alerts, filterSeverity, filterCategory]);
 
 	// Count unread alerts by severity
-	const unreadCounts = useMemo(() => {
-		return {
-			critical: alerts.filter((a) => a.severity === "critical" && !a.is_read)
-				.length,
-			warning: alerts.filter((a) => a.severity === "warning" && !a.is_read)
-				.length,
-			info: alerts.filter((a) => a.severity === "info" && !a.is_read).length,
-			total: alerts.filter((a) => !a.is_read).length,
-		};
-	}, [alerts]);
+	const unreadCounts = useMemo(() => ({
+		critical: alerts.filter((a) => a.severity === "critical" && !a.is_read).length,
+		warning: alerts.filter((a) => a.severity === "warning" && !a.is_read).length,
+		info: alerts.filter((a) => a.severity === "info" && !a.is_read).length,
+		total: alerts.filter((a) => !a.is_read).length,
+	}), [alerts]);
 
 	// Severity filter options
 	const severityFilters: {

@@ -1,0 +1,79 @@
+/**
+ * Alert Mapping Utilities
+ *
+ * Transforms API alert types to app Alert types for UI display.
+ * Handles the mapping between different API response structures.
+ *
+ * API Alert Structure:
+ * - type: string (e.g., "printer_error", "low_supplies")
+ * - severity: "critical" | "warning" | "info"
+ * - category: "hardware" | "supplies" | "connectivity" | "sales" | "system"
+ *
+ * App Alert Structure:
+ * - type: "critical" | "warning" | "info" (AlertType)
+ * - category: "hardware" | "supplies" | "connectivity" | "sales" (AlertCategory)
+ */
+
+import type { BoothDetailAlert, DashboardAlert } from "@/api/booths/types";
+import type { Alert as AppAlert } from "@/types/photobooth";
+
+/** Category mapping from API to app (handles "system" → "connectivity") */
+const CATEGORY_MAP: Record<string, AppAlert["category"]> = {
+	hardware: "hardware",
+	supplies: "supplies",
+	connectivity: "connectivity",
+	sales: "sales",
+	system: "connectivity", // Map "system" category to "connectivity"
+};
+
+/**
+ * Maps a single booth's API alert to app Alert type
+ *
+ * Used when displaying alerts from booth detail response.
+ * The API severity becomes the app type, and category is normalized.
+ *
+ * @param apiAlert - Alert from booth detail API response
+ * @returns Normalized Alert for AlertCard component
+ *
+ * @example
+ * const appAlert = mapBoothAlertToAppAlert(apiAlert);
+ * <AlertCard alert={appAlert} />
+ */
+export function mapBoothAlertToAppAlert(apiAlert: BoothDetailAlert): AppAlert {
+	return {
+		id: apiAlert.id,
+		type: apiAlert.severity, // API severity → app type
+		category: CATEGORY_MAP[apiAlert.category] ?? "hardware",
+		title: apiAlert.title,
+		message: apiAlert.message,
+		boothId: apiAlert.booth_id,
+		boothName: apiAlert.booth_name,
+		timestamp: apiAlert.timestamp,
+		isRead: apiAlert.is_read,
+	};
+}
+
+/**
+ * Maps dashboard overview alert to app Alert type
+ *
+ * Used when displaying alerts from aggregated dashboard response.
+ * Structure is the same as booth alerts but defined separately
+ * for type safety and future divergence.
+ *
+ * @param apiAlert - Alert from dashboard overview API response
+ * @returns Normalized Alert for AlertCard component
+ */
+export function mapDashboardAlertToAppAlert(apiAlert: DashboardAlert): AppAlert {
+	return {
+		id: apiAlert.id,
+		type: apiAlert.severity, // API severity → app type
+		category: CATEGORY_MAP[apiAlert.category] ?? "hardware",
+		title: apiAlert.title,
+		message: apiAlert.message,
+		boothId: apiAlert.booth_id,
+		boothName: apiAlert.booth_name,
+		timestamp: apiAlert.timestamp,
+		isRead: apiAlert.is_read,
+	};
+}
+

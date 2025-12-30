@@ -20,17 +20,65 @@ import {
   ScrollView, 
   TouchableOpacity,
   Switch,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import Constants from 'expo-constants';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { CustomHeader } from '@/components/custom-header';
 import { SectionHeader } from '@/components/ui/section-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
+import { AddCreditsModal } from '@/components/credits';
+import { EditProductModal } from '@/components/products';
 import { Spacing, BorderRadius, BRAND_COLOR, withAlpha } from '@/constants/theme';
+import type { Product } from '@/types/photobooth';
+// API hooks for credits, booth details, and alerts
+import { useAlerts } from '@/api/alerts/queries';
+import { useBoothCredits } from '@/api/credits';
+import { 
+  useBoothDetail, 
+  useBoothPricing,
+  useRestartBoothApp,
+  useRestartBoothSystem,
+  useCancelBoothRestart,
+} from '@/api/booths';
+import type { ProductPricingInfo } from '@/api/booths/types';
+// Global booth selection
+import { ALL_BOOTHS_ID, useBoothStore } from '@/stores/booth-store';
 
-// Demo data
-import { DEMO_BOOTHS, DEMO_PRODUCTS, DEMO_CURRENT_CREDITS } from '@/constants/demo-data';
+/**
+ * Map API product key to display info
+ * Keys match API response: PhotoStrips, Photo4x6, SmartphonePrint
+ */
+const PRODUCT_INFO: Record<string, { name: string; description: string }> = {
+  PhotoStrips: { name: 'Photo Strips', description: '2x6 photo strip prints' },
+  Photo4x6: { name: '4x6 Photo', description: 'Standard 4x6 photo prints' },
+  SmartphonePrint: { name: 'Smartphone Print', description: 'Print from phone gallery' },
+};
+
+/**
+ * Convert API pricing to Product format
+ * Uses API keys directly (PhotoStrips, Photo4x6, SmartphonePrint) as IDs
+ */
+function mapPricingToProducts(
+  pricing: Record<string, ProductPricingInfo | undefined> | undefined
+): Product[] {
+  if (!pricing) return [];
+  
+  return Object.entries(pricing)
+    .filter((entry): entry is [string, ProductPricingInfo] => entry[1] !== undefined)
+    .map(([key, info], index) => ({
+      id: key, // Keep API key as-is: PhotoStrips, Photo4x6, SmartphonePrint
+      name: PRODUCT_INFO[key]?.name ?? key,
+      description: PRODUCT_INFO[key]?.description ?? '',
+      basePrice: info.price ?? 0, // Default to 0 if null
+      extraCopyPrice: info.extra_copy_price ?? 0, // Default to 0 if null
+      enabled: true, // API doesn't have enabled flag, default to true
+      popularityRank: index + 1,
+    }));
+}
 
 /**
  * Settings Menu Item Component
@@ -122,199 +170,318 @@ export default function SettingsScreen() {
   const borderColor = useThemeColor({}, 'border');
   const textSecondary = useThemeColor({}, 'textSecondary');
 
-  // State for toggles
-  const [billAcceptorEnabled, setBillAcceptorEnabled] = useState(true);
-  const [cardReaderEnabled, setCardReaderEnabled] = useState(true);
-  const [flashEnabled, setFlashEnabled] = useState(true);
-  const [rfidEnabled, setRfidEnabled] = useState(false);
+  // Fetch alerts for notification badge
+  // @see GET /api/v1/analytics/alerts
+  const { data: alertsData } = useAlerts();
+  const unreadAlerts = React.useMemo(() => {
+    if (!alertsData?.alerts) return 0;
+    return alertsData.alerts.filter((a) => !a.is_read).length;
+  }, [alertsData?.alerts]);
 
-  // Current booth
-  const currentBooth = DEMO_BOOTHS[0];
+  // Navigation handlers
+  const handleNotificationPress = () => {
+    router.push('/(tabs)/alerts');
+  };
 
-  // Format currency
-  const formatCurrency = (amount: number): string => {
+  // Global booth selection from Zustand store
+  const { selectedBoothId } = useBoothStore();
+  
+  // Check if "All Booths" mode is active
+  const isAllBoothsMode = selectedBoothId === ALL_BOOTHS_ID;
+  
+  // Get the actual booth ID (null if "All Booths" mode)
+  const effectiveBoothId = isAllBoothsMode ? null : selectedBoothId;
+
+  // Fetch booth details from API
+  const { data: boothDetail } = useBoothDetail(effectiveBoothId ?? "");
+
+  // Fetch credits from API
+  const { 
+    data: creditsData, 
+    isLoading: isLoadingCredits,
+    refetch: refetchCredits,
+  } = useBoothCredits(effectiveBoothId);
+
+  // Fetch pricing from API
+  const { data: pricingData } = useBoothPricing(effectiveBoothId);
+
+  // State for Add Credits modal
+  const [showAddCreditsModal, setShowAddCreditsModal] = useState(false);
+
+  // State for Edit Product modal
+  const [showEditProductModal, setShowEditProductModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  // Convert API pricing to products (memoized to prevent re-renders)
+  const products = React.useMemo(
+    () => mapPricingToProducts(pricingData?.pricing),
+    [pricingData?.pricing]
+  );
+
+  // Current booth info from API
+  const boothName = boothDetail?.booth_name ?? creditsData?.booth_name ?? "Unknown Booth";
+  const boothAddress = boothDetail?.booth_address ?? "No address";
+  // Derive operation mode from payment controller info (e.g., "Coin + Card" -> "coin")
+  const operationMode = boothDetail?.hardware?.payment_controller?.payment_methods?.toLowerCase().includes('coin') 
+    ? 'Coin Op' 
+    : 'Free Play';
+  const creditsBalance = creditsData?.credit_balance ?? 0;
+
+  // Handle successful credit addition
+  const handleCreditsAdded = (credits: number) => {
+    // Refetch credits to get updated balance from API
+    refetchCredits();
+    Alert.alert(
+      "Credits Added",
+      `Successfully added ${credits.toLocaleString()} credits to ${boothName}.`,
+      [{ text: "OK" }]
+    );
+  };
+
+  // Handle opening product edit modal
+  const handleEditProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setShowEditProductModal(true);
+  };
+
+  // Handle saving product changes - pricing API auto-invalidates the query
+  // so products will refresh automatically
+  const handleSaveProduct = () => {
+    // Products will refresh via React Query invalidation
+  };
+
+  // Restart mutations
+  const restartAppMutation = useRestartBoothApp();
+  const restartSystemMutation = useRestartBoothSystem();
+  const cancelRestartMutation = useCancelBoothRestart();
+
+  // Handle restart booth app with confirmation
+  const handleRestartApp = () => {
+    if (!effectiveBoothId) return;
+    
+    Alert.alert(
+      "Restart Booth App",
+      "This will restart the booth software. The booth will be offline for about 30 seconds.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Restart",
+          style: "destructive",
+          onPress: () => {
+            restartAppMutation.mutate(
+              { boothId: effectiveBoothId, delay_seconds: 5, force: false },
+              {
+                onSuccess: (data) => {
+                  Alert.alert("Restart Sent", data.message);
+                },
+                onError: (error) => {
+                  Alert.alert("Error", "Failed to send restart command.");
+                  console.error("[Settings] Restart app error:", error);
+                },
+              }
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle restart system with confirmation
+  const handleRestartSystem = () => {
+    if (!effectiveBoothId) return;
+    
+    Alert.alert(
+      "⚠️ Reboot System",
+      "This will reboot the entire PC. The booth will be offline for several minutes. Are you sure?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reboot",
+          style: "destructive",
+          onPress: () => {
+            restartSystemMutation.mutate(
+              { boothId: effectiveBoothId, delay_seconds: 15, force: false },
+              {
+                onSuccess: (data) => {
+                  Alert.alert("Reboot Sent", data.message);
+                },
+                onError: (error) => {
+                  Alert.alert("Error", "Failed to send reboot command.");
+                  console.error("[Settings] Restart system error:", error);
+                },
+              }
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle cancel restart
+  const handleCancelRestart = () => {
+    if (!effectiveBoothId) return;
+    
+    cancelRestartMutation.mutate(
+      { boothId: effectiveBoothId },
+      {
+        onSuccess: (data) => {
+          Alert.alert("Cancelled", data.message);
+        },
+        onError: (error) => {
+          Alert.alert("Error", "Failed to cancel restart.");
+          console.error("[Settings] Cancel restart error:", error);
+        },
+      }
+    );
+  };
+
+  // Format currency with null safety
+  const formatCurrency = (amount: number | null | undefined): string => {
+    if (amount == null) return '$0.00';
     return `$${amount.toFixed(2)}`;
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
-      <CustomHeader title="Settings" />
+      <CustomHeader 
+        title="Settings" 
+        onNotificationPress={handleNotificationPress}
+        notificationCount={unreadAlerts}
+      />
 
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Current Booth Info */}
-        <View style={styles.section}>
-          <SectionHeader 
-            title="Current Booth" 
-            subtitle={currentBooth.name}
-          />
-          
-          <SettingsItem
-            icon="photo.stack"
-            title={currentBooth.name}
-            subtitle={currentBooth.location}
-            value={currentBooth.operationMode === 'coin' ? 'Coin Op' : 'Free Play'}
-            onPress={() => console.log('Edit booth info')}
-          />
-        </View>
-
-        {/* Credits Management */}
-        <View style={styles.section}>
-          <SectionHeader 
-            title="Credits" 
-            subtitle="Manage booth credits"
-          />
-          
-          <View style={[styles.creditsCard, { backgroundColor: cardBg, borderColor }]}>
-            <View style={styles.creditsHeader}>
-              <ThemedText style={[styles.creditsLabel, { color: textSecondary }]}>
-                Current Balance
+        {/* All Booths Mode Notice */}
+        {isAllBoothsMode && (
+          <View style={[styles.allBoothsNotice, { backgroundColor: withAlpha(BRAND_COLOR, 0.1), borderColor: BRAND_COLOR }]}>
+            <IconSymbol name="info.circle" size={20} color={BRAND_COLOR} />
+            <View style={styles.allBoothsNoticeContent}>
+              <ThemedText type="defaultSemiBold">All Booths Mode</ThemedText>
+              <ThemedText style={[styles.allBoothsNoticeText, { color: textSecondary }]}>
+                Select a specific booth from the Booths tab to access booth-specific settings like credits, pricing, and hardware.
               </ThemedText>
-              <ThemedText type="title" style={[styles.creditsValue, { color: BRAND_COLOR }]}>
-                {DEMO_CURRENT_CREDITS.balance}
-              </ThemedText>
-              <ThemedText style={[styles.creditsUnit, { color: textSecondary }]}>
-                credits
-              </ThemedText>
-            </View>
-            <View style={styles.creditsActions}>
-              <TouchableOpacity 
-                style={[styles.creditButton, { backgroundColor: BRAND_COLOR }]}
-                onPress={() => console.log('Add credits')}
-              >
-                <IconSymbol name="plus" size={18} color="white" />
-                <ThemedText style={styles.creditButtonText}>Add Credits</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.creditButton, { backgroundColor: withAlpha(BRAND_COLOR, 0.15) }]}
-                onPress={() => console.log('View history')}
-              >
-                <IconSymbol name="clock" size={18} color={BRAND_COLOR} />
-                <ThemedText style={[styles.creditButtonText, { color: BRAND_COLOR }]}>History</ThemedText>
-              </TouchableOpacity>
             </View>
           </View>
-        </View>
+        )}
 
-        {/* Products & Pricing */}
-        <View style={styles.section}>
-          <SectionHeader 
-            title="Products & Pricing" 
-            subtitle="Configure available products"
-          />
-          
-          {DEMO_PRODUCTS.map((product) => (
-            <SettingsItem
-              key={product.id}
-              icon="photo"
-              title={product.name}
-              subtitle={product.description}
-              value={formatCurrency(product.basePrice)}
-              onPress={() => console.log('Edit product:', product.id)}
+        {/* Current Booth Info - Hidden in All Booths mode */}
+        {!isAllBoothsMode && (
+          <View style={styles.section}>
+            <SectionHeader 
+              title="Current Booth" 
+              subtitle={boothName}
             />
-          ))}
-        </View>
+            
+            <SettingsItem
+              icon="photo.stack"
+              title={boothName}
+              subtitle={boothAddress}
+              value={operationMode}
+              onPress={() => console.log('Edit booth info')}
+            />
+          </View>
+        )}
 
-        {/* Payment Settings */}
-        <View style={styles.section}>
-          <SectionHeader 
-            title="Payment Settings" 
-            subtitle="Configure payment methods"
-          />
-          
-          <SettingsItem
-            icon="dollarsign.circle"
-            title="Pulses Per Credit"
-            value="4"
-            onPress={() => console.log('Edit pulses')}
-          />
-          
-          <SettingsItem
-            icon="creditcard"
-            title="Bill Acceptor"
-            subtitle="Accept paper bills"
-            showSwitch
-            showArrow={false}
-            switchValue={billAcceptorEnabled}
-            onSwitchChange={setBillAcceptorEnabled}
-          />
-          
-          <SettingsItem
-            icon="creditcard"
-            title="Card Reader"
-            subtitle="Accept credit/debit cards"
-            showSwitch
-            showArrow={false}
-            switchValue={cardReaderEnabled}
-            onSwitchChange={setCardReaderEnabled}
-          />
-        </View>
+        {/* Credits Management - Hidden in All Booths mode */}
+        {!isAllBoothsMode && (
+          <View style={styles.section}>
+            <SectionHeader 
+              title="Credits" 
+              subtitle="Manage booth credits"
+            />
+            
+            <View style={[styles.creditsCard, { backgroundColor: cardBg, borderColor }]}>
+              <View style={styles.creditsHeader}>
+                <ThemedText style={[styles.creditsLabel, { color: textSecondary }]}>
+                  {boothName} Balance
+                </ThemedText>
+                {isLoadingCredits ? (
+                  <ThemedText type="title" style={[styles.creditsValue, { color: textSecondary }]}>
+                    Loading...
+                  </ThemedText>
+                ) : (
+                  <ThemedText type="title" style={[styles.creditsValue, { color: BRAND_COLOR }]}>
+                    {creditsBalance.toLocaleString()}
+                  </ThemedText>
+                )}
+                <ThemedText style={[styles.creditsUnit, { color: textSecondary }]}>
+                  credits
+                </ThemedText>
+              </View>
+              <View style={styles.creditsActions}>
+                <TouchableOpacity 
+                  style={[styles.creditButton, { backgroundColor: BRAND_COLOR }]}
+                  onPress={() => setShowAddCreditsModal(true)}
+                >
+                  <IconSymbol name="plus" size={18} color="white" />
+                  <ThemedText style={styles.creditButtonText}>Add Credits</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.creditButton, { backgroundColor: withAlpha(BRAND_COLOR, 0.15) }]}
+                  onPress={() => router.push('/credits/history')}
+                >
+                  <IconSymbol name="clock" size={18} color={BRAND_COLOR} />
+                  <ThemedText style={[styles.creditButtonText, { color: BRAND_COLOR }]}>History</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
 
-        {/* Hardware Settings */}
-        <View style={styles.section}>
-          <SectionHeader 
-            title="Hardware Settings" 
-            subtitle="Camera and printer options"
-          />
-          
-          <SettingsItem
-            icon="bolt"
-            title="Flash"
-            subtitle="Enable camera flash"
-            showSwitch
-            showArrow={false}
-            switchValue={flashEnabled}
-            onSwitchChange={setFlashEnabled}
-          />
-          
-          <SettingsItem
-            icon="wifi"
-            title="RFID Reader"
-            subtitle="Enable RFID card detection"
-            showSwitch
-            showArrow={false}
-            switchValue={rfidEnabled}
-            onSwitchChange={setRfidEnabled}
-          />
-          
-          <SettingsItem
-            icon="printer"
-            title="Prints Per Roll"
-            value="200"
-            onPress={() => console.log('Edit prints per roll')}
-          />
-        </View>
+        {/* Products & Pricing - Hidden in All Booths mode */}
+        {!isAllBoothsMode && (
+          <View style={styles.section}>
+            <SectionHeader 
+              title="Products & Pricing" 
+              subtitle="Configure available products"
+            />
+            
+            {products.map((product) => (
+              <SettingsItem
+                key={product.id}
+                icon="photo"
+                title={product.name}
+                subtitle={product.enabled ? product.description : "Disabled"}
+                value={formatCurrency(product.basePrice)}
+                onPress={() => handleEditProduct(product)}
+              />
+            ))}
+          </View>
+        )}
 
-        {/* System Actions */}
-        <View style={styles.section}>
-          <SectionHeader 
-            title="System Actions" 
-            subtitle="Remote control options"
-          />
-          
-          <SettingsItem
-            icon="arrow.clockwise"
-            title="Sync Settings"
-            subtitle="Push settings to booth"
-            onPress={() => console.log('Sync settings')}
-          />
-          
-          <SettingsItem
-            icon="bolt"
-            title="Restart Booth"
-            subtitle="Remotely restart the booth software"
-            onPress={() => console.log('Restart booth')}
-          />
-          
-          <SettingsItem
-            icon="doc.text"
-            title="View Logs"
-            subtitle="View system and error logs"
-            onPress={() => console.log('View logs')}
-          />
-        </View>
+
+        {/* System Actions - Hidden in All Booths mode */}
+        {!isAllBoothsMode && (
+          <View style={styles.section}>
+            <SectionHeader 
+              title="System Actions" 
+              subtitle="Remote control options"
+            />
+            
+            <SettingsItem
+              icon="arrow.clockwise"
+              title="Restart Booth App"
+              subtitle={restartAppMutation.isPending ? "Sending..." : "Restart the booth software"}
+              onPress={handleRestartApp}
+            />
+            
+            <SettingsItem
+              icon="power"
+              title="Reboot System"
+              subtitle={restartSystemMutation.isPending ? "Sending..." : "Reboot the entire PC"}
+              onPress={handleRestartSystem}
+            />
+            
+            <SettingsItem
+              icon="xmark.circle"
+              title="Cancel Restart"
+              subtitle={cancelRestartMutation.isPending ? "Sending..." : "Cancel pending restart"}
+              onPress={handleCancelRestart}
+            />
+          </View>
+        )}
 
         {/* App Info */}
         <View style={styles.section}>
@@ -325,26 +492,46 @@ export default function SettingsScreen() {
           <SettingsItem
             icon="info.circle"
             title="App Version"
-            value="1.0.0"
+            value={Constants.expoConfig?.version ?? '1.0.0'}
             showArrow={false}
           />
           
           <SettingsItem
             icon="doc.text"
             title="Terms of Service"
-            onPress={() => console.log('Terms')}
+            onPress={() => router.push('/legal/terms')}
           />
           
           <SettingsItem
-            icon="doc.text"
+            icon="lock.shield"
             title="Privacy Policy"
-            onPress={() => console.log('Privacy')}
+            onPress={() => router.push('/legal/privacy')}
           />
         </View>
 
         {/* Bottom spacing */}
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
+
+      {/* Add Credits Modal */}
+      <AddCreditsModal
+        visible={showAddCreditsModal}
+        boothId={effectiveBoothId}
+        onClose={() => setShowAddCreditsModal(false)}
+        onSuccess={handleCreditsAdded}
+      />
+
+      {/* Edit Product Modal */}
+      <EditProductModal
+        visible={showEditProductModal}
+        boothId={effectiveBoothId}
+        product={selectedProduct}
+        onClose={() => {
+          setShowEditProductModal(false);
+          setSelectedProduct(null);
+        }}
+        onSave={handleSaveProduct}
+      />
     </SafeAreaView>
   );
 }
@@ -434,5 +621,23 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  // All Booths Mode Notice
+  allBoothsNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    marginTop: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  allBoothsNoticeContent: {
+    flex: 1,
+  },
+  allBoothsNoticeText: {
+    fontSize: 13,
+    marginTop: 4,
+    lineHeight: 18,
   },
 });

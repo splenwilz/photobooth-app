@@ -1,20 +1,28 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createMutationHook } from "../utils/query-helpers";
 import { queryKeys } from "../utils/query-keys";
 import {
+	cancelBoothRestart,
 	createBooth,
 	getBoothDetail,
 	getBoothList,
 	getBoothOverview,
+	getBoothPricing,
 	getDashboardOverview,
+	restartBoothApp,
+	restartBoothSystem,
+	updateBoothPricing,
 } from "./services";
 import type {
 	BoothDetailResponse,
 	BoothListResponse,
 	BoothOverviewResponse,
+	BoothPricingResponse,
 	CreateBoothRequest,
 	CreateBoothResponse,
 	DashboardOverviewResponse,
+	RestartRequest,
+	UpdatePricingRequest,
 } from "./types";
 
 /**
@@ -149,5 +157,138 @@ export function useDashboardOverview(options?: { enabled?: boolean }) {
 		queryFn: getDashboardOverview,
 		staleTime: 60000, // 1 minute
 		enabled: options?.enabled ?? true,
+	});
+}
+
+/**
+ * Hook to fetch booth pricing
+ * Gets current product prices for a booth
+ *
+ * Usage:
+ * ```tsx
+ * const { data, isLoading } = useBoothPricing('booth-123');
+ * console.log(data?.pricing.PhotoStrips.price);
+ * ```
+ *
+ * @param boothId - The booth ID to fetch pricing for
+ * @returns React Query result with pricing data
+ * @see GET /api/v1/booths/{booth_id}/pricing
+ */
+export function useBoothPricing(boothId: string | null) {
+	return useQuery<BoothPricingResponse>({
+		queryKey: queryKeys.booths.pricing(boothId ?? ''),
+		queryFn: () => getBoothPricing(boothId!),
+		enabled: !!boothId,
+		staleTime: 60000, // 1 minute
+	});
+}
+
+/**
+ * Hook to update booth pricing
+ * Sends pricing command to booth via WebSocket
+ *
+ * Usage:
+ * ```tsx
+ * const { mutate: updatePricing, isPending } = useUpdatePricing();
+ *
+ * updatePricing({
+ *   boothId: 'booth-123',
+ *   photo_strips_price: 15,
+ *   photo_4x6_price: 16,
+ *   reason: 'Price adjustment'
+ * }, {
+ *   onSuccess: (data) => console.log('Updated:', data.status),
+ * });
+ * ```
+ *
+ * @returns React Query mutation for pricing updates
+ * @see PUT /api/v1/booths/{booth_id}/pricing
+ */
+export function useUpdatePricing() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			boothId,
+			...pricingData
+		}: { boothId: string } & UpdatePricingRequest) =>
+			updateBoothPricing(boothId, pricingData),
+		onSuccess: (_, variables) => {
+			// Invalidate pricing query to refresh prices
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.pricing(variables.boothId),
+			});
+			// Invalidate booth detail to refresh pricing info
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.detail(variables.boothId),
+			});
+		},
+	});
+}
+
+// ============================================================================
+// RESTART HOOKS
+// ============================================================================
+
+/**
+ * Hook to restart the booth application
+ *
+ * Usage:
+ * ```tsx
+ * const { mutate: restartApp, isPending } = useRestartBoothApp();
+ * restartApp({ boothId: 'booth-123', delay_seconds: 5 });
+ * ```
+ *
+ * @returns React Query mutation for app restart
+ * @see POST /api/v1/booths/{booth_id}/restart-app
+ */
+export function useRestartBoothApp() {
+	return useMutation({
+		mutationFn: ({
+			boothId,
+			...restartData
+		}: { boothId: string } & RestartRequest) =>
+			restartBoothApp(boothId, restartData),
+	});
+}
+
+/**
+ * Hook to restart the booth system (PC reboot)
+ *
+ * Usage:
+ * ```tsx
+ * const { mutate: restartSystem, isPending } = useRestartBoothSystem();
+ * restartSystem({ boothId: 'booth-123', delay_seconds: 15 });
+ * ```
+ *
+ * @returns React Query mutation for system restart
+ * @see POST /api/v1/booths/{booth_id}/restart-system
+ */
+export function useRestartBoothSystem() {
+	return useMutation({
+		mutationFn: ({
+			boothId,
+			...restartData
+		}: { boothId: string } & RestartRequest) =>
+			restartBoothSystem(boothId, restartData),
+	});
+}
+
+/**
+ * Hook to cancel a pending restart command
+ *
+ * Usage:
+ * ```tsx
+ * const { mutate: cancelRestart, isPending } = useCancelBoothRestart();
+ * cancelRestart({ boothId: 'booth-123' });
+ * ```
+ *
+ * @returns React Query mutation for cancel restart
+ * @see POST /api/v1/booths/{booth_id}/cancel-restart
+ */
+export function useCancelBoothRestart() {
+	return useMutation({
+		mutationFn: ({ boothId }: { boothId: string }) =>
+			cancelBoothRestart(boothId),
 	});
 }

@@ -416,3 +416,10 @@ export const DEMO_CURRENT_CREDITS = {
 	balance: 350,
 	lastUpdated: new Date().toISOString(),
 };
+
+/**
+ * Quick add credit amounts
+ * Used in Add Credits modal - admin adds credits to booth
+ * 1 credit = $1
+ */
+export const QUICK_CREDIT_AMOUNTS = [50, 100, 250, 500, 1000];
