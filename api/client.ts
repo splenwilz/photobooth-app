@@ -2,10 +2,11 @@ import * as SecureStore from 'expo-secure-store'
 import type { AuthUser } from './auth/types'
 import { queryClient } from './query-client'
 
-const ACCESS_TOKEN_KEY = 'auth_access_token'
-const REFRESH_TOKEN_KEY = 'auth_refresh_token'
-const USER_STORAGE_KEY = 'auth_user'
-const PENDING_PASSWORD_KEY = 'auth_pending_password'
+// SecureStore keys - exported for use in clear data functionality
+export const ACCESS_TOKEN_KEY = 'auth_access_token'
+export const REFRESH_TOKEN_KEY = 'auth_refresh_token'
+export const USER_STORAGE_KEY = 'auth_user'
+export const PENDING_PASSWORD_KEY = 'auth_pending_password'
 
 /**
  * Custom error class for API errors with status code and parsed error message

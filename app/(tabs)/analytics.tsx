@@ -14,21 +14,21 @@
  * @see GET /api/v1/analytics/revenue/dashboard - API endpoint
  */
 
-import React, { useState, useMemo } from "react";
+import { useIsFocused } from "@react-navigation/native";
+import { router } from "expo-router";
+import React, { useMemo, useState } from "react";
 import {
-	StyleSheet,
-	View,
-	ScrollView,
-	TouchableOpacity,
 	ActivityIndicator,
 	RefreshControl,
+	ScrollView,
+	StyleSheet,
+	TouchableOpacity,
+	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { useIsFocused } from "@react-navigation/native";
 // API hooks for real data
 import { useAlerts } from "@/api/alerts/queries";
-import { useRevenueDashboard, useBoothRevenue } from "@/api/analytics/queries";
+import { useBoothRevenue, useRevenueDashboard } from "@/api/analytics/queries";
 import type { RecentTransaction } from "@/api/analytics/types";
 import { CustomHeader } from "@/components/custom-header";
 import { ThemedText } from "@/components/themed-text";
@@ -39,9 +39,9 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { SimpleBarChart } from "@/components/ui/simple-bar-chart";
 import { StatCard } from "@/components/ui/stat-card";
 import {
-	Spacing,
 	BorderRadius,
 	BRAND_COLOR,
+	Spacing,
 	StatusColors,
 	withAlpha,
 } from "@/constants/theme";
@@ -49,7 +49,11 @@ import { useThemeColor } from "@/hooks/use-theme-color";
 // Global booth selection store
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 // Utilities - extracted for separation of concerns
-import { formatCurrency, formatProductName, formatPaymentMethod } from "@/utils";
+import {
+	formatCurrency,
+	formatPaymentMethod,
+	formatProductName,
+} from "@/utils";
 
 type ChartPeriod = "week" | "month";
 
@@ -132,7 +136,9 @@ export default function AnalyticsScreen() {
 	// Only true if:
 	// 1. Screen is focused (prevents frozen loader when navigating between tabs)
 	// 2. The ACTIVE query is refetching (prevents stale state from disabled queries)
-	const isRefetching = isFocused && ((isAllMode && isRefetchingAll) || (!isAllMode && isRefetchingBooth));
+	const isRefetching =
+		isFocused &&
+		((isAllMode && isRefetchingAll) || (!isAllMode && isRefetchingBooth));
 
 	// State for chart period toggle
 	const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("week");
@@ -153,7 +159,6 @@ export default function AnalyticsScreen() {
 		return Math.max(maxAmount * 1.1, 1);
 	}, [chartData]);
 
-
 	// Format time
 	const formatTime = (timestamp: string): string => {
 		const date = new Date(timestamp);
@@ -166,9 +171,12 @@ export default function AnalyticsScreen() {
 	// Loading state
 	if (isLoading) {
 		return (
-			<SafeAreaView style={[styles.container, { backgroundColor }]} edges={["top"]}>
-				<CustomHeader 
-					title="Analytics" 
+			<SafeAreaView
+				style={[styles.container, { backgroundColor }]}
+				edges={["top"]}
+			>
+				<CustomHeader
+					title="Analytics"
 					onNotificationPress={handleNotificationPress}
 					notificationCount={unreadAlerts}
 				/>
@@ -185,9 +193,12 @@ export default function AnalyticsScreen() {
 	// Error state
 	if (error) {
 		return (
-			<SafeAreaView style={[styles.container, { backgroundColor }]} edges={["top"]}>
-				<CustomHeader 
-					title="Analytics" 
+			<SafeAreaView
+				style={[styles.container, { backgroundColor }]}
+				edges={["top"]}
+			>
+				<CustomHeader
+					title="Analytics"
 					onNotificationPress={handleNotificationPress}
 					notificationCount={unreadAlerts}
 				/>
@@ -222,12 +233,16 @@ export default function AnalyticsScreen() {
 	const transactions = dashboardData?.recent_transactions?.data || [];
 
 	// Get booth name for display (only available in single booth mode)
-	const boothName = !isAllMode && boothData?.booth_name ? boothData.booth_name : null;
+	const boothName =
+		!isAllMode && boothData?.booth_name ? boothData.booth_name : null;
 
 	return (
-		<SafeAreaView style={[styles.container, { backgroundColor }]} edges={["top"]}>
-			<CustomHeader 
-				title="Analytics" 
+		<SafeAreaView
+			style={[styles.container, { backgroundColor }]}
+			edges={["top"]}
+		>
+			<CustomHeader
+				title="Analytics"
 				onNotificationPress={handleNotificationPress}
 				notificationCount={unreadAlerts}
 			/>
@@ -247,7 +262,11 @@ export default function AnalyticsScreen() {
 				<View style={styles.section}>
 					<SectionHeader
 						title="Revenue Overview"
-						subtitle={isAllMode ? "All booths combined" : boothName ?? "Selected booth"}
+						subtitle={
+							isAllMode
+								? "All booths combined"
+								: (boothName ?? "Selected booth")
+						}
 					/>
 
 					<View style={styles.statsGrid}>
@@ -284,9 +303,7 @@ export default function AnalyticsScreen() {
 				<View style={styles.section}>
 					<SectionHeader
 						title={chartPeriod === "week" ? "Daily Revenue" : "Monthly Revenue"}
-						subtitle={
-							chartPeriod === "week" ? "Last 7 days" : "Last 12 months"
-						}
+						subtitle={chartPeriod === "week" ? "Last 7 days" : "Last 12 months"}
 						rightAction={
 							<View style={styles.chartToggle}>
 								<TouchableOpacity
@@ -299,7 +316,9 @@ export default function AnalyticsScreen() {
 									<ThemedText
 										style={[
 											styles.chartToggleText,
-											{ color: chartPeriod === "week" ? "white" : textSecondary },
+											{
+												color: chartPeriod === "week" ? "white" : textSecondary,
+											},
 										]}
 									>
 										Week
@@ -316,7 +335,8 @@ export default function AnalyticsScreen() {
 										style={[
 											styles.chartToggleText,
 											{
-												color: chartPeriod === "month" ? "white" : textSecondary,
+												color:
+													chartPeriod === "month" ? "white" : textSecondary,
 											},
 										]}
 									>
@@ -327,7 +347,9 @@ export default function AnalyticsScreen() {
 						}
 					/>
 
-					<View style={[styles.chartCard, { backgroundColor: cardBg, borderColor }]}>
+					<View
+						style={[styles.chartCard, { backgroundColor: cardBg, borderColor }]}
+					>
 						{chartData.length > 0 ? (
 							<SimpleBarChart
 								data={chartData}
@@ -347,10 +369,7 @@ export default function AnalyticsScreen() {
 
 				{/* Revenue Breakdown - Using extracted BreakdownCard component */}
 				<View style={styles.section}>
-					<SectionHeader
-						title="Revenue Breakdown"
-						subtitle="By product type"
-					/>
+					<SectionHeader title="Revenue Breakdown" subtitle="By product type" />
 					<BreakdownCard
 						items={byProduct}
 						formatLabel={formatProductName}
@@ -462,9 +481,16 @@ export default function AnalyticsScreen() {
 							);
 						})
 					) : (
-						<View style={[styles.emptyTransactions, { backgroundColor: cardBg, borderColor }]}>
+						<View
+							style={[
+								styles.emptyTransactions,
+								{ backgroundColor: cardBg, borderColor },
+							]}
+						>
 							<IconSymbol name="doc.text" size={32} color={textSecondary} />
-							<ThemedText style={{ color: textSecondary, marginTop: Spacing.sm }}>
+							<ThemedText
+								style={{ color: textSecondary, marginTop: Spacing.sm }}
+							>
 								No transactions yet
 							</ThemedText>
 						</View>
