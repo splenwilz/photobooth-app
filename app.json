@@ -1,5 +1,6 @@
 {
   "expo": {
+    "owner": "photoboothx",
     "name": "photobooth-app",
     "slug": "photobooth-app",
     "version": "1.0.0",
