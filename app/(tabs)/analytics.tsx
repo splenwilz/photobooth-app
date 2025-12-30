@@ -88,6 +88,7 @@ export default function AnalyticsScreen() {
 
 	// Fetch alerts for notification badge
 	// @see GET /api/v1/analytics/alerts
+	// Error handling: If alerts fail to load, badge will show 0 (non-critical)
 	const { data: alertsData } = useAlerts();
 	const unreadAlerts = useMemo(() => {
 		if (!alertsData?.alerts) return 0;

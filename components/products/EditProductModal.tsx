@@ -166,7 +166,8 @@ export function EditProductModal({
 				...product,
 				basePrice: basePriceNum,
 				extraCopyPrice: extraCopyPriceNum,
-				enabled: true, // Products are always enabled (API doesn't support disabling)
+				// Preserve original enabled state (API doesn't support changing enabled status)
+				enabled: product.enabled,
 			};
 
 			Alert.alert(
@@ -490,23 +491,6 @@ const styles = StyleSheet.create({
 	inputHint: {
 		fontSize: 12,
 		marginTop: Spacing.xs,
-	},
-	toggleCard: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		padding: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 1,
-		marginBottom: Spacing.lg,
-	},
-	toggleContent: {
-		flex: 1,
-		marginRight: Spacing.md,
-	},
-	toggleDesc: {
-		fontSize: 12,
-		marginTop: 2,
 	},
 	previewCard: {
 		padding: Spacing.md,
