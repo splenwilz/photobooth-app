@@ -123,7 +123,7 @@ export default function DashboardScreen() {
 	// Fetch alerts for notification badge - uses same API as other screens
 	// @see GET /api/v1/analytics/alerts
 	const { data: alertsData } = useAlerts();
-	const unreadAlerts = alertsData?.alerts?.filter((a) => !a.is_read).length ?? 0;
+	const unreadAlerts = alertsData?.alerts?.filter((a) => !a.isRead).length ?? 0;
 
 	// Get revenue stats for selected period - works for both modes
 	const revenueStats = isAllMode

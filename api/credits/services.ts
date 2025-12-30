@@ -81,8 +81,8 @@ export async function getCreditsHistory(
 ): Promise<CreditsHistoryResponse> {
 	// Build query string for pagination
 	const queryParams = new URLSearchParams();
-	if (params?.limit) queryParams.append("limit", params.limit.toString());
-	if (params?.offset) queryParams.append("offset", params.offset.toString());
+	if (params?.limit !== undefined) queryParams.append("limit", params.limit.toString());
+	if (params?.offset !== undefined) queryParams.append("offset", params.offset.toString());
 
 	const queryString = queryParams.toString();
 	const url = `/api/v1/booths/${boothId}/credits/history${queryString ? `?${queryString}` : ""}`;

@@ -137,8 +137,11 @@ export const queryKeys = {
 
     /**
      * Get credit history for a booth
+     * @param boothId - The booth ID
+     * @param params - Optional pagination params (limit, offset)
      */
-    history: (boothId: string) => ['credits', 'history', boothId] as const,
+    history: (boothId: string, params?: { limit?: number; offset?: number }) => 
+      ['credits', 'history', boothId, params] as const,
   },
 } as const;
 

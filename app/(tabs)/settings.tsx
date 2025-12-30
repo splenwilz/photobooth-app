@@ -175,7 +175,7 @@ export default function SettingsScreen() {
   const { data: alertsData } = useAlerts();
   const unreadAlerts = React.useMemo(() => {
     if (!alertsData?.alerts) return 0;
-    return alertsData.alerts.filter((a) => !a.is_read).length;
+    return alertsData.alerts.filter((a) => !a.isRead).length;
   }, [alertsData?.alerts]);
 
   // Navigation handlers

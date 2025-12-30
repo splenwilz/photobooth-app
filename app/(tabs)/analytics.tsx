@@ -91,7 +91,7 @@ export default function AnalyticsScreen() {
 	const { data: alertsData } = useAlerts();
 	const unreadAlerts = useMemo(() => {
 		if (!alertsData?.alerts) return 0;
-		return alertsData.alerts.filter((a) => !a.is_read).length;
+		return alertsData.alerts.filter((a) => !a.isRead).length;
 	}, [alertsData?.alerts]);
 
 	// Navigation handlers

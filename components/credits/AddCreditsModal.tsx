@@ -329,7 +329,7 @@ export function AddCreditsModal({
 											<ThemedText
 												style={[styles.customDollar, { color: BRAND_COLOR }]}
 											>
-												${parseInt(customAmount, 10).toLocaleString() || 0}
+												${(parseInt(customAmount, 10) || 0).toLocaleString()}
 											</ThemedText>
 										)}
 									</View>

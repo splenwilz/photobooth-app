@@ -23,7 +23,7 @@ import type { CreditsHistoryParams } from "./types";
  */
 export function useBoothCredits(boothId: string | null) {
 	return useQuery({
-		queryKey: queryKeys.credits.balance(boothId ?? ""),
+		queryKey: boothId ? queryKeys.credits.balance(boothId) : ['credits', 'balance', null],
 		queryFn: () => getBoothCredits(boothId!),
 		enabled: !!boothId,
 		staleTime: 30 * 1000, // 30 seconds
@@ -59,9 +59,10 @@ export function useAddCredits() {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.credits.balance(variables.boothId),
 			});
-			// Invalidate history to show new command
+			// Invalidate all history queries for this booth (regardless of pagination params)
+			// Using partial key to match all history queries with different params
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.credits.history(variables.boothId),
+				queryKey: ['credits', 'history', variables.boothId],
 			});
 			// Also invalidate booth detail as it may show credit info
 			queryClient.invalidateQueries({
@@ -87,7 +88,9 @@ export function useCreditsHistory(
 	params?: CreditsHistoryParams,
 ) {
 	return useQuery({
-		queryKey: queryKeys.credits.history(boothId ?? ""),
+		queryKey: boothId 
+			? queryKeys.credits.history(boothId, params)
+			: ['credits', 'history', null, params],
 		queryFn: () => getCreditsHistory(boothId!, params),
 		enabled: !!boothId,
 		staleTime: 30 * 1000, // 30 seconds
@@ -111,7 +114,9 @@ export function useCreditsHistoryInfinite(
 	const limit = params?.limit ?? 20;
 
 	return useInfiniteQuery({
-		queryKey: [...queryKeys.credits.history(boothId ?? ""), "infinite"],
+		queryKey: boothId 
+			? [...queryKeys.credits.history(boothId, { limit }), "infinite"]
+			: ['credits', 'history', null, { limit }, 'infinite'],
 		queryFn: ({ pageParam = 0 }) =>
 			getCreditsHistory(boothId!, { limit, offset: pageParam }),
 		enabled: !!boothId,

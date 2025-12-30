@@ -85,16 +85,6 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 	isSelected = false,
 	onPress,
 }) => {
-	// DEBUG: Log the booth status received by BoothCard
-	console.log("[BoothCard] Received booth:", {
-		id: booth.id,
-		name: booth.name,
-		status: booth.status,
-		statusType: typeof booth.status,
-		statusLabel: getStatusLabel(booth.status),
-		statusColor: getStatusColor(booth.status),
-	});
-
 	const cardBg = useThemeColor({}, "card");
 	const borderColor = useThemeColor({}, "border");
 	const textSecondary = useThemeColor({}, "textSecondary");

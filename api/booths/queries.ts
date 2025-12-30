@@ -89,7 +89,7 @@ export function useBoothList() {
  */
 export function useBoothDetail(boothId: string | null) {
 	return useQuery<BoothDetailResponse>({
-		queryKey: queryKeys.booths.detail(boothId ?? ''),
+		queryKey: boothId ? queryKeys.booths.detail(boothId) : ['booths', 'detail', null],
 		queryFn: () => getBoothDetail(boothId!),
 		// Only run query if boothId is provided
 		enabled: !!boothId,
@@ -176,7 +176,7 @@ export function useDashboardOverview(options?: { enabled?: boolean }) {
  */
 export function useBoothPricing(boothId: string | null) {
 	return useQuery<BoothPricingResponse>({
-		queryKey: queryKeys.booths.pricing(boothId ?? ''),
+		queryKey: boothId ? queryKeys.booths.pricing(boothId) : ['booths', 'pricing', null],
 		queryFn: () => getBoothPricing(boothId!),
 		enabled: !!boothId,
 		staleTime: 60000, // 1 minute

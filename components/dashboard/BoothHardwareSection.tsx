@@ -86,7 +86,7 @@ export function BoothHardwareSection({ hardware }: BoothHardwareSectionProps) {
 					secondaryProgressLabel="Ink"
 					infoText={
 						hardware.printer.error ??
-						`~${hardware.printer.prints_remaining} prints remaining`
+						`~${hardware.printer.prints_remaining ?? 0} prints remaining`
 					}
 					icon={
 						<IconSymbol
@@ -114,7 +114,7 @@ export function BoothHardwareSection({ hardware }: BoothHardwareSectionProps) {
 					subtitle={hardware.payment_controller.payment_methods}
 					infoText={
 						hardware.payment_controller.error ??
-						`${hardware.payment_controller.transactions_today} transactions today`
+						`${hardware.payment_controller.transactions_today ?? 0} transactions today`
 					}
 					icon={
 						<IconSymbol

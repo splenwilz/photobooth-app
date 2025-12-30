@@ -15,6 +15,7 @@
  */
 
 import type { BoothDetailAlert, DashboardAlert } from "@/api/booths/types";
+import type { Alert as ApiAlert } from "@/api/alerts/types";
 import type { Alert as AppAlert } from "@/types/photobooth";
 
 /** Category mapping from API to app (handles "system" → "connectivity") */
@@ -68,6 +69,41 @@ export function mapDashboardAlertToAppAlert(apiAlert: DashboardAlert): AppAlert 
 		id: apiAlert.id,
 		type: apiAlert.severity, // API severity → app type
 		category: CATEGORY_MAP[apiAlert.category] ?? "hardware",
+		title: apiAlert.title,
+		message: apiAlert.message,
+		boothId: apiAlert.booth_id,
+		boothName: apiAlert.booth_name,
+		timestamp: apiAlert.timestamp,
+		isRead: apiAlert.is_read,
+	};
+}
+
+/**
+ * Maps alerts API alert to app Alert type
+ *
+ * Used when displaying alerts from the alerts API endpoint.
+ * Transforms snake_case API properties to camelCase app properties.
+ *
+ * @param apiAlert - Alert from alerts API response
+ * @returns Normalized Alert for UI components
+ *
+ * @example
+ * const appAlert = mapAlertsApiAlertToAppAlert(apiAlert);
+ * <AlertCard alert={appAlert} />
+ */
+export function mapAlertsApiAlertToAppAlert(apiAlert: ApiAlert): AppAlert {
+	// Map API category to app category (network → connectivity, revenue → sales)
+	const categoryMap: Record<string, AppAlert["category"]> = {
+		hardware: "hardware",
+		supplies: "supplies",
+		network: "connectivity",
+		revenue: "sales",
+	};
+
+	return {
+		id: apiAlert.id,
+		type: apiAlert.severity, // API severity → app type
+		category: categoryMap[apiAlert.category] ?? "hardware",
 		title: apiAlert.title,
 		message: apiAlert.message,
 		boothId: apiAlert.booth_id,

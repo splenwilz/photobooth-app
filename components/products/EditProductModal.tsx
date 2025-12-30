@@ -2,8 +2,8 @@
  * EditProductModal Component
  *
  * Bottom sheet modal for editing product pricing.
- * Allows changing base price, extra copy price, and enable/disable.
- * Uses PUT /api/v1/booths/{booth_id}/pricing API.
+ * Allows changing base price and extra copy price.
+ * Uses PATCH /api/v1/booths/{booth_id}/pricing API.
  *
  * @see app/(tabs)/settings.tsx - Used in Settings screen
  * @see api/booths/types.ts - UpdatePricingRequest
@@ -30,7 +30,6 @@ import {
 	Platform,
 	ScrollView,
 	StyleSheet,
-	Switch,
 	TextInput,
 	TouchableOpacity,
 	View,
@@ -77,8 +76,9 @@ function buildPricingRequest(
 				smartphone_extra_copy_price: extraCopyPrice,
 			};
 		default:
-			console.warn(`[EditProductModal] Unknown product ID: ${productId}`);
-			return {};
+			throw new Error(
+				`Unknown product ID: ${productId}. Expected one of: PhotoStrips, Photo4x6, SmartphonePrint`,
+			);
 	}
 }
 
@@ -107,7 +107,6 @@ export function EditProductModal({
 	// Form state
 	const [basePrice, setBasePrice] = useState("");
 	const [extraCopyPrice, setExtraCopyPrice] = useState("");
-	const [enabled, setEnabled] = useState(true);
 	const [keyboardHeight, setKeyboardHeight] = useState(0);
 
 	// Initialize form when product changes
@@ -115,7 +114,6 @@ export function EditProductModal({
 		if (product) {
 			setBasePrice(product.basePrice.toString());
 			setExtraCopyPrice(product.extraCopyPrice.toString());
-			setEnabled(product.enabled);
 		}
 	}, [product]);
 
@@ -167,7 +165,7 @@ export function EditProductModal({
 				...product,
 				basePrice: basePriceNum,
 				extraCopyPrice: extraCopyPriceNum,
-				enabled,
+				enabled: true, // Products are always enabled (API doesn't support disabling)
 			};
 
 			Alert.alert(
@@ -326,32 +324,6 @@ export function EditProductModal({
 							<ThemedText style={[styles.inputHint, { color: textSecondary }]}>
 								Price for additional copies of the same photo
 							</ThemedText>
-						</View>
-
-						{/* Enabled Toggle */}
-						<View
-							style={[
-								styles.toggleCard,
-								{ backgroundColor: cardBg, borderColor },
-							]}
-						>
-							<View style={styles.toggleContent}>
-								<ThemedText type="defaultSemiBold">Product Enabled</ThemedText>
-								<ThemedText
-									style={[styles.toggleDesc, { color: textSecondary }]}
-								>
-									{enabled
-										? "Customers can purchase this product"
-										: "Product is hidden from customers"}
-								</ThemedText>
-							</View>
-							<Switch
-								value={enabled}
-								onValueChange={setEnabled}
-								trackColor={{ false: borderColor, true: BRAND_COLOR }}
-								thumbColor="white"
-								disabled={isProcessing}
-							/>
 						</View>
 
 						{/* Price Preview */}

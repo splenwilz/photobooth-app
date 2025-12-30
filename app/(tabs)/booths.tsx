@@ -56,15 +56,6 @@ type FilterStatus = "all" | "online" | "offline";
  * Handles null/undefined fields gracefully
  */
 function mapApiBoothToLocal(apiBooth: BoothOverviewItem): Booth {
-	// DEBUG: Log the raw API response to diagnose status mapping issues
-	console.log("[BoothsScreen] Raw booth data:", {
-		booth_id: apiBooth.booth_id,
-		booth_name: apiBooth.booth_name,
-		booth_status: apiBooth.booth_status,
-		booth_status_type: typeof apiBooth.booth_status,
-		full_response: JSON.stringify(apiBooth, null, 2),
-	});
-
 	// Safely get operation mode - default to 'coin' if null/undefined
 	const operationMode: OperationMode =
 		apiBooth.operation?.mode?.toLowerCase() === "freeplay"
@@ -83,13 +74,6 @@ function mapApiBoothToLocal(apiBooth: BoothOverviewItem): Booth {
 		credits: apiBooth.credits?.balance ?? 0,
 		lastUpdated: apiBooth.last_updated,
 	};
-
-	// DEBUG: Log the mapped result
-	console.log("[BoothsScreen] Mapped booth:", {
-		id: mappedBooth.id,
-		name: mappedBooth.name,
-		status: mappedBooth.status,
-	});
 
 	return mappedBooth;
 }
@@ -121,7 +105,7 @@ export default function BoothsScreen() {
 	const { data: alertsData } = useAlerts();
 	const unreadAlerts = useMemo(() => {
 		if (!alertsData?.alerts) return 0;
-		return alertsData.alerts.filter((a) => !a.is_read).length;
+		return alertsData.alerts.filter((a) => !a.isRead).length;
 	}, [alertsData?.alerts]);
 
 	// Only show refresh indicator when screen is focused (prevents frozen loader)

@@ -32,7 +32,7 @@ export default function TabLayout() {
   // Calculate unread alerts count
   const unreadCount = useMemo(() => {
     if (!alertsData?.alerts) return 0;
-    return alertsData.alerts.filter(alert => !alert.is_read).length;
+    return alertsData.alerts.filter(alert => !alert.isRead).length;
   }, [alertsData?.alerts]);
 
   return (

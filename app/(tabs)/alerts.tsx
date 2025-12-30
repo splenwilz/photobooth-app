@@ -28,7 +28,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 // API hook
 import { useAlerts } from "@/api/alerts/queries";
-import type { Alert, AlertCategory, AlertSeverity } from "@/api/alerts/types";
+import type { AlertSeverity } from "@/api/alerts/types";
 import { CustomHeader } from "@/components/custom-header";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -41,6 +41,7 @@ import {
 	withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import type { Alert, AlertCategory } from "@/types/photobooth";
 // Utilities - using shared formatRelativeTime from utils
 import { formatRelativeTime } from "@/utils";
 
@@ -91,8 +92,8 @@ const AlertCard: React.FC<{
 	textSecondary: string;
 	onPress?: () => void;
 }> = ({ alert, cardBg, borderColor, textSecondary, onPress }) => {
-	const severityColor = getSeverityColor(alert.severity);
-	const severityIcon = getSeverityIcon(alert.severity);
+	const severityColor = getSeverityColor(alert.type);
+	const severityIcon = getSeverityIcon(alert.type);
 
 	return (
 		<TouchableOpacity
@@ -100,8 +101,8 @@ const AlertCard: React.FC<{
 				styles.alertCard,
 				{
 					backgroundColor: cardBg,
-					borderColor: alert.is_read ? borderColor : severityColor,
-					opacity: alert.is_read ? 0.7 : 1,
+					borderColor: alert.isRead ? borderColor : severityColor,
+					opacity: alert.isRead ? 0.7 : 1,
 				},
 			]}
 			onPress={onPress}
@@ -121,14 +122,14 @@ const AlertCard: React.FC<{
 						{alert.title}
 					</ThemedText>
 					<ThemedText style={[styles.alertBooth, { color: textSecondary }]}>
-						{alert.booth_name}
+						{alert.boothName}
 					</ThemedText>
 				</View>
 				<View style={styles.alertMeta}>
 					<ThemedText style={[styles.alertTime, { color: textSecondary }]}>
 						{formatRelativeTime(alert.timestamp)}
 					</ThemedText>
-					{!alert.is_read && (
+					{!alert.isRead && (
 						<View
 							style={[styles.unreadDot, { backgroundColor: severityColor }]}
 						/>
@@ -191,19 +192,24 @@ export default function AlertsScreen() {
 	// Filter alerts locally (API doesn't support multiple filters at once)
 	const filteredAlerts = useMemo(() => {
 		return alerts.filter((alert) => {
-			if (filterSeverity !== "all" && alert.severity !== filterSeverity) return false;
-			if (filterCategory !== "all" && alert.category !== filterCategory) return false;
+			if (filterSeverity !== "all" && alert.type !== filterSeverity)
+				return false;
+			if (filterCategory !== "all" && alert.category !== filterCategory)
+				return false;
 			return true;
 		});
 	}, [alerts, filterSeverity, filterCategory]);
 
 	// Count unread alerts by severity
-	const unreadCounts = useMemo(() => ({
-		critical: alerts.filter((a) => a.severity === "critical" && !a.is_read).length,
-		warning: alerts.filter((a) => a.severity === "warning" && !a.is_read).length,
-		info: alerts.filter((a) => a.severity === "info" && !a.is_read).length,
-		total: alerts.filter((a) => !a.is_read).length,
-	}), [alerts]);
+	const unreadCounts = useMemo(
+		() => ({
+			critical: alerts.filter((a) => a.type === "critical" && !a.isRead).length,
+			warning: alerts.filter((a) => a.type === "warning" && !a.isRead).length,
+			info: alerts.filter((a) => a.type === "info" && !a.isRead).length,
+			total: alerts.filter((a) => !a.isRead).length,
+		}),
+		[alerts],
+	);
 
 	// Severity filter options
 	const severityFilters: {
@@ -222,8 +228,8 @@ export default function AlertsScreen() {
 		{ value: "all", label: "All" },
 		{ value: "hardware", label: "Hardware" },
 		{ value: "supplies", label: "Supplies" },
-		{ value: "network", label: "Network" },
-		{ value: "revenue", label: "Revenue" },
+		{ value: "connectivity", label: "Connectivity" },
+		{ value: "sales", label: "Sales" },
 	];
 
 	// Handle alert press (could mark as read via API in the future)
