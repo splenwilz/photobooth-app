@@ -14,7 +14,8 @@
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 
-const STORAGE_KEY = "selected_booth_id";
+// SecureStore key - exported for use in clear data functionality
+export const STORAGE_KEY = "selected_booth_id";
 
 /** Special value for "All Booths" mode */
 export const ALL_BOOTHS_ID = "all";

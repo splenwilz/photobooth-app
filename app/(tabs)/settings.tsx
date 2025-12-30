@@ -37,6 +37,12 @@ import {
   useRestartBoothSystem,
 } from "@/api/booths";
 import type { ProductPricingInfo } from "@/api/booths/types";
+import {
+  ACCESS_TOKEN_KEY,
+  PENDING_PASSWORD_KEY,
+  REFRESH_TOKEN_KEY,
+  USER_STORAGE_KEY,
+} from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
 import { AddCreditsModal } from "@/components/credits";
 import { CustomHeader } from "@/components/custom-header";
@@ -53,7 +59,11 @@ import {
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 // Global booth selection
-import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
+import {
+  ALL_BOOTHS_ID,
+  STORAGE_KEY,
+  useBoothStore,
+} from "@/stores/booth-store";
 import type { Product } from "@/types/photobooth";
 
 /**
@@ -229,13 +239,13 @@ export default function SettingsScreen() {
 					onPress: async () => {
 						try {
 							// All SecureStore keys used in the app
-							// @see api/client.ts and stores/booth-store.ts for key definitions
+							// Imported from their source modules to prevent drift
 							const keys = [
-								"auth_access_token", // ACCESS_TOKEN_KEY
-								"auth_refresh_token", // REFRESH_TOKEN_KEY
-								"auth_user", // USER_STORAGE_KEY
-								"auth_pending_password", // PENDING_PASSWORD_KEY
-								"selected_booth_id", // STORAGE_KEY in booth-store
+								ACCESS_TOKEN_KEY,
+								REFRESH_TOKEN_KEY,
+								USER_STORAGE_KEY,
+								PENDING_PASSWORD_KEY,
+								STORAGE_KEY,
 							];
 
 							await Promise.all(
@@ -299,7 +309,7 @@ export default function SettingsScreen() {
 	const effectiveBoothId = isAllBoothsMode ? null : selectedBoothId;
 
 	// Fetch booth details from API
-	const { data: boothDetail } = useBoothDetail(effectiveBoothId ?? "");
+	const { data: boothDetail } = useBoothDetail(effectiveBoothId);
 
 	// Fetch credits from API
 	const {
