@@ -6,9 +6,10 @@
  */
 
 /**
- * Booth status indicating online/offline/warning state
+ * Booth status indicating online/offline/warning/error state
+ * @see GET /api/v1/booths/overview - API returns these status values
  */
-export type BoothStatus = 'online' | 'offline' | 'warning';
+export type BoothStatus = 'online' | 'offline' | 'warning' | 'error';
 
 /**
  * Operation mode for the photobooth

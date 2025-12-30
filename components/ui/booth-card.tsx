@@ -33,6 +33,7 @@ interface BoothCardProps {
 
 /**
  * Maps booth status to color
+ * @see BoothStatus - Valid status values: online, offline, warning, error
  */
 const getStatusColor = (status: BoothStatus): string => {
 	switch (status) {
@@ -41,14 +42,19 @@ const getStatusColor = (status: BoothStatus): string => {
 		case "warning":
 			return StatusColors.warning;
 		case "offline":
-			return StatusColors.error;
+			return StatusColors.neutral; // Neutral for offline (not actively erroring)
+		case "error":
+			return StatusColors.error; // Red for error state
 		default:
+			// Log unexpected status values for debugging
+			console.warn("[BoothCard] Unknown status received:", status);
 			return StatusColors.neutral;
 	}
 };
 
 /**
  * Maps booth status to label
+ * @see BoothStatus - Valid status values: online, offline, warning, error
  */
 const getStatusLabel = (status: BoothStatus): string => {
 	switch (status) {
@@ -58,7 +64,11 @@ const getStatusLabel = (status: BoothStatus): string => {
 			return "Warning";
 		case "offline":
 			return "Offline";
+		case "error":
+			return "Error";
 		default:
+			// Log unexpected status values for debugging
+			console.warn("[BoothCard] Unknown status label for:", status);
 			return "Unknown";
 	}
 };

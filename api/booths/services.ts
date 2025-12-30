@@ -1,11 +1,18 @@
 import { apiClient } from "../client";
 import type {
-    BoothDetailResponse,
-    BoothListResponse,
-    BoothOverviewResponse,
-    CreateBoothRequest,
-    CreateBoothResponse,
-    DashboardOverviewResponse,
+	BoothDetailResponse,
+	BoothListResponse,
+	BoothOverviewResponse,
+	BoothPricingResponse,
+	CancelRestartResponse,
+	CreateBoothRequest,
+	CreateBoothResponse,
+	DashboardOverviewResponse,
+	RestartAppResponse,
+	RestartRequest,
+	RestartSystemResponse,
+	UpdatePricingRequest,
+	UpdatePricingResponse,
 } from "./types";
 
 /**
@@ -85,6 +92,111 @@ export async function getDashboardOverview(): Promise<DashboardOverviewResponse>
 		"/api/v1/booths/overview/all",
 		{
 			method: "GET",
+		},
+	);
+	return response;
+}
+
+/**
+ * Get current pricing for a booth
+ * @param boothId - The booth ID to get pricing for
+ * @returns Promise resolving to current pricing info
+ * @see GET /api/v1/booths/{booth_id}/pricing
+ */
+export async function getBoothPricing(
+	boothId: string,
+): Promise<BoothPricingResponse> {
+	const response = await apiClient<BoothPricingResponse>(
+		`/api/v1/booths/${boothId}/pricing`,
+		{
+			method: "GET",
+		},
+	);
+	return response;
+}
+
+/**
+ * Update pricing for a booth (partial update)
+ * Sends pricing update command to the booth via WebSocket
+ * @param boothId - The booth ID to update pricing for
+ * @param data - Pricing update data (only include fields to update)
+ * @returns Promise resolving to command result
+ * @see PATCH /api/v1/booths/{booth_id}/pricing
+ */
+export async function updateBoothPricing(
+	boothId: string,
+	data: UpdatePricingRequest,
+): Promise<UpdatePricingResponse> {
+	const response = await apiClient<UpdatePricingResponse>(
+		`/api/v1/booths/${boothId}/pricing`,
+		{
+			method: "PATCH",
+			body: JSON.stringify(data),
+		},
+	);
+	return response;
+}
+
+// ============================================================================
+// RESTART SERVICES
+// ============================================================================
+
+/**
+ * Restart the booth application
+ * @param boothId - The booth ID to restart
+ * @param data - Optional delay and force settings
+ * @returns Promise resolving to command result
+ * @see POST /api/v1/booths/{booth_id}/restart-app
+ */
+export async function restartBoothApp(
+	boothId: string,
+	data?: RestartRequest,
+): Promise<RestartAppResponse> {
+	const response = await apiClient<RestartAppResponse>(
+		`/api/v1/booths/${boothId}/restart-app`,
+		{
+			method: "POST",
+			body: JSON.stringify(data ?? { delay_seconds: 5, force: false }),
+		},
+	);
+	return response;
+}
+
+/**
+ * Restart the booth system (PC reboot)
+ * @param boothId - The booth ID to restart
+ * @param data - Optional delay and force settings
+ * @returns Promise resolving to command result
+ * @see POST /api/v1/booths/{booth_id}/restart-system
+ */
+export async function restartBoothSystem(
+	boothId: string,
+	data?: RestartRequest,
+): Promise<RestartSystemResponse> {
+	const response = await apiClient<RestartSystemResponse>(
+		`/api/v1/booths/${boothId}/restart-system`,
+		{
+			method: "POST",
+			body: JSON.stringify(data ?? { delay_seconds: 15, force: false }),
+		},
+	);
+	return response;
+}
+
+/**
+ * Cancel a pending restart command
+ * @param boothId - The booth ID to cancel restart for
+ * @returns Promise resolving to command result
+ * @see POST /api/v1/booths/{booth_id}/cancel-restart
+ */
+export async function cancelBoothRestart(
+	boothId: string,
+): Promise<CancelRestartResponse> {
+	const response = await apiClient<CancelRestartResponse>(
+		`/api/v1/booths/${boothId}/cancel-restart`,
+		{
+			method: "POST",
+			body: JSON.stringify({}),
 		},
 	);
 	return response;

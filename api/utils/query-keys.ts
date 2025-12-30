@@ -59,6 +59,11 @@ export const queryKeys = {
      * Get booth statistics
      */
     stats: (boothId: string) => ['booths', 'stats', boothId] as const,
+
+    /**
+     * Get booth pricing
+     */
+    pricing: (boothId: string) => ['booths', 'pricing', boothId] as const,
   },
 
   /**
@@ -117,6 +122,26 @@ export const queryKeys = {
      * Get dashboard overview (all booths aggregated)
      */
     overview: () => ['booths', 'overview', 'all'] as const,
+  },
+
+  /**
+   * Credits-related query keys
+   * @see GET /api/v1/booths/{booth_id}/credits
+   * @see POST /api/v1/booths/{booth_id}/credits
+   */
+  credits: {
+    /**
+     * Get booth credit balance
+     */
+    balance: (boothId: string) => ['credits', 'balance', boothId] as const,
+
+    /**
+     * Get credit history for a booth
+     * @param boothId - The booth ID
+     * @param params - Optional pagination params (limit, offset)
+     */
+    history: (boothId: string, params?: { limit?: number; offset?: number }) => 
+      ['credits', 'history', boothId, params] as const,
   },
 } as const;
 

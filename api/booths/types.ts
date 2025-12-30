@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 /**
  * Booth API Types
  * 
@@ -8,14 +6,15 @@ import { z } from "zod";
  */
 
 /**
- * Schema for creating a new booth
+ * Request body for creating a new booth
+ * POST /api/v1/booths
  */
-export const CreateBoothRequestSchema = z.object({
-  name: z.string().min(1, "Booth name is required").max(100, "Booth name is too long"),
-  address: z.string().min(1, "Address is required").max(200, "Address is too long"),
-});
-
-export type CreateBoothRequest = z.infer<typeof CreateBoothRequestSchema>;
+export interface CreateBoothRequest {
+  /** Booth name (1-100 characters) */
+  name: string;
+  /** Booth address (1-200 characters) */
+  address: string;
+}
 
 /**
  * Response from booth creation endpoint
@@ -263,7 +262,8 @@ export interface BoothRevenue {
 /**
  * Booth status type from API
  */
-export type BoothStatus = 'online' | 'offline';
+/** Booth status from API - includes error state for hardware issues */
+export type BoothStatus = 'online' | 'offline' | 'warning' | 'error';
 
 /**
  * Individual booth in the overview response
@@ -397,5 +397,129 @@ export interface DashboardOverviewResponse {
   hardware_summary: DashboardHardwareSummary;
   recent_alerts: DashboardAlert[];
   alerts_count: number;
+}
+
+// ============================================================================
+// PRICING TYPES
+// ============================================================================
+
+/**
+ * Request body for updating booth pricing
+ * PUT /api/v1/booths/{booth_id}/pricing
+ */
+export interface UpdatePricingRequest {
+  /** Photo strips base price */
+  photo_strips_price?: number;
+  /** 4x6 photo base price */
+  photo_4x6_price?: number;
+  /** Smartphone print base price */
+  smartphone_print_price?: number;
+  /** Photo strips extra copy price */
+  strips_extra_copy_price?: number;
+  /** Photo strips multiple copy discount percentage */
+  strips_multiple_copy_discount?: number;
+  /** 4x6 photo extra copy price */
+  photo_4x6_extra_copy_price?: number;
+  /** 4x6 photo multiple copy discount percentage */
+  photo_4x6_multiple_copy_discount?: number;
+  /** Smartphone print extra copy price */
+  smartphone_extra_copy_price?: number;
+  /** Smartphone print multiple copy discount percentage */
+  smartphone_multiple_copy_discount?: number;
+  /** Reason for the price update */
+  reason?: string;
+}
+
+/**
+ * Pricing info for a single product
+ */
+export interface ProductPricingInfo {
+  price: number;
+  extra_copy_price: number;
+  multiple_copy_discount: number;
+}
+
+/**
+ * Response from pricing update endpoint
+ * PATCH /api/v1/booths/{booth_id}/pricing
+ */
+export interface UpdatePricingResponse {
+  command_id: number;
+  booth_id: string;
+  updates: {
+    PhotoStrips?: ProductPricingInfo;
+    Photo4x6?: ProductPricingInfo;
+    SmartphonePrint?: ProductPricingInfo;
+  };
+  status: "delivered" | "pending" | "failed";
+  message: string;
+}
+
+/**
+ * Response from pricing GET endpoint
+ * GET /api/v1/booths/{booth_id}/pricing
+ */
+export interface BoothPricingResponse {
+  booth_id: string;
+  booth_name: string;
+  pricing: {
+    PhotoStrips?: ProductPricingInfo;
+    Photo4x6?: ProductPricingInfo;
+    SmartphonePrint?: ProductPricingInfo;
+  };
+  last_updated: string;
+}
+
+// ============================================================================
+// RESTART COMMAND TYPES
+// ============================================================================
+
+/**
+ * Request body for restart commands
+ * @see POST /api/v1/booths/{booth_id}/restart-app
+ * @see POST /api/v1/booths/{booth_id}/restart-system
+ */
+export interface RestartRequest {
+  /** Delay in seconds before restart (default: 5 for app, 15 for system) */
+  delay_seconds?: number;
+  /** Force restart even if operations in progress */
+  force?: boolean;
+}
+
+/**
+ * Response from restart-app endpoint
+ * POST /api/v1/booths/{booth_id}/restart-app
+ */
+export interface RestartAppResponse {
+  command_id: number;
+  booth_id: string;
+  command_type: "restart_app";
+  status: "delivered" | "pending" | "failed";
+  message: string;
+  delay_seconds: number;
+}
+
+/**
+ * Response from restart-system endpoint
+ * POST /api/v1/booths/{booth_id}/restart-system
+ */
+export interface RestartSystemResponse {
+  command_id: number;
+  booth_id: string;
+  command_type: "restart_system";
+  status: "delivered" | "pending" | "failed";
+  message: string;
+  delay_seconds: number;
+}
+
+/**
+ * Response from cancel-restart endpoint
+ * POST /api/v1/booths/{booth_id}/cancel-restart
+ */
+export interface CancelRestartResponse {
+  command_id: number;
+  booth_id: string;
+  status: "delivered" | "pending" | "failed";
+  message: string;
 }
 

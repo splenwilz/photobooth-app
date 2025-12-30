@@ -13,15 +13,27 @@
  * @see https://docs.expo.dev/router/advanced/tabs/ - Expo Router Tabs docs
  */
 
+import { useMemo } from 'react';
 import { Tabs } from 'expo-router';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
+import { Colors, StatusColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAlerts } from '@/api/alerts/queries';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  
+  // Fetch alerts to show unread count badge
+  // @see GET /api/v1/analytics/alerts
+  const { data: alertsData } = useAlerts();
+  
+  // Calculate unread alerts count
+  const unreadCount = useMemo(() => {
+    if (!alertsData?.alerts) return 0;
+    return alertsData.alerts.filter(alert => !alert.isRead).length;
+  }, [alertsData?.alerts]);
 
   return (
     <Tabs
@@ -73,7 +85,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Alerts Tab - Notification center */}
+      {/* Alerts Tab - Notification center with unread badge */}
       <Tabs.Screen
         name="alerts"
         options={{
@@ -81,6 +93,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <IconSymbol size={24} name="bell" color={color} />
           ),
+          // Show badge with unread count (undefined hides the badge)
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: StatusColors.error,
+            fontSize: 10,
+            minWidth: 18,
+            height: 18,
+          },
         }}
       />
 

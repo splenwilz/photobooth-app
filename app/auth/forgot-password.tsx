@@ -2,8 +2,15 @@
  * Forgot Password Screen
  * 
  * Password reset request screen where users enter their email.
+ * Sends reset link to email via POST /api/v1/auth/forgot-password
+ * 
+ * Flow:
+ * 1. User enters email
+ * 2. API sends reset email with deep link: photoboothapp://auth/reset-password?token=xyz
+ * 3. User clicks link, opens reset-password screen
  * 
  * @see https://docs.expo.dev/router/introduction/ - Expo Router docs
+ * @see /api/auth/forgot-password/queries.ts - useForgotPassword hook
  */
 
 import React, { useState } from 'react';
@@ -23,15 +30,19 @@ import { FormInput } from '@/components/auth/form-input';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Spacing, BRAND_COLOR, StatusColors, withAlpha } from '@/constants/theme';
+// API hook for forgot password
+import { useForgotPassword } from '@/api/auth/forgot-password/queries';
 
 export default function ForgotPasswordScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textSecondary = useThemeColor({}, 'textSecondary');
 
+  // API mutation hook
+  const { mutateAsync: forgotPasswordMutation, isPending } = useForgotPassword();
+
   // Form state
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   // Validate and submit
@@ -49,16 +60,17 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
-    setIsLoading(true);
     try {
-      // TODO: Implement actual API call
-      // await forgotPassword({ email });
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Call forgot password API
+      // @see POST /api/v1/auth/forgot-password
+      const response = await forgotPasswordMutation({ email: email.trim() });
+      console.log('[ForgotPassword] Success:', response);
       setIsSuccess(true);
-    } catch (err) {
-      setError('Failed to send reset email. Please try again.');
-    } finally {
-      setIsLoading(false);
+    } catch (err: unknown) {
+      console.error('[ForgotPassword] Error:', err);
+      // Extract error message from API response
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send reset email. Please try again.';
+      setError(errorMessage);
     }
   };
 
@@ -67,7 +79,7 @@ export default function ForgotPasswordScreen() {
     router.back();
   };
 
-  // Success state
+  // Success state - email sent
   if (isSuccess) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
@@ -159,7 +171,7 @@ export default function ForgotPasswordScreen() {
               <PrimaryButton
                 text="Send Reset Link"
                 onPress={handleSubmit}
-                isLoading={isLoading}
+                isLoading={isPending}
               />
             </View>
           </View>
@@ -237,4 +249,3 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
 });
-

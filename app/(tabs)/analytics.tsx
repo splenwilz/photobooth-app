@@ -26,12 +26,18 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
-import { useThemeColor } from "@/hooks/use-theme-color";
+// API hooks for real data
+import { useAlerts } from "@/api/alerts/queries";
+import { useRevenueDashboard, useBoothRevenue } from "@/api/analytics/queries";
+import type { RecentTransaction } from "@/api/analytics/types";
 import { CustomHeader } from "@/components/custom-header";
-import { SectionHeader } from "@/components/ui/section-header";
-import { StatCard } from "@/components/ui/stat-card";
 import { ThemedText } from "@/components/themed-text";
+// Extracted components for reusability
+import { BreakdownCard } from "@/components/ui/breakdown-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { SectionHeader } from "@/components/ui/section-header";
+import { SimpleBarChart } from "@/components/ui/simple-bar-chart";
+import { StatCard } from "@/components/ui/stat-card";
 import {
 	Spacing,
 	BorderRadius,
@@ -39,109 +45,17 @@ import {
 	StatusColors,
 	withAlpha,
 } from "@/constants/theme";
-
-// API hooks for real data
-import { useRevenueDashboard, useBoothRevenue } from "@/api/analytics/queries";
-import type { RecentTransaction } from "@/api/analytics/types";
+import { useThemeColor } from "@/hooks/use-theme-color";
 // Global booth selection store
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
+// Utilities - extracted for separation of concerns
+import { formatCurrency, formatProductName, formatPaymentMethod } from "@/utils";
 
 type ChartPeriod = "week" | "month";
 
 /**
- * Simple bar chart component using brand color
- */
-const SimpleBarChart: React.FC<{
-	data: { date: string; amount: number }[];
-	maxValue: number;
-	tint: string;
-	textSecondary: string;
-}> = ({ data, maxValue, tint, textSecondary }) => {
-	return (
-		<View style={chartStyles.container}>
-			<View style={chartStyles.barsContainer}>
-				{data.map((item, index) => {
-					// Handle case where maxValue is 0 to avoid NaN
-					const heightPercent =
-						maxValue > 0 ? (item.amount / maxValue) * 100 : 0;
-					// Use opacity variations of brand color for visual interest
-					const opacity = 0.6 + (index / data.length) * 0.4;
-					return (
-						<View key={index} style={chartStyles.barWrapper}>
-							<View style={chartStyles.barContainer}>
-								<View
-									style={[
-										chartStyles.bar,
-										{
-											height: `${heightPercent}%`,
-											backgroundColor: withAlpha(tint, opacity),
-										},
-									]}
-								/>
-							</View>
-							<ThemedText
-								style={[chartStyles.barLabel, { color: textSecondary }]}
-							>
-								{item.date}
-							</ThemedText>
-						</View>
-					);
-				})}
-			</View>
-		</View>
-	);
-};
-
-const chartStyles = StyleSheet.create({
-	container: {
-		height: 160,
-		marginTop: Spacing.sm,
-	},
-	barsContainer: {
-		flex: 1,
-		flexDirection: "row",
-		alignItems: "flex-end",
-		justifyContent: "space-between",
-	},
-	barWrapper: {
-		flex: 1,
-		alignItems: "center",
-	},
-	barContainer: {
-		flex: 1,
-		width: "70%",
-		justifyContent: "flex-end",
-	},
-	bar: {
-		width: "100%",
-		borderRadius: 4,
-		minHeight: 4,
-	},
-	barLabel: {
-		fontSize: 10,
-		marginTop: 4,
-	},
-});
-
-/**
- * Format product name from API (e.g., "photo_4x6" -> "Photo 4x6")
- */
-function formatProductName(name: string): string {
-	return name
-		.split("_")
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-		.join(" ");
-}
-
-/**
- * Format payment method from API (e.g., "credit" -> "Credit")
- */
-function formatPaymentMethod(method: string): string {
-	return method.charAt(0).toUpperCase() + method.slice(1);
-}
-
-/**
  * Get print status display and color
+ * @see StatusColors - Theme status colors
  */
 function getPrintStatusConfig(status: RecentTransaction["print_status"]): {
 	label: string;
@@ -171,6 +85,20 @@ export default function AnalyticsScreen() {
 
 	// Track if screen is focused - prevents refresh indicator from freezing when navigating
 	const isFocused = useIsFocused();
+
+	// Fetch alerts for notification badge
+	// @see GET /api/v1/analytics/alerts
+	// Error handling: If alerts fail to load, badge will show 0 (non-critical)
+	const { data: alertsData } = useAlerts();
+	const unreadAlerts = useMemo(() => {
+		if (!alertsData?.alerts) return 0;
+		return alertsData.alerts.filter((a) => !a.isRead).length;
+	}, [alertsData?.alerts]);
+
+	// Navigation handlers
+	const handleNotificationPress = () => {
+		router.push("/(tabs)/alerts");
+	};
 
 	// Global booth selection from Zustand store
 	const { selectedBoothId } = useBoothStore();
@@ -225,13 +153,6 @@ export default function AnalyticsScreen() {
 		return Math.max(maxAmount * 1.1, 1);
 	}, [chartData]);
 
-	// Format currency
-	const formatCurrency = (amount: number): string => {
-		return `$${amount.toLocaleString("en-US", {
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
-		})}`;
-	};
 
 	// Format time
 	const formatTime = (timestamp: string): string => {
@@ -246,7 +167,11 @@ export default function AnalyticsScreen() {
 	if (isLoading) {
 		return (
 			<SafeAreaView style={[styles.container, { backgroundColor }]} edges={["top"]}>
-				<CustomHeader title="Analytics" />
+				<CustomHeader 
+					title="Analytics" 
+					onNotificationPress={handleNotificationPress}
+					notificationCount={unreadAlerts}
+				/>
 				<View style={styles.loadingContainer}>
 					<ActivityIndicator size="large" color={BRAND_COLOR} />
 					<ThemedText style={[styles.loadingText, { color: textSecondary }]}>
@@ -261,7 +186,11 @@ export default function AnalyticsScreen() {
 	if (error) {
 		return (
 			<SafeAreaView style={[styles.container, { backgroundColor }]} edges={["top"]}>
-				<CustomHeader title="Analytics" />
+				<CustomHeader 
+					title="Analytics" 
+					onNotificationPress={handleNotificationPress}
+					notificationCount={unreadAlerts}
+				/>
 				<View style={styles.errorContainer}>
 					<IconSymbol
 						name="exclamationmark.triangle.fill"
@@ -297,7 +226,11 @@ export default function AnalyticsScreen() {
 
 	return (
 		<SafeAreaView style={[styles.container, { backgroundColor }]} edges={["top"]}>
-			<CustomHeader title="Analytics" />
+			<CustomHeader 
+				title="Analytics" 
+				onNotificationPress={handleNotificationPress}
+				notificationCount={unreadAlerts}
+			/>
 
 			<ScrollView
 				style={styles.content}
@@ -412,63 +345,18 @@ export default function AnalyticsScreen() {
 					</View>
 				</View>
 
-				{/* Revenue Breakdown - Using brand color with opacity */}
+				{/* Revenue Breakdown - Using extracted BreakdownCard component */}
 				<View style={styles.section}>
 					<SectionHeader
 						title="Revenue Breakdown"
 						subtitle="By product type"
 					/>
-
-					<View style={[styles.breakdownCard, { backgroundColor: cardBg, borderColor }]}>
-						{byProduct.length > 0 ? (
-							byProduct.map((item, index) => {
-								// Use progressively lighter opacity for each item
-								const opacity = 1 - index * 0.2;
-								const itemColor = withAlpha(BRAND_COLOR, Math.max(0.4, opacity));
-
-								return (
-									<View key={item.name} style={styles.breakdownItem}>
-										<View style={styles.breakdownHeader}>
-											<View style={styles.breakdownLabelRow}>
-												<View
-													style={[
-														styles.breakdownDot,
-														{ backgroundColor: itemColor },
-													]}
-												/>
-												<ThemedText style={styles.breakdownLabel}>
-													{formatProductName(item.name)}
-												</ThemedText>
-											</View>
-											<ThemedText type="defaultSemiBold">
-												{formatCurrency(item.value)}
-											</ThemedText>
-										</View>
-										<View style={styles.breakdownBarTrack}>
-											<View
-												style={[
-													styles.breakdownBarFill,
-													{
-														width: `${item.percentage}%`,
-														backgroundColor: itemColor,
-													},
-												]}
-											/>
-										</View>
-										<ThemedText
-											style={[styles.breakdownPercent, { color: textSecondary }]}
-										>
-											{item.percentage}%
-										</ThemedText>
-									</View>
-								);
-							})
-						) : (
-							<ThemedText style={{ color: textSecondary, textAlign: "center" }}>
-								No product data available
-							</ThemedText>
-						)}
-					</View>
+					<BreakdownCard
+						items={byProduct}
+						formatLabel={formatProductName}
+						emptyMessage="No product data available"
+						opacityStep={0.2}
+					/>
 				</View>
 
 				{/* Payment Method Breakdown */}
@@ -477,56 +365,12 @@ export default function AnalyticsScreen() {
 						title="Payment Methods"
 						subtitle="Revenue by payment type"
 					/>
-
-					<View style={[styles.breakdownCard, { backgroundColor: cardBg, borderColor }]}>
-						{byPayment.length > 0 ? (
-							byPayment.map((item, index) => {
-								const opacity = 1 - index * 0.25;
-								const itemColor = withAlpha(BRAND_COLOR, Math.max(0.4, opacity));
-
-								return (
-									<View key={item.name} style={styles.breakdownItem}>
-										<View style={styles.breakdownHeader}>
-											<View style={styles.breakdownLabelRow}>
-												<View
-													style={[
-														styles.breakdownDot,
-														{ backgroundColor: itemColor },
-													]}
-												/>
-												<ThemedText style={styles.breakdownLabel}>
-													{formatPaymentMethod(item.name)}
-												</ThemedText>
-											</View>
-											<ThemedText type="defaultSemiBold">
-												{formatCurrency(item.value)}
-											</ThemedText>
-										</View>
-										<View style={styles.breakdownBarTrack}>
-											<View
-												style={[
-													styles.breakdownBarFill,
-													{
-														width: `${item.percentage}%`,
-														backgroundColor: itemColor,
-													},
-												]}
-											/>
-										</View>
-										<ThemedText
-											style={[styles.breakdownPercent, { color: textSecondary }]}
-										>
-											{item.percentage}%
-										</ThemedText>
-									</View>
-								);
-							})
-						) : (
-							<ThemedText style={{ color: textSecondary, textAlign: "center" }}>
-								No payment data available
-							</ThemedText>
-						)}
-					</View>
+					<BreakdownCard
+						items={byPayment}
+						formatLabel={formatPaymentMethod}
+						emptyMessage="No payment data available"
+						opacityStep={0.25}
+					/>
 				</View>
 
 				{/* Recent Transactions */}
@@ -710,48 +554,7 @@ const styles = StyleSheet.create({
 		justifyContent: "center",
 		alignItems: "center",
 	},
-	breakdownCard: {
-		padding: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 1,
-	},
-	breakdownItem: {
-		marginBottom: Spacing.md,
-	},
-	breakdownHeader: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		marginBottom: 6,
-	},
-	breakdownLabelRow: {
-		flexDirection: "row",
-		alignItems: "center",
-	},
-	breakdownDot: {
-		width: 10,
-		height: 10,
-		borderRadius: 5,
-		marginRight: Spacing.sm,
-	},
-	breakdownLabel: {
-		fontSize: 14,
-	},
-	breakdownBarTrack: {
-		height: 8,
-		backgroundColor: "rgba(255,255,255,0.1)",
-		borderRadius: 4,
-		overflow: "hidden",
-	},
-	breakdownBarFill: {
-		height: "100%",
-		borderRadius: 4,
-	},
-	breakdownPercent: {
-		fontSize: 11,
-		marginTop: 4,
-		textAlign: "right",
-	},
+	// Note: breakdownCard styles moved to components/ui/breakdown-card.tsx
 	transactionCard: {
 		padding: Spacing.md,
 		borderRadius: BorderRadius.lg,
