@@ -3,10 +3,11 @@
  *
  * Loading placeholder for the Alerts screen.
  * Matches the layout of the actual alerts content.
+ * Renders without ScrollView to avoid nested scroll conflicts.
  */
 
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import {
   Skeleton,
@@ -16,11 +17,7 @@ import { BorderRadius, Spacing } from "@/constants/theme";
 
 export const AlertsSkeleton: React.FC = () => {
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={styles.content}>
       {/* Filter Chips */}
       <View style={styles.section}>
         <View style={styles.filterRow}>
@@ -66,15 +63,13 @@ export const AlertsSkeleton: React.FC = () => {
 
       {/* Bottom spacing */}
       <View style={{ height: Spacing.xxl }} />
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   content: {
+    flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
   },
@@ -98,4 +93,3 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
-

@@ -60,7 +60,10 @@ export const DeleteBoothModal: React.FC<DeleteBoothModalProps> = ({
   const deleteBoothMutation = useDeleteBooth();
 
   // Check if confirmation matches booth name (case-insensitive)
-  const isConfirmed = confirmationText.toLowerCase() === boothName.toLowerCase();
+  // Also require booth name to be non-empty to prevent accidental deletion
+  const isConfirmed =
+    boothName.length > 0 &&
+    confirmationText.toLowerCase() === boothName.toLowerCase();
 
   // Reset state when modal closes
   const handleClose = useCallback(() => {

@@ -6,7 +6,7 @@
  */
 
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import {
   Skeleton,
@@ -17,16 +17,16 @@ import {
 import { BorderRadius, Spacing } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
+/**
+ * Analytics Skeleton - renders without ScrollView to avoid nested scroll conflicts
+ * Parent screen provides the ScrollView wrapper
+ */
 export const AnalyticsSkeleton: React.FC = () => {
   const cardBg = useThemeColor({}, "card");
   const borderColor = useThemeColor({}, "border");
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={styles.content}>
       {/* Period Selector */}
       <View style={styles.section}>
         <View style={styles.periodSelector}>
@@ -95,15 +95,13 @@ export const AnalyticsSkeleton: React.FC = () => {
 
       {/* Bottom spacing */}
       <View style={{ height: Spacing.xxl }} />
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   content: {
+    flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
   },

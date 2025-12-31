@@ -469,12 +469,17 @@ export default function SettingsScreen() {
 		);
 	};
 
+	// Access setSelectedBoothId from store for resetting after deletion
+	const { setSelectedBoothId } = useBoothStore();
+
 	/**
 	 * Handle booth deletion success
-	 * Navigates to Booths tab after deletion and resets booth selection
+	 * Resets booth selection and navigates to Booths tab
 	 */
 	const handleBoothDeleted = () => {
 		setShowDeleteModal(false);
+		// Reset booth selection to "All Booths" mode to prevent stale ID
+		setSelectedBoothId(ALL_BOOTHS_ID);
 		Alert.alert("Booth Deleted", `${boothName} has been permanently deleted.`, [
 			{
 				text: "OK",

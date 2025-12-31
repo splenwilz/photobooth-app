@@ -6,7 +6,7 @@
  */
 
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import {
   Skeleton,
@@ -21,15 +21,15 @@ interface DashboardSkeletonProps {
   isAllBoothsMode?: boolean;
 }
 
+/**
+ * Dashboard Skeleton - renders without ScrollView to avoid nested scroll conflicts
+ * Parent screen provides the ScrollView wrapper
+ */
 export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
   isAllBoothsMode = false,
 }) => {
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={styles.content}>
       {/* Booth Status Header (single booth mode only) */}
       {!isAllBoothsMode && (
         <View style={styles.section}>
@@ -118,15 +118,13 @@ export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({
 
       {/* Bottom spacing */}
       <View style={{ height: Spacing.xxl }} />
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   content: {
+    flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
   },
