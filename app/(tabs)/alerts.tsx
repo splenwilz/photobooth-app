@@ -18,7 +18,6 @@ import { useIsFocused } from "@react-navigation/native";
 import type React from "react";
 import { useMemo, useState } from "react";
 import {
-	ActivityIndicator,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
@@ -30,6 +29,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAlerts } from "@/api/alerts/queries";
 import type { AlertSeverity } from "@/api/alerts/types";
 import { CustomHeader } from "@/components/custom-header";
+import { AlertsSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -238,7 +238,7 @@ export default function AlertsScreen() {
 		// TODO: Implement mark as read API call when endpoint is available
 	};
 
-	// Loading state
+	// Loading state - show skeleton instead of spinner
 	if (isLoading) {
 		return (
 			<SafeAreaView
@@ -246,12 +246,7 @@ export default function AlertsScreen() {
 				edges={["top"]}
 			>
 				<CustomHeader title="Alerts" />
-				<View style={styles.loadingContainer}>
-					<ActivityIndicator size="large" color={BRAND_COLOR} />
-					<ThemedText style={[styles.loadingText, { color: textSecondary }]}>
-						Loading alerts...
-					</ThemedText>
-				</View>
+				<AlertsSkeleton />
 			</SafeAreaView>
 		);
 	}

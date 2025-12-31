@@ -64,6 +64,12 @@ export const queryKeys = {
      * Get booth pricing
      */
     pricing: (boothId: string) => ['booths', 'pricing', boothId] as const,
+
+    /**
+     * Get booth credentials (API key, QR code)
+     * @see GET /api/v1/booths/{booth_id}/credentials
+     */
+    credentials: (boothId: string) => ['booths', 'credentials', boothId] as const,
   },
 
   /**

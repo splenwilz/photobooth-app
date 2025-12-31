@@ -31,6 +31,7 @@ import { useAlerts } from "@/api/alerts/queries";
 import { useSignout } from "@/api/auth/signout/queries";
 import {
   useBoothDetail,
+  useBoothOverview,
   useBoothPricing,
   useCancelBoothRestart,
   useRestartBoothApp,
@@ -44,6 +45,10 @@ import {
   USER_STORAGE_KEY,
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
+import {
+  ConnectionDetailsModal,
+  DeleteBoothModal,
+} from "@/components/booths";
 import { AddCreditsModal } from "@/components/credits";
 import { CustomHeader } from "@/components/custom-header";
 import { EditProductModal } from "@/components/products";
@@ -136,7 +141,6 @@ const SettingsItem: React.FC<SettingsItemProps> = ({
 	const cardBg = useThemeColor({}, "card");
 	const borderColor = useThemeColor({}, "border");
 	const textSecondary = useThemeColor({}, "textSecondary");
-	const tint = useThemeColor({}, "tint");
 
 	// Use red color for destructive actions
 	const accentColor = destructive ? StatusColors.error : BRAND_COLOR;
@@ -205,7 +209,6 @@ const SettingsItem: React.FC<SettingsItemProps> = ({
  */
 export default function SettingsScreen() {
 	const backgroundColor = useThemeColor({}, "background");
-	const tint = useThemeColor({}, "tint");
 	const cardBg = useThemeColor({}, "card");
 	const borderColor = useThemeColor({}, "border");
 	const textSecondary = useThemeColor({}, "textSecondary");
@@ -302,10 +305,15 @@ export default function SettingsScreen() {
 	// Global booth selection from Zustand store
 	const { selectedBoothId } = useBoothStore();
 
-	// Check if "All Booths" mode is active
-	const isAllBoothsMode = selectedBoothId === ALL_BOOTHS_ID;
+	// Fetch booth overview to check if user has any booths
+	const { data: boothOverview } = useBoothOverview();
+	const hasNoBooths = !boothOverview?.booths?.length;
 
-	// Get the actual booth ID (null if "All Booths" mode)
+	// Check if "All Booths" mode is active OR if user has no booths
+	// In both cases, hide booth-specific settings
+	const isAllBoothsMode = selectedBoothId === ALL_BOOTHS_ID || hasNoBooths;
+
+	// Get the actual booth ID (null if "All Booths" mode or no booths)
 	const effectiveBoothId = isAllBoothsMode ? null : selectedBoothId;
 
 	// Fetch booth details from API
@@ -327,6 +335,12 @@ export default function SettingsScreen() {
 	// State for Edit Product modal
 	const [showEditProductModal, setShowEditProductModal] = useState(false);
 	const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+	// State for Connection Details modal
+	const [showConnectionModal, setShowConnectionModal] = useState(false);
+
+	// State for Delete Booth modal
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
 
 	// Convert API pricing to products (memoized to prevent re-renders)
 	const products = React.useMemo(
@@ -455,6 +469,23 @@ export default function SettingsScreen() {
 		);
 	};
 
+	/**
+	 * Handle booth deletion success
+	 * Navigates to Booths tab after deletion and resets booth selection
+	 */
+	const handleBoothDeleted = () => {
+		setShowDeleteModal(false);
+		Alert.alert("Booth Deleted", `${boothName} has been permanently deleted.`, [
+			{
+				text: "OK",
+				onPress: () => {
+					// Navigate to booths tab to select a new booth
+					router.replace("/(tabs)/booths");
+				},
+			},
+		]);
+	};
+
 	// Format currency with null safety
 	const formatCurrency = (amount: number | null | undefined): string => {
 		if (amount == null) return "$0.00";
@@ -473,7 +504,7 @@ export default function SettingsScreen() {
 			/>
 
 			<ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-				{/* All Booths Mode Notice */}
+				{/* All Booths Mode / No Booths Notice */}
 				{isAllBoothsMode && (
 					<View
 						style={[
@@ -486,12 +517,15 @@ export default function SettingsScreen() {
 					>
 						<IconSymbol name="info.circle" size={20} color={BRAND_COLOR} />
 						<View style={styles.allBoothsNoticeContent}>
-							<ThemedText type="defaultSemiBold">All Booths Mode</ThemedText>
+							<ThemedText type="defaultSemiBold">
+								{hasNoBooths ? "No Booths Yet" : "All Booths Mode"}
+							</ThemedText>
 							<ThemedText
 								style={[styles.allBoothsNoticeText, { color: textSecondary }]}
 							>
-								Select a specific booth from the Booths tab to access
-								booth-specific settings like credits, pricing, and hardware.
+								{hasNoBooths
+									? "Create your first booth from the Booths tab to access booth-specific settings like credits, pricing, and hardware."
+									: "Select a specific booth from the Booths tab to access booth-specific settings like credits, pricing, and hardware."}
 							</ThemedText>
 						</View>
 					</View>
@@ -603,12 +637,19 @@ export default function SettingsScreen() {
 					</View>
 				)}
 
-				{/* System Actions - Hidden in All Booths mode */}
+				{/* Booth Management - Hidden in All Booths mode */}
 				{!isAllBoothsMode && (
 					<View style={styles.section}>
 						<SectionHeader
-							title="System Actions"
-							subtitle="Remote control options"
+							title="Booth Management"
+							subtitle="Connection and system controls"
+						/>
+
+						<SettingsItem
+							icon="link"
+							title="Connection Details"
+							subtitle="View API key and QR code"
+							onPress={() => setShowConnectionModal(true)}
 						/>
 
 						<SettingsItem
@@ -642,6 +683,14 @@ export default function SettingsScreen() {
 									: "Cancel pending restart"
 							}
 							onPress={handleCancelRestart}
+						/>
+
+						<SettingsItem
+							icon="trash"
+							title="Delete Booth"
+							subtitle="Permanently remove this booth"
+							onPress={() => setShowDeleteModal(true)}
+							destructive
 						/>
 					</View>
 				)}
@@ -718,6 +767,23 @@ export default function SettingsScreen() {
 					setSelectedProduct(null);
 				}}
 				onSave={handleSaveProduct}
+			/>
+
+			{/* Connection Details Modal */}
+			<ConnectionDetailsModal
+				visible={showConnectionModal}
+				boothId={effectiveBoothId}
+				boothName={boothName}
+				onClose={() => setShowConnectionModal(false)}
+			/>
+
+			{/* Delete Booth Modal */}
+			<DeleteBoothModal
+				visible={showDeleteModal}
+				boothId={effectiveBoothId}
+				boothName={boothName}
+				onClose={() => setShowDeleteModal(false)}
+				onDeleted={handleBoothDeleted}
 			/>
 		</SafeAreaView>
 	);

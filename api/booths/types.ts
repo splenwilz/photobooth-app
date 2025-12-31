@@ -523,3 +523,32 @@ export interface CancelRestartResponse {
   message: string;
 }
 
+// ============================================================================
+// BOOTH CREDENTIALS TYPES
+// ============================================================================
+
+/**
+ * Response from booth credentials endpoint
+ * Used for reconnecting booth - contains API key and QR code
+ * @see GET /api/v1/booths/{booth_id}/credentials
+ */
+export interface BoothCredentialsResponse {
+  id: string;
+  api_key: string;
+  qr_code: string;
+  message: string;
+}
+
+// ============================================================================
+// DELETE BOOTH TYPES
+// ============================================================================
+
+/**
+ * Response from delete booth endpoint
+ * @see DELETE /api/v1/booths/{booth_id}
+ */
+export interface DeleteBoothResponse {
+  success: boolean;
+  message: string;
+}
+

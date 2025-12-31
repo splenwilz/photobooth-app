@@ -16,9 +16,8 @@
 
 import { useIsFocused } from "@react-navigation/native";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
-	ActivityIndicator,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
@@ -31,6 +30,7 @@ import { useAlerts } from "@/api/alerts/queries";
 import { useBoothRevenue, useRevenueDashboard } from "@/api/analytics/queries";
 import type { RecentTransaction } from "@/api/analytics/types";
 import { CustomHeader } from "@/components/custom-header";
+import { AnalyticsSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
 // Extracted components for reusability
 import { BreakdownCard } from "@/components/ui/breakdown-card";
@@ -168,7 +168,7 @@ export default function AnalyticsScreen() {
 		});
 	};
 
-	// Loading state
+	// Loading state - skeleton for polished loading experience
 	if (isLoading) {
 		return (
 			<SafeAreaView
@@ -180,12 +180,7 @@ export default function AnalyticsScreen() {
 					onNotificationPress={handleNotificationPress}
 					notificationCount={unreadAlerts}
 				/>
-				<View style={styles.loadingContainer}>
-					<ActivityIndicator size="large" color={BRAND_COLOR} />
-					<ThemedText style={[styles.loadingText, { color: textSecondary }]}>
-						Loading analytics...
-					</ThemedText>
-				</View>
+				<AnalyticsSkeleton />
 			</SafeAreaView>
 		);
 	}

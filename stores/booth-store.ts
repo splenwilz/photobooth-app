@@ -53,7 +53,9 @@ interface BoothState {
  * ```
  */
 export const useBoothStore = create<BoothState>((set, get) => ({
-	selectedBoothId: null,
+	// Default to "all" mode - shows aggregated dashboard view
+	// This ensures Dashboard starts in "All Booths" mode before hydration completes
+	selectedBoothId: ALL_BOOTHS_ID,
 	isHydrated: false,
 
 	setSelectedBoothId: async (boothId: string | null) => {
