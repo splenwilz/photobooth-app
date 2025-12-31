@@ -26,11 +26,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 // API hooks
 import { useAlerts } from "@/api/alerts/queries";
-import {
-  useBoothDetail,
-  useBoothList,
-  useDashboardOverview,
-} from "@/api/booths/queries";
+import { useBoothDetail, useDashboardOverview } from "@/api/booths/queries";
 import { CustomHeader } from "@/components/custom-header";
 // Dashboard section components - extracted for separation of concerns
 import {
@@ -77,35 +73,38 @@ export default function DashboardScreen() {
 	// Global booth selection from Zustand store
 	const { selectedBoothId, setSelectedBoothId, isHydrated } = useBoothStore();
 
-	// Check if we're in "All Booths" mode - computed directly from state for reactivity
-	const isAllMode = selectedBoothId === ALL_BOOTHS_ID;
+	// Is a specific booth selected (vs "All Booths")?
+	const hasBoothSelected = selectedBoothId !== ALL_BOOTHS_ID && !!selectedBoothId;
 
-	// Fetch booth list for selector
-	const { data: boothListData, isLoading: isLoadingList } = useBoothList();
+	// Fetch booth detail when a specific booth is selected
+	const {
+		data: boothDetail,
+		refetch: refetchDetail,
+		isRefetching: isRefetchingDetail,
+	} = useBoothDetail(hasBoothSelected ? selectedBoothId : null);
 
-	// Fetch dashboard overview (all booths) - only when in "all" mode
+	// SIMPLE LOGIC: Show "All Booths" mode unless we have actual booth detail data
+	// This means while loading a specific booth, we still show "All Booths" view
+	const isAllMode = !boothDetail;
+
+	// Always fetch dashboard overview (used as fallback and for "All Booths" mode)
 	const {
 		data: dashboardOverview,
 		isLoading: isLoadingOverview,
 		refetch: refetchOverview,
 		isRefetching: isRefetchingOverview,
 	} = useDashboardOverview({
-		enabled: isAllMode, // Only fetch when in "All Booths" mode
+		enabled: true, // Always fetch - it's our fallback
 	});
 
-	// Fetch selected booth details - only when a specific booth is selected
-	const {
-		data: boothDetail,
-		isLoading: isLoadingDetail,
-		refetch: refetchDetail,
-		isRefetching: isRefetchingDetail,
-	} = useBoothDetail(isAllMode ? null : selectedBoothId);
-
 	// Combined refetching state - only true if:
-	// 1. Screen is focused (prevents frozen loader when navigating between tabs)
-	// 2. The ACTIVE query is refetching (prevents stale state from disabled queries)
+	// 1. Screen is focused
+	// 2. We have data (not initial load)
+	// 3. The active query is refetching
+	const hasData = isAllMode ? !!dashboardOverview : !!boothDetail;
 	const isRefetching =
 		isFocused &&
+		hasData &&
 		((isAllMode && isRefetchingOverview) || (!isAllMode && isRefetchingDetail));
 
 	// Auto-select "all" mode if nothing selected
@@ -114,11 +113,6 @@ export default function DashboardScreen() {
 			setSelectedBoothId(ALL_BOOTHS_ID);
 		}
 	}, [isHydrated, selectedBoothId, setSelectedBoothId]);
-
-	// Get selected booth info from list (only relevant in single booth mode)
-	const selectedBooth = boothListData?.booths?.find(
-		(b) => b.id === selectedBoothId,
-	);
 
 	// Fetch alerts for notification badge - uses same API as other screens
 	// @see GET /api/v1/analytics/alerts
@@ -157,8 +151,11 @@ export default function DashboardScreen() {
 		router.push("/(tabs)/booths");
 	};
 
-	// Loading state - show skeleton instead of spinner
-	if (!isHydrated || isLoadingList) {
+	// Loading state - show skeleton during initial load
+	// Only wait for dashboard overview since that's our fallback/default
+	const isInitialLoading = !isHydrated || isLoadingOverview;
+
+	if (isInitialLoading) {
 		return (
 			<SafeAreaView
 				style={[styles.container, { backgroundColor }]}
@@ -170,8 +167,8 @@ export default function DashboardScreen() {
 		);
 	}
 
-	// No booths state
-	if (!boothListData?.booths?.length) {
+	// No booths state - check summary from dashboard overview
+	if (dashboardOverview?.summary?.total_booths === 0) {
 		return (
 			<SafeAreaView
 				style={[styles.container, { backgroundColor }]}
@@ -251,11 +248,7 @@ export default function DashboardScreen() {
 						</View>
 						<View style={styles.boothTextContainer}>
 							<ThemedText type="defaultSemiBold">
-								{isAllMode
-									? "All Booths"
-									: (selectedBooth?.name ??
-										boothDetail?.booth_name ??
-										"Select Booth")}
+								{isAllMode ? "All Booths" : boothDetail?.booth_name}
 							</ThemedText>
 							<ThemedText
 								style={[styles.boothLocation, { color: textSecondary }]}
@@ -263,23 +256,19 @@ export default function DashboardScreen() {
 							>
 								{isAllMode
 									? `${dashboardOverview?.summary?.online_count ?? 0} online · ${dashboardOverview?.summary?.offline_count ?? 0} offline`
-									: (selectedBooth?.address ??
-										boothDetail?.booth_address ??
-										"No address")}
+									: (boothDetail?.booth_address ?? "No address")}
 							</ThemedText>
 						</View>
 					</View>
 					<View style={styles.boothStatusContainer}>
 						{/* Show status dot only for single booth mode */}
-						{!isAllMode && (
+						{!isAllMode && boothDetail && (
 							<View
 								style={[
 									styles.statusDot,
 									{
 										backgroundColor: getBoothStatusColor(
-											selectedBooth?.status ??
-												boothDetail?.booth_status ??
-												"offline",
+											boothDetail.booth_status ?? "offline",
 										),
 									},
 								]}
@@ -288,11 +277,6 @@ export default function DashboardScreen() {
 						<IconSymbol name="chevron.right" size={16} color={textSecondary} />
 					</View>
 				</TouchableOpacity>
-
-				{/* Loading state - for either mode (shows skeleton) */}
-				{(isAllMode ? isLoadingOverview : isLoadingDetail) && (
-					<DashboardSkeleton isAllBoothsMode={isAllMode} />
-				)}
 
 				{/* Revenue Overview Section - Works for both modes */}
 				{(isAllMode ? dashboardOverview : boothDetail) && (
