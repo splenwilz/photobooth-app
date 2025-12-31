@@ -456,7 +456,9 @@ export async function apiClient<T>(url: string, options?: RequestInit): Promise<
         url.includes('/auth/refresh-token') ||
         url.includes('/auth/forgot-password') ||
         url.includes('/auth/reset-password') ||
-        url.includes('/auth/verify-email')
+        url.includes('/auth/verify-email') ||
+        url.includes('/auth/authorize') ||
+        url.includes('/auth/callback')  
 
       if (!isPublicEndpoint) {
         // No token and not a public endpoint - session expired, redirect to login
