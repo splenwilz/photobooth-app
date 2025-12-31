@@ -17,7 +17,6 @@ import { useIsFocused } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -39,6 +38,7 @@ import {
   HardwareSummaryCard,
   SystemInfoCard,
 } from "@/components/dashboard";
+import { DashboardSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
 import { AlertCard } from "@/components/ui/alert-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -157,17 +157,15 @@ export default function DashboardScreen() {
 		router.push("/(tabs)/booths");
 	};
 
-	// Loading state
+	// Loading state - show skeleton instead of spinner
 	if (!isHydrated || isLoadingList) {
 		return (
 			<SafeAreaView
-				style={[styles.container, styles.centered, { backgroundColor }]}
+				style={[styles.container, { backgroundColor }]}
 				edges={["top"]}
 			>
-				<ActivityIndicator size="large" color={BRAND_COLOR} />
-				<ThemedText style={[styles.loadingText, { color: textSecondary }]}>
-					Loading dashboard...
-				</ThemedText>
+				<CustomHeader title="Dashboard" />
+				<DashboardSkeleton isAllBoothsMode={isAllMode} />
 			</SafeAreaView>
 		);
 	}
@@ -291,16 +289,9 @@ export default function DashboardScreen() {
 					</View>
 				</TouchableOpacity>
 
-				{/* Loading state - for either mode */}
+				{/* Loading state - for either mode (shows skeleton) */}
 				{(isAllMode ? isLoadingOverview : isLoadingDetail) && (
-					<View style={styles.loadingDetailContainer}>
-						<ActivityIndicator size="small" color={BRAND_COLOR} />
-						<ThemedText
-							style={[styles.loadingDetailText, { color: textSecondary }]}
-						>
-							{isAllMode ? "Loading overview..." : "Loading booth data..."}
-						</ThemedText>
-					</View>
+					<DashboardSkeleton isAllBoothsMode={isAllMode} />
 				)}
 
 				{/* Revenue Overview Section - Works for both modes */}

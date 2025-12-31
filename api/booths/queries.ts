@@ -4,6 +4,8 @@ import { queryKeys } from "../utils/query-keys";
 import {
 	cancelBoothRestart,
 	createBooth,
+	deleteBooth,
+	getBoothCredentials,
 	getBoothDetail,
 	getBoothList,
 	getBoothOverview,
@@ -14,6 +16,7 @@ import {
 	updateBoothPricing,
 } from "./services";
 import type {
+	BoothCredentialsResponse,
 	BoothDetailResponse,
 	BoothListResponse,
 	BoothOverviewResponse,
@@ -290,5 +293,86 @@ export function useCancelBoothRestart() {
 	return useMutation({
 		mutationFn: ({ boothId }: { boothId: string }) =>
 			cancelBoothRestart(boothId),
+	});
+}
+
+// ============================================================================
+// BOOTH CREDENTIALS HOOKS
+// ============================================================================
+
+/**
+ * Hook to fetch booth credentials (API key and QR code)
+ * Used for viewing connection details and reconnecting a booth
+ *
+ * Usage:
+ * ```tsx
+ * const { data, isLoading, refetch } = useBoothCredentials('booth-123');
+ * console.log(data?.api_key, data?.qr_code);
+ * ```
+ *
+ * @param boothId - The booth ID to get credentials for
+ * @returns React Query result with credentials data
+ * @see GET /api/v1/booths/{booth_id}/credentials
+ */
+export function useBoothCredentials(boothId: string | null) {
+	return useQuery<BoothCredentialsResponse>({
+		queryKey: boothId ? queryKeys.booths.credentials(boothId) : ['booths', 'credentials', null],
+		queryFn: () => getBoothCredentials(boothId!),
+		enabled: !!boothId,
+		// Credentials don't change often, cache for 5 minutes
+		staleTime: 300000,
+	});
+}
+
+// ============================================================================
+// DELETE BOOTH HOOKS
+// ============================================================================
+
+/**
+ * Hook to delete a booth permanently
+ * Invalidates booth list and clears related caches after deletion
+ *
+ * Usage:
+ * ```tsx
+ * const { mutate: deleteBooth, isPending } = useDeleteBooth();
+ *
+ * deleteBooth({ boothId: 'booth-123' }, {
+ *   onSuccess: () => {
+ *     alert('Booth deleted successfully');
+ *     router.back();
+ *   },
+ * });
+ * ```
+ *
+ * @returns React Query mutation for booth deletion
+ * @see DELETE /api/v1/booths/{booth_id}
+ */
+export function useDeleteBooth() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ boothId }: { boothId: string }) => deleteBooth(boothId),
+		onSuccess: (_, variables) => {
+			// Invalidate booth list to remove deleted booth
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.list(),
+			});
+			// Invalidate all booths overview
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.all(),
+			});
+			// Invalidate dashboard overview
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.dashboard.overview(),
+			});
+			// Remove detail cache for deleted booth
+			queryClient.removeQueries({
+				queryKey: queryKeys.booths.detail(variables.boothId),
+			});
+			// Remove credentials cache for deleted booth
+			queryClient.removeQueries({
+				queryKey: queryKeys.booths.credentials(variables.boothId),
+			});
+		},
 	});
 }

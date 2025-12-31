@@ -19,7 +19,6 @@ import { useIsFocused } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
-	ActivityIndicator,
 	Pressable,
 	RefreshControl,
 	ScrollView,
@@ -34,6 +33,7 @@ import { useAlerts } from "@/api/alerts/queries";
 import { useBoothOverview } from "@/api/booths/queries";
 import type { BoothOverviewItem } from "@/api/booths/types";
 import { CustomHeader } from "@/components/custom-header";
+import { BoothsSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
 import { BoothCard } from "@/components/ui/booth-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -197,6 +197,7 @@ export default function BoothsScreen() {
 	}, [refetch]);
 
 	// Loading state
+	// Loading state - show skeleton instead of spinner
 	if (isLoading) {
 		return (
 			<SafeAreaView
@@ -208,12 +209,7 @@ export default function BoothsScreen() {
 					onNotificationPress={handleNotificationPress}
 					notificationCount={unreadAlerts}
 				/>
-				<View style={styles.loadingContainer}>
-					<ActivityIndicator size="large" color={BRAND_COLOR} />
-					<ThemedText style={[styles.loadingText, { color: textSecondary }]}>
-						Loading booths...
-					</ThemedText>
-				</View>
+				<BoothsSkeleton />
 			</SafeAreaView>
 		);
 	}

@@ -1,5 +1,6 @@
 import { apiClient } from "../client";
 import type {
+	BoothCredentialsResponse,
 	BoothDetailResponse,
 	BoothListResponse,
 	BoothOverviewResponse,
@@ -8,6 +9,7 @@ import type {
 	CreateBoothRequest,
 	CreateBoothResponse,
 	DashboardOverviewResponse,
+	DeleteBoothResponse,
 	RestartAppResponse,
 	RestartRequest,
 	RestartSystemResponse,
@@ -197,6 +199,50 @@ export async function cancelBoothRestart(
 		{
 			method: "POST",
 			body: JSON.stringify({}),
+		},
+	);
+	return response;
+}
+
+// ============================================================================
+// BOOTH CREDENTIALS SERVICES
+// ============================================================================
+
+/**
+ * Get booth credentials (API key and QR code for reconnection)
+ * @param boothId - The booth ID to get credentials for
+ * @returns Promise resolving to credentials with API key and QR code
+ * @see GET /api/v1/booths/{booth_id}/credentials
+ */
+export async function getBoothCredentials(
+	boothId: string,
+): Promise<BoothCredentialsResponse> {
+	const response = await apiClient<BoothCredentialsResponse>(
+		`/api/v1/booths/${boothId}/credentials`,
+		{
+			method: "GET",
+		},
+	);
+	return response;
+}
+
+// ============================================================================
+// DELETE BOOTH SERVICES
+// ============================================================================
+
+/**
+ * Delete a booth permanently
+ * @param boothId - The booth ID to delete
+ * @returns Promise resolving to delete confirmation
+ * @see DELETE /api/v1/booths/{booth_id}
+ */
+export async function deleteBooth(
+	boothId: string,
+): Promise<DeleteBoothResponse> {
+	const response = await apiClient<DeleteBoothResponse>(
+		`/api/v1/booths/${boothId}`,
+		{
+			method: "DELETE",
 		},
 	);
 	return response;
