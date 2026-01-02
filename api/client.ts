@@ -498,6 +498,8 @@ export async function apiClient<T>(url: string, options?: RequestInit): Promise<
         preview: `${accessToken.substring(0, 20)}...${accessToken.substring(accessToken.length - 10)}`,
         url: targetUrl,
       })
+      // TEMPORARY: Full token log for debugging - REMOVE BEFORE PRODUCTION
+      // console.log('[API] [TOKEN] [DEBUG] Full access token:', accessToken)
     } else {
       console.log('[API] [TOKEN] No access token available for request:', { url: targetUrl })
     }

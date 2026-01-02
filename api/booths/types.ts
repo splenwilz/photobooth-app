@@ -117,6 +117,27 @@ export interface BoothPaymentBreakdown {
 }
 
 /**
+ * Upsale values for a single period
+ * Tracks extra copies and cross-sell revenue
+ */
+export interface BoothUpsalePeriod {
+  extra_copies_revenue: number;
+  cross_sell_revenue: number;
+  extra_copies_count: number;
+  cross_sell_count: number;
+}
+
+/**
+ * Upsale breakdown for single booth - by time period
+ */
+export interface BoothUpsaleBreakdown {
+  today: BoothUpsalePeriod;
+  week: BoothUpsalePeriod;
+  month: BoothUpsalePeriod;
+  year: BoothUpsalePeriod;
+}
+
+/**
  * Printer hardware status
  */
 export interface PrinterStatus {
@@ -202,6 +223,7 @@ export interface BoothDetailResponse {
   last_heartbeat_ago: string;
   revenue: BoothDetailRevenue;
   payment_breakdown: BoothPaymentBreakdown;
+  upsale_breakdown: BoothUpsaleBreakdown;
   hardware: BoothHardware;
   system: BoothSystem;
   recent_alerts: BoothDetailAlert[];
@@ -345,6 +367,27 @@ export interface DashboardPaymentBreakdown {
 }
 
 /**
+ * Upsale values for a single period (all booths aggregated)
+ * Tracks extra copies and cross-sell revenue
+ */
+export interface DashboardUpsalePeriod {
+  extra_copies_revenue: number;
+  cross_sell_revenue: number;
+  extra_copies_count: number;
+  cross_sell_count: number;
+}
+
+/**
+ * Upsale breakdown across all periods (all booths aggregated)
+ */
+export interface DashboardUpsaleBreakdown {
+  today: DashboardUpsalePeriod;
+  week: DashboardUpsalePeriod;
+  month: DashboardUpsalePeriod;
+  year: DashboardUpsalePeriod;
+}
+
+/**
  * Printer status counts
  */
 export interface PrinterSummary {
@@ -394,6 +437,7 @@ export interface DashboardOverviewResponse {
   summary: DashboardSummary;
   revenue: DashboardRevenue;
   payment_breakdown: DashboardPaymentBreakdown;
+  upsale_breakdown: DashboardUpsaleBreakdown;
   hardware_summary: DashboardHardwareSummary;
   recent_alerts: DashboardAlert[];
   alerts_count: number;
