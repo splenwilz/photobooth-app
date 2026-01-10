@@ -129,6 +129,11 @@ export default function DashboardScreen() {
 		? dashboardOverview?.payment_breakdown?.[selectedPeriod]
 		: boothDetail?.payment_breakdown?.[selectedPeriod];
 
+	// Get upsale breakdown for current period - tracks extra copies and cross-sells
+	const upsaleBreakdown = isAllMode
+		? dashboardOverview?.upsale_breakdown?.[selectedPeriod]
+		: boothDetail?.upsale_breakdown?.[selectedPeriod];
+
 	// Pull-to-refresh handler - refreshes appropriate data based on mode
 	const onRefresh = useCallback(async () => {
 		if (isAllMode) {
@@ -345,75 +350,114 @@ export default function DashboardScreen() {
 								/>
 							</View>
 
-							{/* Payment Method Breakdown */}
+							{/* Payment Breakdown - Clean List */}
 							<View
 								style={[
-									styles.paymentBreakdown,
+									styles.breakdownCard,
 									{ backgroundColor: cardBg, borderColor },
 								]}
 							>
 								<ThemedText
-									style={[styles.paymentTitle, { color: textSecondary }]}
+									style={[styles.breakdownTitle, { color: textSecondary }]}
 								>
-									Payment Breakdown
+									Payment Methods
 								</ThemedText>
-								<View style={styles.paymentRow}>
-									<View style={styles.paymentItem}>
+								
+								{/* Cash */}
+								<View style={styles.breakdownRow}>
+									<ThemedText style={{ color: textSecondary }}>Cash</ThemedText>
+									<ThemedText type="defaultSemiBold">
+										{formatCurrency(paymentBreakdown?.cash ?? 0)}
+									</ThemedText>
+								</View>
+								
+								<View style={[styles.breakdownDivider, { backgroundColor: borderColor }]} />
+								
+								{/* Card */}
+								<View style={styles.breakdownRow}>
+									<ThemedText style={{ color: textSecondary }}>Card</ThemedText>
+									<ThemedText type="defaultSemiBold">
+										{formatCurrency(paymentBreakdown?.card ?? 0)}
+									</ThemedText>
+								</View>
+								
+								<View style={[styles.breakdownDivider, { backgroundColor: borderColor }]} />
+								
+								{/* Manual */}
+								<View style={styles.breakdownRow}>
+									<ThemedText style={{ color: textSecondary }}>Manual</ThemedText>
+									<ThemedText type="defaultSemiBold">
+										{formatCurrency(paymentBreakdown?.manual ?? 0)}
+									</ThemedText>
+								</View>
+							</View>
+
+							{/* Upsales - Original Row Design */}
+							<View
+								style={[
+									styles.upsaleContainer,
+									{ backgroundColor: cardBg, borderColor },
+								]}
+							>
+								<ThemedText
+									style={[styles.upsaleTitle, { color: textSecondary }]}
+								>
+									Upsale Revenue
+								</ThemedText>
+								<View style={styles.upsaleRow}>
+									{/* Extra Copies */}
+									<View style={styles.upsaleItem}>
 										<View
 											style={[
-												styles.paymentIcon,
-												{
-													backgroundColor: withAlpha(
-														StatusColors.success,
-														0.15,
-													),
-												},
-											]}
-										>
-											<IconSymbol
-												name="banknote"
-												size={16}
-												color={StatusColors.success}
-											/>
-										</View>
-										<View>
-											<ThemedText
-												style={[styles.paymentLabel, { color: textSecondary }]}
-											>
-												Cash
-											</ThemedText>
-											<ThemedText type="defaultSemiBold">
-												{formatCurrency(paymentBreakdown?.cash ?? 0)}
-											</ThemedText>
-										</View>
-									</View>
-									<View
-										style={[
-											styles.paymentDivider,
-											{ backgroundColor: borderColor },
-										]}
-									/>
-									<View style={styles.paymentItem}>
-										<View
-											style={[
-												styles.paymentIcon,
+												styles.upsaleIcon,
 												{ backgroundColor: withAlpha(BRAND_COLOR, 0.15) },
 											]}
 										>
 											<IconSymbol
-												name="creditcard"
+												name="doc.on.doc"
 												size={16}
 												color={BRAND_COLOR}
 											/>
 										</View>
 										<View>
 											<ThemedText
-												style={[styles.paymentLabel, { color: textSecondary }]}
+												style={[styles.upsaleLabel, { color: textSecondary }]}
 											>
-												Card
+												Extra Copies
 											</ThemedText>
 											<ThemedText type="defaultSemiBold">
-												{formatCurrency(paymentBreakdown?.card ?? 0)}
+												{formatCurrency(upsaleBreakdown?.extra_copies_revenue ?? 0)}
+											</ThemedText>
+										</View>
+									</View>
+									<View
+										style={[
+											styles.upsaleDivider,
+											{ backgroundColor: borderColor },
+										]}
+									/>
+									{/* Cross-Sell */}
+									<View style={styles.upsaleItem}>
+										<View
+											style={[
+												styles.upsaleIcon,
+												{ backgroundColor: withAlpha(BRAND_COLOR, 0.15) },
+											]}
+										>
+											<IconSymbol
+												name="arrow.up.right"
+												size={16}
+												color={BRAND_COLOR}
+											/>
+										</View>
+										<View>
+											<ThemedText
+												style={[styles.upsaleLabel, { color: textSecondary }]}
+											>
+												Cross-Sell
+											</ThemedText>
+											<ThemedText type="defaultSemiBold">
+												{formatCurrency(upsaleBreakdown?.cross_sell_revenue ?? 0)}
 											</ThemedText>
 										</View>
 									</View>
@@ -647,41 +691,69 @@ const styles = StyleSheet.create({
 	statsRow: {
 		flexDirection: "row",
 	},
-	paymentBreakdown: {
+	// Clean Breakdown Cards
+	breakdownCard: {
 		marginTop: Spacing.md,
 		padding: Spacing.md,
 		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
 	},
-	paymentTitle: {
+	breakdownTitle: {
+		fontSize: 13,
+		fontWeight: "600",
+		marginBottom: Spacing.md,
+	},
+	breakdownRow: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+		paddingVertical: Spacing.xs,
+	},
+	breakdownDivider: {
+		height: 1,
+		marginVertical: Spacing.xs,
+	},
+	breakdownSubtext: {
+		fontSize: 12,
+		marginTop: 2,
+		opacity: 0.7,
+	},
+	// Original Row Design for Upsales
+	upsaleContainer: {
+		marginTop: Spacing.md,
+		padding: Spacing.md,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+	},
+	upsaleTitle: {
 		fontSize: 12,
 		fontWeight: "500",
 		textTransform: "uppercase",
 		letterSpacing: 0.5,
 		marginBottom: Spacing.sm,
 	},
-	paymentRow: {
+	upsaleRow: {
 		flexDirection: "row",
 		alignItems: "center",
 	},
-	paymentItem: {
+	upsaleItem: {
 		flex: 1,
 		flexDirection: "row",
 		alignItems: "center",
 		gap: Spacing.sm,
 	},
-	paymentIcon: {
+	upsaleIcon: {
 		width: 32,
 		height: 32,
 		borderRadius: 16,
 		justifyContent: "center",
 		alignItems: "center",
 	},
-	paymentLabel: {
+	upsaleLabel: {
 		fontSize: 11,
 		marginBottom: 2,
 	},
-	paymentDivider: {
+	upsaleDivider: {
 		width: 1,
 		height: 40,
 		marginHorizontal: Spacing.md,
