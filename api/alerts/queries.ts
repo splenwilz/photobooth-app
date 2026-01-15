@@ -46,7 +46,7 @@ export function useAlerts(params?: AlertsParams) {
 				alerts: response.alerts.map(mapAlertsApiAlertToAppAlert),
 			};
 		},
-		// Data stays fresh for 30 seconds - alerts should be relatively fresh
-		staleTime: 30000,
+		// TEMPORARY: Disabled staleTime for fresh data
+		staleTime: 0,
 	});
 }

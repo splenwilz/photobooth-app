@@ -26,7 +26,8 @@ export function useBoothCredits(boothId: string | null) {
 		queryKey: boothId ? queryKeys.credits.balance(boothId) : ['credits', 'balance', null],
 		queryFn: () => getBoothCredits(boothId!),
 		enabled: !!boothId,
-		staleTime: 30 * 1000, // 30 seconds
+		// TEMPORARY: Disabled staleTime for fresh data
+		staleTime: 0,
 	});
 }
 
@@ -93,7 +94,8 @@ export function useCreditsHistory(
 			: ['credits', 'history', null, params],
 		queryFn: () => getCreditsHistory(boothId!, params),
 		enabled: !!boothId,
-		staleTime: 30 * 1000, // 30 seconds
+		// TEMPORARY: Disabled staleTime for fresh data
+		staleTime: 0,
 	});
 }
 

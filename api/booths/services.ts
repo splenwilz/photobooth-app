@@ -10,6 +10,7 @@ import type {
 	CreateBoothResponse,
 	DashboardOverviewResponse,
 	DeleteBoothResponse,
+	GenerateCodeResponse,
 	RestartAppResponse,
 	RestartRequest,
 	RestartSystemResponse,
@@ -221,6 +222,28 @@ export async function getBoothCredentials(
 		`/api/v1/booths/${boothId}/credentials`,
 		{
 			method: "GET",
+		},
+	);
+	return response;
+}
+
+/**
+ * Generate a new 6-digit registration code for a booth
+ * Code is valid for 15 minutes and is one-time use
+ * User types this code on the photobooth instead of scanning QR codes
+ * 
+ * @param boothId - The booth ID to generate code for
+ * @returns Promise resolving to code and expiration info
+ * @see POST /api/v1/booths/{booth_id}/generate-code
+ */
+export async function generateBoothCode(
+	boothId: string,
+): Promise<GenerateCodeResponse> {
+	const response = await apiClient<GenerateCodeResponse>(
+		`/api/v1/booths/${boothId}/generate-code`,
+		{
+			method: "POST",
+			body: JSON.stringify({}),
 		},
 	);
 	return response;

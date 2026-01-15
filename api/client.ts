@@ -499,7 +499,7 @@ export async function apiClient<T>(url: string, options?: RequestInit): Promise<
         url: targetUrl,
       })
       // TEMPORARY: Full token log for debugging - REMOVE BEFORE PRODUCTION
-      // console.log('[API] [TOKEN] [DEBUG] Full access token:', accessToken)
+      console.log('[API] [TOKEN] [DEBUG] Full access token:', accessToken)
     } else {
       console.log('[API] [TOKEN] No access token available for request:', { url: targetUrl })
     }

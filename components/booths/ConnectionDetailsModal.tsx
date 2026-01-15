@@ -1,35 +1,36 @@
 /**
  * Connection Details Modal
  *
- * Displays booth connection credentials (API key and QR code) for reconnection.
- * Shows large QR code for easy scanning and copyable API key.
+ * Displays booth connection credentials with registration code as the primary method.
+ * Users enter the 6-digit code on their booth touchscreen to connect.
+ * QR code and API key kept as fallback options.
  *
  * @see GET /api/v1/booths/{booth_id}/credentials
+ * @see POST /api/v1/booths/{booth_id}/generate-code
  */
 
 import * as Clipboard from "expo-clipboard";
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useBoothCredentials } from "@/api/booths";
+import { useBoothCredentials, useGenerateBoothCode } from "@/api/booths";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
-    BorderRadius,
-    BRAND_COLOR,
-    Spacing,
-    StatusColors,
-    withAlpha,
+  BorderRadius,
+  BRAND_COLOR,
+  Spacing,
+  StatusColors,
+  withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -51,6 +52,19 @@ export const ConnectionDetailsModal: React.FC<ConnectionDetailsModalProps> = ({
   const borderColor = useThemeColor({}, "border");
   const textSecondary = useThemeColor({}, "textSecondary");
 
+  // Track newly generated code (takes precedence over credentials code)
+  const [generatedCode, setGeneratedCode] = useState<{
+    code: string;
+    expires_at: string;
+  } | null>(null);
+
+  // Reset generated code when modal closes
+  React.useEffect(() => {
+    if (!visible) {
+      setGeneratedCode(null);
+    }
+  }, [visible]);
+
   // Fetch credentials from API
   // @see GET /api/v1/booths/{booth_id}/credentials
   const {
@@ -60,14 +74,21 @@ export const ConnectionDetailsModal: React.FC<ConnectionDetailsModalProps> = ({
     refetch,
   } = useBoothCredentials(visible ? boothId : null);
 
-  // Debug: Log credentials response to check QR code format
+  // Generate new code mutation
+  // @see POST /api/v1/booths/{booth_id}/generate-code
+  const generateCodeMutation = useGenerateBoothCode();
+
+  // Get current code (generated code takes precedence)
+  const currentCode = generatedCode?.code ?? credentials?.registration_code;
+  const currentExpiry = generatedCode?.expires_at ?? credentials?.code_expires_at;
+
+  // Debug: Log credentials response
   React.useEffect(() => {
     if (credentials) {
       console.log("[ConnectionDetailsModal] Credentials loaded:", {
         id: credentials.id,
         api_key: credentials.api_key ? "***" : "missing",
-        qr_code_length: credentials.qr_code?.length ?? 0,
-        qr_code_prefix: credentials.qr_code?.substring(0, 30) ?? "missing",
+        registration_code: credentials.registration_code ?? "missing",
       });
     }
   }, [credentials]);
@@ -84,6 +105,44 @@ export const ConnectionDetailsModal: React.FC<ConnectionDetailsModalProps> = ({
       Alert.alert("Error", "Failed to copy API key.");
     }
   }, [credentials?.api_key]);
+
+  // Copy registration code to clipboard
+  const handleCopyCode = useCallback(async () => {
+    if (!currentCode) return;
+
+    try {
+      await Clipboard.setStringAsync(currentCode);
+      Alert.alert("Copied!", "Registration code copied to clipboard.");
+    } catch (err) {
+      console.error("[ConnectionDetailsModal] Copy code error:", err);
+      Alert.alert("Error", "Failed to copy code.");
+    }
+  }, [currentCode]);
+
+  // Generate new registration code
+  const handleGenerateCode = useCallback(() => {
+    if (!boothId) return;
+
+    generateCodeMutation.mutate(
+      { boothId },
+      {
+        onSuccess: (data) => {
+          setGeneratedCode({
+            code: data.code,
+            expires_at: data.expires_at,
+          });
+          Alert.alert(
+            "New Code Generated",
+            `Your new registration code is: ${data.code}\n\nValid for ${data.expires_in_minutes} minutes.`
+          );
+        },
+        onError: (err) => {
+          console.error("[ConnectionDetailsModal] Generate code error:", err);
+          Alert.alert("Error", "Failed to generate new code. Please try again.");
+        },
+      }
+    );
+  }, [boothId, generateCodeMutation]);
 
   // Retry fetching credentials
   const handleRetry = useCallback(() => {
@@ -165,40 +224,64 @@ export const ConnectionDetailsModal: React.FC<ConnectionDetailsModalProps> = ({
           {/* Credentials Display */}
           {credentials && !isLoading && (
             <>
-              {/* QR Code Section */}
-              <View style={[styles.qrSection, { backgroundColor: cardBg, borderColor }]}>
+              {/* Registration Code Section - Primary connection method */}
+              <View style={[styles.registrationCodeSection, { backgroundColor: cardBg, borderColor }]}>
                 <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-                  Scan QR Code
+                  Registration Code
                 </ThemedText>
                 <ThemedText style={[styles.sectionDescription, { color: textSecondary }]}>
-                  Open the PhotoBooth app on your booth PC and scan this code to connect.
+                  Enter this 6-digit code on your booth touchscreen to connect.
                 </ThemedText>
 
-                <View style={styles.qrContainer}>
-                  {credentials.qr_code ? (
-                    <Image
-                      source={{
-                        // Handle both raw base64 and data URI formats
-                        uri: credentials.qr_code.startsWith("data:")
-                          ? credentials.qr_code
-                          : `data:image/png;base64,${credentials.qr_code}`,
-                      }}
-                      style={styles.qrImage}
-                      resizeMode="contain"
-                      onError={(e) => {
-                        console.error("[ConnectionDetailsModal] QR image error:", e.nativeEvent.error);
-                        console.log("[ConnectionDetailsModal] QR code prefix:", credentials.qr_code.substring(0, 50));
-                      }}
-                    />
-                  ) : (
-                    <View style={[styles.qrPlaceholder, { borderColor }]}>
-                      <IconSymbol name="qrcode" size={48} color={textSecondary} />
-                      <ThemedText style={[styles.qrPlaceholderText, { color: textSecondary }]}>
-                        QR code not available
+                {currentCode ? (
+                  <>
+                    <TouchableOpacity 
+                      style={[styles.registrationCodeBox, { backgroundColor: withAlpha(BRAND_COLOR, 0.15), borderColor: BRAND_COLOR }]}
+                      onPress={handleCopyCode}
+                    >
+                      <ThemedText style={styles.registrationCodeText}>
+                        {currentCode}
                       </ThemedText>
-                    </View>
+                      <IconSymbol name="doc.on.doc" size={20} color={BRAND_COLOR} />
+                    </TouchableOpacity>
+
+                    {currentExpiry && (
+                      <ThemedText style={[styles.expirationHint, { color: textSecondary }]}>
+                        Valid until: {new Date(currentExpiry).toLocaleString()}
+                      </ThemedText>
+                    )}
+                  </>
+                ) : (
+                  <View style={[styles.noCodeBox, { backgroundColor: withAlpha(borderColor, 0.3) }]}>
+                    <ThemedText style={[styles.noCodeText, { color: textSecondary }]}>
+                      No active code
+                    </ThemedText>
+                  </View>
+                )}
+
+                {/* Generate New Code Button */}
+                <TouchableOpacity 
+                  style={[
+                    styles.generateButton, 
+                    { backgroundColor: BRAND_COLOR },
+                    generateCodeMutation.isPending && styles.generateButtonDisabled,
+                  ]}
+                  onPress={handleGenerateCode}
+                  disabled={generateCodeMutation.isPending}
+                >
+                  {generateCodeMutation.isPending ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <IconSymbol name="arrow.clockwise" size={18} color="white" />
                   )}
-                </View>
+                  <ThemedText style={styles.generateButtonText}>
+                    {generateCodeMutation.isPending ? "Generating..." : "Generate New Code"}
+                  </ThemedText>
+                </TouchableOpacity>
+
+                <ThemedText style={[styles.codeInfoHint, { color: textSecondary }]}>
+                  Codes are valid for 15 minutes and can only be used once.
+                </ThemedText>
               </View>
 
               {/* API Key Section */}
@@ -242,7 +325,7 @@ export const ConnectionDetailsModal: React.FC<ConnectionDetailsModalProps> = ({
                       <ThemedText style={styles.instructionNumberText}>1</ThemedText>
                     </View>
                     <ThemedText style={[styles.instructionText, { color: textSecondary }]}>
-                      Open the PhotoBooth desktop application on your booth PC.
+                      Open the PhotoBooth application on your booth PC.
                     </ThemedText>
                   </View>
 
@@ -251,7 +334,7 @@ export const ConnectionDetailsModal: React.FC<ConnectionDetailsModalProps> = ({
                       <ThemedText style={styles.instructionNumberText}>2</ThemedText>
                     </View>
                     <ThemedText style={[styles.instructionText, { color: textSecondary }]}>
-                      Go to Settings → Connection and select &quot;Scan QR Code&quot;.
+                      Go to Settings → Connection and enter the 6-digit code shown above.
                     </ThemedText>
                   </View>
 
@@ -260,7 +343,7 @@ export const ConnectionDetailsModal: React.FC<ConnectionDetailsModalProps> = ({
                       <ThemedText style={styles.instructionNumberText}>3</ThemedText>
                     </View>
                     <ThemedText style={[styles.instructionText, { color: textSecondary }]}>
-                      Point your webcam at the QR code above to connect automatically.
+                      Your booth will connect automatically once the code is verified.
                     </ThemedText>
                   </View>
                 </View>
@@ -366,12 +449,71 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  // QR Code Section
-  qrSection: {
+  // Registration Code Section
+  registrationCodeSection: {
     padding: Spacing.lg,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     marginBottom: Spacing.md,
+    alignItems: "center",
+  },
+  registrationCodeBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: 14,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 2,
+    marginTop: Spacing.sm,
+    gap: Spacing.md,
+  },
+  registrationCodeText: {
+    fontSize: 28,
+    fontWeight: "bold",
+    letterSpacing: 4,
+    fontFamily: "monospace",
+    paddingVertical: 2,
+    marginTop:4
+  },
+  expirationHint: {
+    fontSize: 11,
+    marginTop: Spacing.sm,
+    textAlign: "center",
+  },
+  noCodeBox: {
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    marginTop: Spacing.sm,
+    alignItems: "center",
+  },
+  noCodeText: {
+    fontSize: 14,
+  },
+  generateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    marginTop: Spacing.md,
+    gap: Spacing.xs,
+  },
+  generateButtonDisabled: {
+    opacity: 0.7,
+  },
+  generateButtonText: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  codeInfoHint: {
+    fontSize: 11,
+    marginTop: Spacing.sm,
+    textAlign: "center",
+    fontStyle: "italic",
   },
   sectionTitle: {
     fontSize: 15,
@@ -381,30 +523,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginBottom: Spacing.md,
-  },
-  qrContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "white",
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-  },
-  qrImage: {
-    width: 250,
-    height: 250,
-  },
-  qrPlaceholder: {
-    width: 250,
-    height: 250,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderRadius: BorderRadius.md,
-  },
-  qrPlaceholderText: {
-    marginTop: Spacing.sm,
-    fontSize: 13,
   },
   // API Key Section
   apiKeySection: {

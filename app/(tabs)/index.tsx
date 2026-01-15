@@ -79,13 +79,14 @@ export default function DashboardScreen() {
 	// Fetch booth detail when a specific booth is selected
 	const {
 		data: boothDetail,
+		isLoading: isLoadingDetail,
 		refetch: refetchDetail,
 		isRefetching: isRefetchingDetail,
 	} = useBoothDetail(hasBoothSelected ? selectedBoothId : null);
 
-	// SIMPLE LOGIC: Show "All Booths" mode unless we have actual booth detail data
-	// This means while loading a specific booth, we still show "All Booths" view
-	const isAllMode = !boothDetail;
+	// Show "All Booths" mode when no specific booth is selected
+	// Note: isAllMode is based on selection state, not data loading state
+	const isAllMode = !hasBoothSelected;
 
 	// Always fetch dashboard overview (used as fallback and for "All Booths" mode)
 	const {
@@ -157,8 +158,11 @@ export default function DashboardScreen() {
 	};
 
 	// Loading state - show skeleton during initial load
-	// Only wait for dashboard overview since that's our fallback/default
-	const isInitialLoading = !isHydrated || isLoadingOverview;
+	// Show loading when:
+	// - Store hasn't hydrated yet
+	// - Dashboard overview is loading (for "All Booths" mode)
+	// - Booth detail is loading (for single booth mode)
+	const isInitialLoading = !isHydrated || isLoadingOverview || (hasBoothSelected && isLoadingDetail);
 
 	if (isInitialLoading) {
 		return (

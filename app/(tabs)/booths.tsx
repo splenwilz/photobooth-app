@@ -155,8 +155,12 @@ export default function BoothsScreen() {
 	const filteredBooths = useMemo(() => {
 		return booths.filter((booth) => {
 			// Filter by status
-			if (filterStatus !== "all" && booth.status !== filterStatus) {
-				return false;
+			// "online" filter includes: online, warning, error (connected but may have issues)
+			// "offline" filter includes: only offline
+			if (filterStatus === "online") {
+				if (booth.status === "offline") return false;
+			} else if (filterStatus === "offline") {
+				if (booth.status !== "offline") return false;
 			}
 			// Filter by search query
 			if (searchQuery) {

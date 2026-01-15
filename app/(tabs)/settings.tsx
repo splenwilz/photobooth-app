@@ -16,9 +16,10 @@
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -306,7 +307,7 @@ export default function SettingsScreen() {
 	const { selectedBoothId } = useBoothStore();
 
 	// Fetch booth overview to check if user has any booths
-	const { data: boothOverview } = useBoothOverview();
+	const { data: boothOverview, refetch: refetchOverview } = useBoothOverview();
 	const hasNoBooths = !boothOverview?.booths?.length;
 
 	// Check if "All Booths" mode is active OR if user has no booths
@@ -317,7 +318,7 @@ export default function SettingsScreen() {
 	const effectiveBoothId = isAllBoothsMode ? null : selectedBoothId;
 
 	// Fetch booth details from API
-	const { data: boothDetail } = useBoothDetail(effectiveBoothId);
+	const { data: boothDetail, refetch: refetchDetail } = useBoothDetail(effectiveBoothId);
 
 	// Fetch credits from API
 	const {
@@ -327,7 +328,25 @@ export default function SettingsScreen() {
 	} = useBoothCredits(effectiveBoothId);
 
 	// Fetch pricing from API
-	const { data: pricingData } = useBoothPricing(effectiveBoothId);
+	const { data: pricingData, refetch: refetchPricing } = useBoothPricing(effectiveBoothId);
+
+	// Pull-to-refresh state
+	const [isRefreshing, setIsRefreshing] = useState(false);
+
+	// Pull-to-refresh handler
+	const onRefresh = useCallback(async () => {
+		setIsRefreshing(true);
+		try {
+			await Promise.all([
+				refetchOverview(),
+				refetchDetail(),
+				refetchCredits(),
+				refetchPricing(),
+			]);
+		} finally {
+			setIsRefreshing(false);
+		}
+	}, [refetchOverview, refetchDetail, refetchCredits, refetchPricing]);
 
 	// State for Add Credits modal
 	const [showAddCreditsModal, setShowAddCreditsModal] = useState(false);
@@ -508,7 +527,18 @@ export default function SettingsScreen() {
 				notificationCount={unreadAlerts}
 			/>
 
-			<ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+			<ScrollView
+				style={styles.content}
+				showsVerticalScrollIndicator={false}
+				refreshControl={
+					<RefreshControl
+						refreshing={isRefreshing}
+						onRefresh={onRefresh}
+						tintColor={BRAND_COLOR}
+						colors={[BRAND_COLOR]}
+					/>
+				}
+			>
 				{/* All Booths Mode / No Booths Notice */}
 				{isAllBoothsMode && (
 					<View
@@ -650,12 +680,12 @@ export default function SettingsScreen() {
 							subtitle="Connection and system controls"
 						/>
 
-						<SettingsItem
-							icon="link"
-							title="Connection Details"
-							subtitle="View API key and QR code"
-							onPress={() => setShowConnectionModal(true)}
-						/>
+					<SettingsItem
+						icon="link"
+						title="Connection Details"
+						subtitle="View or generate registration code"
+						onPress={() => setShowConnectionModal(true)}
+					/>
 
 						<SettingsItem
 							icon="arrow.clockwise"
