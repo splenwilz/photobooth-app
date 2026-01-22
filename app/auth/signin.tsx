@@ -127,15 +127,11 @@ export default function SignInScreen() {
       { email: formData.email, password: formData.password },
       {
         onSuccess: async (response) => {
-          console.log('[SignIn] Success:', response);
-
           // Check if email verification is required
           if (isEmailVerificationResponse(response)) {
-            console.log('[SignIn] Email verification required');
-            // Navigate to email verification screen
             router.push({
               pathname: '/auth/verify-email',
-              params: { 
+              params: {
                 email: response.email,
                 token: response.pending_authentication_token,
               },
@@ -147,10 +143,6 @@ export default function SignInScreen() {
           try {
             await saveTokens(response.access_token, response.refresh_token);
             await saveUser(response.user);
-            console.log('[SignIn] Tokens and user saved');
-
-            // Navigate to main app
-            // Users can add booths from the Booths tab if needed
             router.replace('/(tabs)');
           } catch (saveError) {
             console.error('[SignIn] Failed to save auth data:', saveError);
@@ -158,7 +150,7 @@ export default function SignInScreen() {
           }
         },
         onError: (error) => {
-          console.error('[SignIn] Error:', error);
+          console.error('[SignIn] Error:', error.message);
           // Error is displayed via apiError state
         },
       }

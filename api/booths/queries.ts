@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createMutationHook } from "../utils/query-helpers";
 import { queryKeys } from "../utils/query-keys";
 import {
 	cancelBoothRestart,
@@ -23,7 +22,6 @@ import type {
 	BoothOverviewResponse,
 	BoothPricingResponse,
 	CreateBoothRequest,
-	CreateBoothResponse,
 	DashboardOverviewResponse,
 	GenerateCodeResponse,
 	RestartRequest,
@@ -39,6 +37,7 @@ import type {
 
 /**
  * Hook to create a new booth
+ * Invalidates booth list and dashboard queries after successful creation
  *
  * Usage:
  * ```tsx
@@ -51,10 +50,27 @@ import type {
  *
  * @returns React Query mutation object for booth creation
  */
-export const useCreateBooth = createMutationHook<
-	CreateBoothRequest,
-	CreateBoothResponse
->(createBooth);
+export function useCreateBooth() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (data: CreateBoothRequest) => createBooth(data),
+		onSuccess: () => {
+			// Invalidate booth list to show new booth
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.list(),
+			});
+			// Invalidate booth overview to update summary
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.all(),
+			});
+			// Invalidate dashboard overview to update total_booths count
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.dashboard.overview(),
+			});
+		},
+	});
+}
 
 /**
  * Hook to fetch list of all booths for current user

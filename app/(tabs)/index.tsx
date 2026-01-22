@@ -108,12 +108,16 @@ export default function DashboardScreen() {
 		hasData &&
 		((isAllMode && isRefetchingOverview) || (!isAllMode && isRefetchingDetail));
 
-	// Auto-select "all" mode if nothing selected
+	// Auto-select "all" mode if nothing selected or if selected booth doesn't exist
 	useEffect(() => {
 		if (isHydrated && !selectedBoothId) {
 			setSelectedBoothId(ALL_BOOTHS_ID);
 		}
-	}, [isHydrated, selectedBoothId, setSelectedBoothId]);
+		// Reset to "all" mode if selected booth doesn't exist (deleted or invalid)
+		if (hasBoothSelected && !isLoadingDetail && !boothDetail) {
+			setSelectedBoothId(ALL_BOOTHS_ID);
+		}
+	}, [isHydrated, selectedBoothId, setSelectedBoothId, hasBoothSelected, isLoadingDetail, boothDetail]);
 
 	// Fetch alerts for notification badge - uses same API as other screens
 	// @see GET /api/v1/analytics/alerts
@@ -160,11 +164,16 @@ export default function DashboardScreen() {
 	// Loading state - show skeleton during initial load
 	// Show loading when:
 	// - Store hasn't hydrated yet
-	// - Dashboard overview is loading (for "All Booths" mode)
+	// - Dashboard overview is loading or not yet available (for "All Booths" mode)
 	// - Booth detail is loading (for single booth mode)
+	// - Booth is selected but no data yet (waiting for useEffect to reset)
+	const isInvalidBoothSelection = hasBoothSelected && !isLoadingDetail && !boothDetail;
+	const isWaitingForDashboardData = isAllMode && !dashboardOverview;
+	const isWaitingForBoothData = !isAllMode && !boothDetail && !isLoadingDetail;
 	const isInitialLoading = !isHydrated || isLoadingOverview || (hasBoothSelected && isLoadingDetail);
 
-	if (isInitialLoading) {
+	// Show skeleton while loading OR while data hasn't arrived yet
+	if (isInitialLoading || isInvalidBoothSelection || isWaitingForDashboardData || isWaitingForBoothData) {
 		return (
 			<SafeAreaView
 				style={[styles.container, { backgroundColor }]}
@@ -176,8 +185,11 @@ export default function DashboardScreen() {
 		);
 	}
 
-	// No booths state - check summary from dashboard overview
-	if (dashboardOverview?.summary?.total_booths === 0) {
+	// No booths state - check if user has no booths
+	// This handles: new signups, all booths deleted
+	const hasNoBooths = dashboardOverview?.summary?.total_booths === 0;
+
+	if (hasNoBooths) {
 		return (
 			<SafeAreaView
 				style={[styles.container, { backgroundColor }]}

@@ -43,23 +43,32 @@ export interface AddCreditsResponse {
 // ============================================================================
 
 /**
- * Credit command status
+ * Credit transaction status
  */
-export type CreditCommandStatus = "delivered" | "pending" | "completed" | "failed";
+export type CreditTransactionStatus = "completed" | "pending" | "failed";
 
 /**
- * Single credit history command item
+ * Credit transaction type (API filter values)
  */
-export interface CreditHistoryCommand {
-	id: number;
-	command_type: "add_credits";
+export type CreditTransactionType = "Add" | "Deduct" | "Reset";
+
+/**
+ * Credit transaction source
+ */
+export type CreditTransactionSource = "booth_admin" | "mobile_app" | "system" | "booth";
+
+/**
+ * Single credit history transaction item
+ */
+export interface CreditTransaction {
+	id: string;
+	source: CreditTransactionSource;
+	transaction_type: CreditTransactionType;
 	amount: number;
-	reason: string | null;
-	status: CreditCommandStatus;
+	description: string;
+	balance_after: number | null;
+	status: CreditTransactionStatus;
 	created_at: string;
-	delivered_at: string | null;
-	completed_at: string | null;
-	result_message: string | null;
 }
 
 /**
@@ -68,17 +77,57 @@ export interface CreditHistoryCommand {
 export interface CreditsHistoryResponse {
 	booth_id: string;
 	booth_name: string;
-	commands: CreditHistoryCommand[];
+	transactions: CreditTransaction[];
 	total: number;
 	limit: number;
 	offset: number;
 }
 
 /**
+ * Source filter values for API query
+ * Maps to: cloud, booth_admin, booth_pcb, booth_system
+ */
+export type CreditSourceFilter = "cloud" | "booth_admin" | "booth_pcb" | "booth_system";
+
+/**
  * GET /api/v1/booths/{booth_id}/credits/history query params
  */
 export interface CreditsHistoryParams {
+	/** Max number of records (default 50, max 100) */
 	limit?: number;
+	/** Pagination offset (default 0) */
 	offset?: number;
+	/** Filter by source */
+	source?: CreditSourceFilter;
+	/** Filter by transaction type */
+	transaction_type?: CreditTransactionType;
+	/** Filter transactions from this date (ISO 8601) */
+	date_from?: string;
+	/** Filter transactions until this date (ISO 8601) */
+	date_to?: string;
+}
+
+/**
+ * DELETE /api/v1/booths/{booth_id}/credits/history query params
+ */
+export interface DeleteCreditsHistoryParams {
+	/** Delete a specific transaction by ID */
+	transaction_id?: string;
+	/** Filter by source */
+	source?: CreditSourceFilter;
+	/** Filter by transaction type */
+	transaction_type?: CreditTransactionType;
+	/** Delete transactions from this date (ISO 8601) */
+	date_from?: string;
+	/** Delete transactions until this date (ISO 8601) */
+	date_to?: string;
+}
+
+/**
+ * DELETE /api/v1/booths/{booth_id}/credits/history response
+ */
+export interface DeleteCreditsHistoryResponse {
+	message: string;
+	deleted_count: number;
 }
 

@@ -16,7 +16,7 @@
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   RefreshControl,
@@ -44,6 +44,8 @@ import {
   PENDING_PASSWORD_KEY,
   REFRESH_TOKEN_KEY,
   USER_STORAGE_KEY,
+  clearQueryCache,
+  getStoredUser,
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
 import {
@@ -242,6 +244,10 @@ export default function SettingsScreen() {
 					style: "destructive",
 					onPress: async () => {
 						try {
+							// Clear React Query cache FIRST to stop all running queries
+							// This prevents 401 errors from background queries after tokens are deleted
+							clearQueryCache();
+
 							// All SecureStore keys used in the app
 							// Imported from their source modules to prevent drift
 							const keys = [
@@ -360,6 +366,30 @@ export default function SettingsScreen() {
 
 	// State for Delete Booth modal
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+	// User profile from stored auth data
+	const [userProfile, setUserProfile] = useState({
+		name: "",
+		email: "",
+		initials: "",
+	});
+
+	// Load user profile from storage on mount
+	useEffect(() => {
+		const loadUserProfile = async () => {
+			const user = await getStoredUser();
+			if (user) {
+				const fullName = `${user.first_name} ${user.last_name}`.trim();
+				const initials = `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase();
+				setUserProfile({
+					name: fullName || "User",
+					email: user.email,
+					initials: initials || "U",
+				});
+			}
+		};
+		loadUserProfile();
+	}, []);
 
 	// Convert API pricing to products (memoized to prevent re-renders)
 	const products = React.useMemo(
@@ -539,6 +569,39 @@ export default function SettingsScreen() {
 					/>
 				}
 			>
+				{/* User Profile Section */}
+				<View style={styles.section}>
+					<View
+						style={[
+							styles.profileCard,
+							{ backgroundColor: cardBg, borderColor },
+						]}
+					>
+						<View style={styles.profileHeader}>
+							{/* Avatar */}
+							<View
+								style={[
+									styles.profileAvatar,
+									{ backgroundColor: withAlpha(BRAND_COLOR, 0.15) },
+								]}
+							>
+								<ThemedText style={[styles.profileAvatarText, { color: BRAND_COLOR }]}>
+									{userProfile.initials}
+								</ThemedText>
+							</View>
+							{/* User Info */}
+							<View style={styles.profileInfo}>
+								<ThemedText type="defaultSemiBold" style={styles.profileName}>
+									{userProfile.name}
+								</ThemedText>
+								<ThemedText style={[styles.profileEmail, { color: textSecondary }]}>
+									{userProfile.email}
+								</ThemedText>
+							</View>
+						</View>
+					</View>
+				</View>
+
 				{/* All Booths Mode / No Booths Notice */}
 				{isAllBoothsMode && (
 					<View
@@ -927,5 +990,38 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		marginTop: 4,
 		lineHeight: 18,
+	},
+	// Profile Section
+	profileCard: {
+		padding: Spacing.lg,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+	},
+	profileHeader: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: Spacing.md,
+	},
+	profileAvatar: {
+		width: 64,
+		height: 64,
+		borderRadius: 32,
+		justifyContent: "center",
+		alignItems: "center",
+		marginRight: Spacing.md,
+	},
+	profileAvatarText: {
+		fontSize: 24,
+		fontWeight: "bold",
+	},
+	profileInfo: {
+		flex: 1,
+	},
+	profileName: {
+		fontSize: 18,
+		marginBottom: 2,
+	},
+	profileEmail: {
+		fontSize: 14,
 	},
 });

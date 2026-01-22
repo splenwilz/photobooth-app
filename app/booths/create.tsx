@@ -12,7 +12,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -106,7 +105,6 @@ export default function CreateBoothScreen() {
 			{ name: formData.name, address: formData.address },
 			{
 				onSuccess: (response) => {
-					console.log("[CreateBooth] Success:", response);
 					setCreatedBooth(response);
 				},
 				onError: (error) => {
@@ -276,30 +274,6 @@ export default function CreateBoothScreen() {
 								/>
 							</TouchableOpacity>
 						</View>
-
-						{/* QR Code - Alternative to registration code */}
-						{createdBooth.qr_code && (
-							<View style={styles.qrSection}>
-								<ThemedText
-									style={[styles.credentialLabel, { color: textSecondary }]}
-								>
-									Or Scan QR Code
-								</ThemedText>
-								<View
-									style={[
-										styles.qrContainer,
-										{ backgroundColor: "#FFFFFF", borderColor },
-									]}
-								>
-									{/* Render base64 QR code image from API response */}
-									<Image
-										source={{ uri: createdBooth.qr_code }}
-										style={styles.qrImage}
-										resizeMode="contain"
-									/>
-								</View>
-							</View>
-						)}
 					</View>
 
 					{/* Action Buttons */}
@@ -510,43 +484,33 @@ const styles = StyleSheet.create({
 	},
 	registrationCodeSection: {
 		marginBottom: Spacing.lg,
+		width: "100%",
 		alignItems: "center",
 	},
 	registrationCodeBox: {
 		flexDirection: "row",
 		alignItems: "center",
 		justifyContent: "center",
-		paddingHorizontal: Spacing.xl,
-		paddingVertical: Spacing.lg,
+		paddingHorizontal: Spacing.lg,
+		paddingVertical: Spacing.md,
 		borderRadius: BorderRadius.lg,
 		borderWidth: 2,
 		marginTop: Spacing.xs,
-		gap: Spacing.md,
+		gap: Spacing.sm,
+		width: "100%",
 	},
 	registrationCodeText: {
-		fontSize: 32,
+		fontSize: 28,
 		fontWeight: "bold",
-		letterSpacing: 4,
+		letterSpacing: 6,
 		fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    paddingVertical: 3,
+    marginTop:4
 	},
 	registrationCodeHint: {
 		fontSize: 12,
 		marginTop: Spacing.xs,
 		textAlign: "center",
-	},
-	qrSection: {
-		marginTop: Spacing.md,
-		alignItems: "center",
-	},
-	qrContainer: {
-		padding: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 1,
-		marginTop: Spacing.sm,
-	},
-	qrImage: {
-		width: 220,
-		height: 220,
 	},
 	actionButtons: {
 		width: "100%",

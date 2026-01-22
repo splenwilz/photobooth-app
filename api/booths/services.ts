@@ -91,13 +91,9 @@ export async function getBoothOverview(): Promise<BoothOverviewResponse> {
  * @see GET /api/v1/booths/overview/all
  */
 export async function getDashboardOverview(): Promise<DashboardOverviewResponse> {
-	const response = await apiClient<DashboardOverviewResponse>(
-		"/api/v1/booths/overview/all",
-		{
-			method: "GET",
-		},
-	);
-	return response;
+	return apiClient<DashboardOverviewResponse>("/api/v1/booths/overview/all", {
+		method: "GET",
+	});
 }
 
 /**

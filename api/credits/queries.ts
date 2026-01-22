@@ -8,8 +8,8 @@
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/api/utils/query-keys";
-import { getBoothCredits, addBoothCredits, getCreditsHistory } from "./services";
-import type { CreditsHistoryParams } from "./types";
+import { getBoothCredits, addBoothCredits, getCreditsHistory, deleteCreditsHistory } from "./services";
+import type { CreditsHistoryParams, DeleteCreditsHistoryParams } from "./types";
 
 /**
  * Hook to fetch booth credit balance
@@ -26,8 +26,10 @@ export function useBoothCredits(boothId: string | null) {
 		queryKey: boothId ? queryKeys.credits.balance(boothId) : ['credits', 'balance', null],
 		queryFn: () => getBoothCredits(boothId!),
 		enabled: !!boothId,
-		// TEMPORARY: Disabled staleTime for fresh data
 		staleTime: 0,
+		gcTime: 0, // Don't cache - always fetch fresh
+		refetchOnMount: 'always',
+		refetchOnWindowFocus: 'always',
 	});
 }
 
@@ -82,20 +84,21 @@ export function useAddCredits() {
  *
  * @example
  * const { data, isLoading } = useCreditsHistory("booth-123", { limit: 50 });
- * console.log(data?.commands);
+ * console.log(data?.transactions);
  */
 export function useCreditsHistory(
 	boothId: string | null,
 	params?: CreditsHistoryParams,
 ) {
 	return useQuery({
-		queryKey: boothId 
+		queryKey: boothId
 			? queryKeys.credits.history(boothId, params)
 			: ['credits', 'history', null, params],
 		queryFn: () => getCreditsHistory(boothId!, params),
 		enabled: !!boothId,
-		// TEMPORARY: Disabled staleTime for fresh data
 		staleTime: 0,
+		gcTime: 0, // Don't cache - always fetch fresh
+		refetchOnMount: 'always',
 	});
 }
 
@@ -116,17 +119,56 @@ export function useCreditsHistoryInfinite(
 	const limit = params?.limit ?? 20;
 
 	return useInfiniteQuery({
-		queryKey: boothId 
+		queryKey: boothId
 			? [...queryKeys.credits.history(boothId, { limit }), "infinite"]
 			: ['credits', 'history', null, { limit }, 'infinite'],
-		queryFn: ({ pageParam = 0 }) =>
+		queryFn: ({ pageParam }) =>
 			getCreditsHistory(boothId!, { limit, offset: pageParam }),
 		enabled: !!boothId,
 		initialPageParam: 0,
-		getNextPageParam: (lastPage) => {
-			// If we got fewer items than the limit, we've reached the end
-			const nextOffset = lastPage.offset + lastPage.commands.length;
-			return nextOffset < lastPage.total ? nextOffset : undefined;
+		getNextPageParam: (lastPage, allPages) => {
+			// Calculate total items loaded across all pages
+			const totalLoaded = allPages.reduce(
+				(sum, page) => sum + page.transactions.length,
+				0
+			);
+			// If we've loaded all items, return undefined (no more pages)
+			return totalLoaded < lastPage.total ? totalLoaded : undefined;
+		},
+	});
+}
+
+/**
+ * Hook to delete credit history transactions
+ *
+ * WARNING: This operation cannot be undone!
+ *
+ * @returns Mutation for deleting credit history
+ *
+ * @example
+ * const { mutate } = useDeleteCreditsHistory();
+ * mutate({ boothId: "booth-123", params: { transaction_id: "tx-456" } });
+ */
+export function useDeleteCreditsHistory() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			boothId,
+			params,
+		}: {
+			boothId: string;
+			params?: DeleteCreditsHistoryParams;
+		}) => deleteCreditsHistory(boothId, params),
+		onSuccess: (_, variables) => {
+			// Invalidate all history queries for this booth
+			queryClient.invalidateQueries({
+				queryKey: ['credits', 'history', variables.boothId],
+			});
+			// Also invalidate credits balance as it may have changed
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.credits.balance(variables.boothId),
+			});
 		},
 	});
 }
