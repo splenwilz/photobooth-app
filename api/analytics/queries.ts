@@ -41,8 +41,7 @@ export function useRevenueDashboard(
 	return useQuery<RevenueDashboardResponse>({
 		queryKey: queryKeys.analytics.dashboard(params),
 		queryFn: () => getRevenueDashboard(params),
-		// TEMPORARY: Disabled staleTime for fresh data
-		staleTime: 0,
+		staleTime: 2 * 60 * 1000, // 2 minutes - financial data, semi-real-time
 		enabled: options?.enabled ?? true,
 	});
 }
@@ -94,8 +93,7 @@ export function useTransactionsInfinite(pageSize = TRANSACTIONS_PAGE_SIZE) {
 			if (!pagination.has_more) return undefined;
 			return pagination.offset + pagination.limit;
 		},
-		// TEMPORARY: Disabled staleTime for fresh data
-		staleTime: 0,
+		staleTime: 2 * 60 * 1000, // 2 minutes - transaction list, semi-real-time
 	});
 }
 
@@ -131,7 +129,6 @@ export function useBoothRevenue(
 			}),
 		// Only run query if boothId is provided
 		enabled: !!boothId,
-		// TEMPORARY: Disabled staleTime for fresh data
-		staleTime: 0,
+		staleTime: 2 * 60 * 1000, // 2 minutes - booth statistics, semi-real-time
 	});
 }

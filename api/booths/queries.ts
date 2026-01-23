@@ -89,8 +89,7 @@ export function useBoothList() {
 	return useQuery<BoothListResponse>({
 		queryKey: queryKeys.booths.list(),
 		queryFn: getBoothList,
-		// TEMPORARY: Disabled staleTime for fresh data
-		staleTime: 0,
+		staleTime: 2 * 60 * 1000, // 2 minutes - booth list rarely changes
 	});
 }
 
@@ -113,10 +112,8 @@ export function useBoothDetail(boothId: string | null) {
 	return useQuery<BoothDetailResponse>({
 		queryKey: boothId ? queryKeys.booths.detail(boothId) : ['booths', 'detail', null],
 		queryFn: () => getBoothDetail(boothId!),
-		// Only run query if boothId is provided
 		enabled: !!boothId,
-		// TEMPORARY: Disabled staleTime for fresh data
-		staleTime: 0,
+		staleTime: 1 * 60 * 1000, // 1 minute - details may update (status)
 	});
 }
 
@@ -141,8 +138,7 @@ export function useBoothOverview() {
 	return useQuery<BoothOverviewResponse>({
 		queryKey: queryKeys.booths.all(),
 		queryFn: getBoothOverview,
-		// TEMPORARY: Disabled staleTime for fresh data
-		staleTime: 0,
+		staleTime: 1 * 60 * 1000, // 1 minute - shows real-time status
 	});
 }
 
@@ -178,8 +174,7 @@ export function useDashboardOverview(options?: { enabled?: boolean }) {
 	return useQuery<DashboardOverviewResponse>({
 		queryKey: queryKeys.dashboard.overview(),
 		queryFn: getDashboardOverview,
-		// TEMPORARY: Disabled staleTime for fresh data
-		staleTime: 0,
+		staleTime: 1 * 60 * 1000, // 1 minute - dashboard needs recent data
 		enabled: options?.enabled ?? true,
 	});
 }
@@ -203,8 +198,7 @@ export function useBoothPricing(boothId: string | null) {
 		queryKey: boothId ? queryKeys.booths.pricing(boothId) : ['booths', 'pricing', null],
 		queryFn: () => getBoothPricing(boothId!),
 		enabled: !!boothId,
-		// TEMPORARY: Disabled staleTime for fresh data
-		staleTime: 0,
+		staleTime: 5 * 60 * 1000, // 5 minutes - pricing changes infrequently
 	});
 }
 
@@ -341,8 +335,7 @@ export function useBoothCredentials(boothId: string | null) {
 		queryKey: boothId ? queryKeys.booths.credentials(boothId) : ['booths', 'credentials', null],
 		queryFn: () => getBoothCredentials(boothId!),
 		enabled: !!boothId,
-		// TEMPORARY: Disabled staleTime for fresh data
-		staleTime: 0,
+		staleTime: 5 * 60 * 1000, // 5 minutes - credentials rarely change
 	});
 }
 

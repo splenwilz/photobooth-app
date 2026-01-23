@@ -16,10 +16,11 @@ export const queryClient = new QueryClient({
         queries: {
             // Retry failed requests once before giving up
             retry: 1,
-            // TEMPORARY: Disabled ALL caching - always fetch fresh data
-            staleTime: 0,
-            gcTime: 0, // Don't cache data at all
-            refetchOnMount: 'always',
+            // Data considered fresh for 5 minutes
+            staleTime: 5 * 60 * 1000,
+            // Cached data kept for 10 minutes after unused
+            gcTime: 10 * 60 * 1000,
+            refetchOnMount: true,
             refetchOnWindowFocus: true,
             refetchOnReconnect: true,
         },

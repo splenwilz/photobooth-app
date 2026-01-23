@@ -26,10 +26,7 @@ export function useBoothCredits(boothId: string | null) {
 		queryKey: boothId ? queryKeys.credits.balance(boothId) : ['credits', 'balance', null],
 		queryFn: () => getBoothCredits(boothId!),
 		enabled: !!boothId,
-		staleTime: 0,
-		gcTime: 0, // Don't cache - always fetch fresh
-		refetchOnMount: 'always',
-		refetchOnWindowFocus: 'always',
+		staleTime: 30 * 1000, // 30 seconds - credits change after operations
 	});
 }
 
@@ -96,9 +93,7 @@ export function useCreditsHistory(
 			: ['credits', 'history', null, params],
 		queryFn: () => getCreditsHistory(boothId!, params),
 		enabled: !!boothId,
-		staleTime: 0,
-		gcTime: 0, // Don't cache - always fetch fresh
-		refetchOnMount: 'always',
+		staleTime: 1 * 60 * 1000, // 1 minute - history updates less frequently
 	});
 }
 

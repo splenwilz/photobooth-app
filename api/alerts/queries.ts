@@ -46,7 +46,6 @@ export function useAlerts(params?: AlertsParams) {
 				alerts: response.alerts.map(mapAlertsApiAlertToAppAlert),
 			};
 		},
-		// TEMPORARY: Disabled staleTime for fresh data
-		staleTime: 0,
+		staleTime: 1 * 60 * 1000, // 1 minute - alerts should be relatively fresh
 	});
 }
