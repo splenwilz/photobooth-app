@@ -6,7 +6,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "photoboothapp",
+    "scheme": [
+      "photoboothapp",
+      "boothiq"
+    ],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -45,7 +48,14 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow PhotoBoothX to scan QR codes for booth activation."
+        }
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

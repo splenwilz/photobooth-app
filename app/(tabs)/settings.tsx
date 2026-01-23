@@ -48,10 +48,15 @@ import {
   getStoredUser,
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
+import { useBoothSubscription } from "@/api/payments";
 import {
   ConnectionDetailsModal,
   DeleteBoothModal,
 } from "@/components/booths";
+import {
+  SubscriptionDetailsModal,
+  SubscriptionStatusCard,
+} from "@/components/subscription";
 import { AddCreditsModal } from "@/components/credits";
 import { CustomHeader } from "@/components/custom-header";
 import { EditProductModal } from "@/components/products";
@@ -336,6 +341,9 @@ export default function SettingsScreen() {
 	// Fetch pricing from API
 	const { data: pricingData, refetch: refetchPricing } = useBoothPricing(effectiveBoothId);
 
+	// Booth subscription check (per-booth subscription model)
+	const { data: boothSubscription, refetch: refetchSubscription } = useBoothSubscription(effectiveBoothId);
+
 	// Pull-to-refresh state
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -348,11 +356,12 @@ export default function SettingsScreen() {
 				refetchDetail(),
 				refetchCredits(),
 				refetchPricing(),
+				refetchSubscription(),
 			]);
 		} finally {
 			setIsRefreshing(false);
 		}
-	}, [refetchOverview, refetchDetail, refetchCredits, refetchPricing]);
+	}, [refetchOverview, refetchDetail, refetchCredits, refetchPricing, refetchSubscription]);
 
 	// State for Add Credits modal
 	const [showAddCreditsModal, setShowAddCreditsModal] = useState(false);
@@ -366,6 +375,9 @@ export default function SettingsScreen() {
 
 	// State for Delete Booth modal
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+	// State for Subscription Details modal
+	const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
 	// User profile from stored auth data
 	const [userProfile, setUserProfile] = useState({
@@ -629,6 +641,17 @@ export default function SettingsScreen() {
 					</View>
 				)}
 
+				{/* Subscription & Billing Section */}
+				{!isAllBoothsMode && (
+					<View style={styles.section}>
+						<SectionHeader title="Subscription & Billing" subtitle="Manage booth subscription" />
+						<SubscriptionStatusCard
+							boothId={effectiveBoothId}
+							onViewDetails={() => setShowSubscriptionModal(true)}
+						/>
+					</View>
+				)}
+
 				{/* Current Booth Info - Hidden in All Booths mode */}
 				{!isAllBoothsMode && (
 					<View style={styles.section}>
@@ -748,6 +771,36 @@ export default function SettingsScreen() {
 						title="Connection Details"
 						subtitle="View or generate registration code"
 						onPress={() => setShowConnectionModal(true)}
+					/>
+
+					<SettingsItem
+						icon="qrcode.viewfinder"
+						title="Activate Booth License"
+						subtitle={
+							boothSubscription?.is_active
+								? "Scan QR code to activate"
+								: "Requires active subscription"
+						}
+						onPress={() => {
+							if (boothSubscription?.is_active) {
+								router.push({
+									pathname: "/licensing/scan",
+									params: {
+										boothId: effectiveBoothId,
+										boothName: boothDetail?.booth_name ?? "Booth",
+									},
+								});
+							} else {
+								Alert.alert(
+									"Subscription Required",
+									"This booth needs an active subscription to activate licenses. Subscribe now?",
+									[
+										{ text: "Cancel", style: "cancel" },
+										{ text: "Subscribe", onPress: () => setShowSubscriptionModal(true) },
+									]
+								);
+							}
+						}}
 					/>
 
 						<SettingsItem
@@ -882,6 +935,13 @@ export default function SettingsScreen() {
 				boothName={boothName}
 				onClose={() => setShowDeleteModal(false)}
 				onDeleted={handleBoothDeleted}
+			/>
+
+			{/* Subscription Details Modal */}
+			<SubscriptionDetailsModal
+				visible={showSubscriptionModal}
+				onClose={() => setShowSubscriptionModal(false)}
+				boothId={effectiveBoothId}
 			/>
 		</SafeAreaView>
 	);

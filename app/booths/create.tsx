@@ -8,6 +8,7 @@
  */
 
 import * as Clipboard from "expo-clipboard";
+import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -23,6 +24,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // API hooks
 import { useCreateBooth } from "@/api/booths/queries";
 import type { CreateBoothResponse } from "@/api/booths/types";
+import { useCreateBoothCheckout } from "@/api/payments";
 import { FormInput } from "@/components/auth/form-input";
 import { PrimaryButton } from "@/components/auth/primary-button";
 import { ThemedText } from "@/components/themed-text";
@@ -35,6 +37,7 @@ import {
   withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { useBoothStore } from "@/stores/booth-store";
 
 interface FormData {
 	name: string;
@@ -70,6 +73,40 @@ export default function CreateBoothScreen() {
 
 	// API mutation hook
 	const { mutate: createBooth, isPending, error: apiError } = useCreateBooth();
+
+	// Booth checkout mutation for subscribing to newly created booth
+	const createBoothCheckout = useCreateBoothCheckout();
+
+	// Booth store for auto-selecting created booth
+	const { setSelectedBoothId } = useBoothStore();
+
+	// Handle subscribing to the newly created booth
+	const handleSubscribeToBooth = () => {
+		if (!createdBooth) return;
+
+		const priceId = process.env.EXPO_PUBLIC_STRIPE_PRICE_MONTHLY;
+		const websiteUrl = process.env.EXPO_PUBLIC_WEBSITE_URL;
+
+		createBoothCheckout.mutate(
+			{
+				booth_id: createdBooth.id,
+				price_id: priceId,
+				success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${createdBooth.id}`,
+				cancel_url: `${websiteUrl}/pricing`,
+			},
+			{
+				onSuccess: (data) => {
+					Linking.openURL(data.checkout_url);
+				},
+				onError: (error) => {
+					Alert.alert(
+						"Error",
+						error.message || "Failed to start checkout. Please try again.",
+					);
+				},
+			},
+		);
+	};
 
 	// Update form field
 	const updateField = (field: keyof FormData, value: string) => {
@@ -125,8 +162,11 @@ export default function CreateBoothScreen() {
 		}
 	};
 
-	// Navigate back to booths
+	// Navigate back to booths with the newly created booth selected
 	const handleGoToBooths = () => {
+		if (createdBooth) {
+			setSelectedBoothId(createdBooth.id);
+		}
 		router.replace("/(tabs)/booths");
 	};
 
@@ -274,6 +314,63 @@ export default function CreateBoothScreen() {
 								/>
 							</TouchableOpacity>
 						</View>
+					</View>
+
+					{/* Next Steps - Subscribe to activate */}
+					<View
+						style={[
+							styles.activationCard,
+							{ backgroundColor: cardBg, borderColor },
+						]}
+					>
+						<View style={styles.activationHeader}>
+							<View
+								style={[
+									styles.activationIconContainer,
+									{ backgroundColor: withAlpha(BRAND_COLOR, 0.15) },
+								]}
+							>
+								<IconSymbol name="star.fill" size={24} color={BRAND_COLOR} />
+							</View>
+							<View style={styles.activationTextContainer}>
+								<ThemedText type="defaultSemiBold" style={styles.activationTitle}>
+									Subscribe to Activate
+								</ThemedText>
+								<ThemedText
+									style={[styles.activationSubtitle, { color: textSecondary }]}
+								>
+									Each booth needs its own subscription to connect and operate
+								</ThemedText>
+							</View>
+						</View>
+
+						<TouchableOpacity
+							style={[
+								styles.activationButton,
+								{ backgroundColor: BRAND_COLOR },
+							]}
+							onPress={handleSubscribeToBooth}
+							disabled={createBoothCheckout.isPending}
+						>
+							{createBoothCheckout.isPending ? (
+								<ThemedText style={styles.activationButtonText}>
+									Loading...
+								</ThemedText>
+							) : (
+								<>
+									<IconSymbol name="star.fill" size={20} color="white" />
+									<ThemedText style={styles.activationButtonText}>
+										Subscribe to This Booth
+									</ThemedText>
+								</>
+							)}
+						</TouchableOpacity>
+
+						<ThemedText
+							style={[styles.activationNote, { color: textSecondary }]}
+						>
+							After subscribing, you can scan the booth&apos;s QR code from Settings to complete activation.
+						</ThemedText>
 					</View>
 
 					{/* Action Buttons */}
@@ -559,5 +656,55 @@ const styles = StyleSheet.create({
 		flex: 1,
 		fontSize: 13,
 		lineHeight: 18,
+	},
+	// Activation Section
+	activationCard: {
+		width: "100%",
+		padding: Spacing.lg,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+		marginBottom: Spacing.xl,
+	},
+	activationHeader: {
+		flexDirection: "row",
+		alignItems: "flex-start",
+		marginBottom: Spacing.md,
+	},
+	activationIconContainer: {
+		width: 48,
+		height: 48,
+		borderRadius: 24,
+		justifyContent: "center",
+		alignItems: "center",
+		marginRight: Spacing.md,
+	},
+	activationTextContainer: {
+		flex: 1,
+	},
+	activationTitle: {
+		fontSize: 16,
+		marginBottom: 4,
+	},
+	activationSubtitle: {
+		fontSize: 13,
+		lineHeight: 18,
+	},
+	activationButton: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		paddingVertical: Spacing.md,
+		borderRadius: BorderRadius.lg,
+		gap: Spacing.sm,
+	},
+	activationButtonText: {
+		color: "white",
+		fontSize: 16,
+		fontWeight: "600",
+	},
+	activationNote: {
+		fontSize: 12,
+		textAlign: "center",
+		marginTop: Spacing.sm,
 	},
 });

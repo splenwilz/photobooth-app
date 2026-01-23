@@ -373,7 +373,7 @@ export async function apiClient<T>(url: string, options?: RequestInit): Promise<
   async function makeRequest(isRetry: boolean = false): Promise<Response> {
     // Get access token from secure storage
     const accessToken = await getAccessToken()
-    console.log('[API] Access Token:', accessToken)
+    // console.log('[API] Access Token:', accessToken)
 
     // If no token and this is not a retry, check if we should redirect to login
     // Skip for public endpoints (like signin, signup, refresh-token)

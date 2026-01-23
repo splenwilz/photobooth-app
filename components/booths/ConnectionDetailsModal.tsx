@@ -82,17 +82,6 @@ export const ConnectionDetailsModal: React.FC<ConnectionDetailsModalProps> = ({
   const currentCode = generatedCode?.code ?? credentials?.registration_code;
   const currentExpiry = generatedCode?.expires_at ?? credentials?.code_expires_at;
 
-  // Debug: Log credentials response
-  React.useEffect(() => {
-    if (credentials) {
-      console.log("[ConnectionDetailsModal] Credentials loaded:", {
-        id: credentials.id,
-        api_key: credentials.api_key ? "***" : "missing",
-        registration_code: credentials.registration_code ?? "missing",
-      });
-    }
-  }, [credentials]);
-
   // Copy API key to clipboard
   const handleCopyApiKey = useCallback(async () => {
     if (!credentials?.api_key) return;
