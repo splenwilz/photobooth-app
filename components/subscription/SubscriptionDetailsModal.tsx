@@ -43,9 +43,16 @@ interface SubscriptionDetailsModalProps {
 /**
  * Format date for display
  */
-function formatDate(dateString: string): string {
+function formatDate(dateString: string | null | undefined): string {
+	if (!dateString) {
+		return "—";
+	}
 	try {
 		const date = new Date(dateString);
+		// Check for Invalid Date
+		if (Number.isNaN(date.getTime())) {
+			return "—";
+		}
 		return date.toLocaleDateString("en-US", {
 			weekday: "long",
 			month: "long",
@@ -53,7 +60,7 @@ function formatDate(dateString: string): string {
 			year: "numeric",
 		});
 	} catch {
-		return dateString;
+		return "—";
 	}
 }
 

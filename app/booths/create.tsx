@@ -96,7 +96,14 @@ export default function CreateBoothScreen() {
 			},
 			{
 				onSuccess: (data) => {
-					Linking.openURL(data.checkout_url);
+					if (data.checkout_url) {
+						Linking.openURL(data.checkout_url);
+					} else {
+						Alert.alert(
+							"Error",
+							"Could not get checkout URL. The booth may already be subscribed.",
+						);
+					}
 				},
 				onError: (error) => {
 					Alert.alert(

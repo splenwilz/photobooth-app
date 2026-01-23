@@ -90,6 +90,10 @@ function formatExpiryDate(dateString: string | null): string {
 	if (!dateString) return "";
 	try {
 		const date = new Date(dateString);
+		// Check for Invalid Date
+		if (Number.isNaN(date.getTime())) {
+			return "";
+		}
 		return date.toLocaleDateString("en-US", {
 			month: "short",
 			day: "numeric",
