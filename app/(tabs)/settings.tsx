@@ -14,6 +14,7 @@
  */
 
 import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import React, { useCallback, useEffect, useState } from "react";
@@ -48,7 +49,7 @@ import {
   getStoredUser,
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
-import { useBoothSubscription } from "@/api/payments";
+import { useBoothSubscription, useCreateBoothCheckout } from "@/api/payments";
 import {
   ConnectionDetailsModal,
   DeleteBoothModal,
@@ -344,6 +345,9 @@ export default function SettingsScreen() {
 	// Booth subscription check (per-booth subscription model)
 	const { data: boothSubscription, refetch: refetchSubscription } = useBoothSubscription(effectiveBoothId);
 
+	// Checkout mutation for subscribing to booth
+	const createBoothCheckout = useCreateBoothCheckout();
+
 	// Pull-to-refresh state
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -556,6 +560,34 @@ export default function SettingsScreen() {
 	const formatCurrency = (amount: number | null | undefined): string => {
 		if (amount == null) return "$0.00";
 		return `$${amount.toFixed(2)}`;
+	};
+
+	// Handle subscribing to booth (for unsubscribed booths)
+	const handleSubscribeToBooth = () => {
+		if (!effectiveBoothId) return;
+
+		const priceId = process.env.EXPO_PUBLIC_STRIPE_PRICE_MONTHLY;
+		const websiteUrl = process.env.EXPO_PUBLIC_WEBSITE_URL;
+
+		createBoothCheckout.mutate(
+			{
+				booth_id: effectiveBoothId,
+				price_id: priceId,
+				success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${effectiveBoothId}`,
+				cancel_url: `${websiteUrl}/pricing`,
+			},
+			{
+				onSuccess: (data) => {
+					Linking.openURL(data.checkout_url);
+				},
+				onError: (error) => {
+					Alert.alert(
+						"Error",
+						error.message || "Failed to start checkout. Please try again.",
+					);
+				},
+			},
+		);
 	};
 
 	return (
@@ -796,7 +828,7 @@ export default function SettingsScreen() {
 									"This booth needs an active subscription to activate licenses. Subscribe now?",
 									[
 										{ text: "Cancel", style: "cancel" },
-										{ text: "Subscribe", onPress: () => setShowSubscriptionModal(true) },
+										{ text: "Subscribe", onPress: handleSubscribeToBooth },
 									]
 								);
 							}

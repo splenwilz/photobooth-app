@@ -96,11 +96,15 @@ export function usePaymentDeepLinks() {
 		const subscription = Linking.addEventListener("url", handleDeepLink);
 
 		// Handle initial URL if app was opened via deep link
-		Linking.getInitialURL().then((url) => {
-			if (url) {
-				handleDeepLink({ url });
-			}
-		});
+		Linking.getInitialURL()
+			.then((url) => {
+				if (url) {
+					handleDeepLink({ url });
+				}
+			})
+			.catch((error) => {
+				console.error("[DeepLink] Error getting initial URL:", error);
+			});
 
 		return () => {
 			subscription.remove();
