@@ -69,7 +69,12 @@ export function useSubscriptionDetails(enabled = true) {
 		staleTime: 5 * 60 * 1000,
 		retry: (failureCount, error) => {
 			// Don't retry 404 errors (no subscription)
-			if (error && 'status' in error && error.status === 404) {
+			if (
+				typeof error === "object" &&
+				error !== null &&
+				"status" in error &&
+				(error as { status: number }).status === 404
+			) {
 				return false;
 			}
 			return failureCount < 3;
