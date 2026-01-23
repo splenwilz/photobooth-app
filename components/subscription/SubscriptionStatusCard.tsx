@@ -158,7 +158,14 @@ export function SubscriptionStatusCard({
 				},
 				{
 					onSuccess: (data) => {
-						Linking.openURL(data.checkout_url);
+						if (data?.checkout_url && typeof data.checkout_url === "string") {
+							Linking.openURL(data.checkout_url);
+						} else {
+							Alert.alert(
+								"Error",
+								"Could not get checkout URL. Please try again.",
+							);
+						}
 					},
 					onError: (error) => {
 						Alert.alert(
@@ -178,7 +185,14 @@ export function SubscriptionStatusCard({
 				},
 				{
 					onSuccess: (data) => {
-						Linking.openURL(data.checkout_url);
+						if (data?.checkout_url && typeof data.checkout_url === "string") {
+							Linking.openURL(data.checkout_url);
+						} else {
+							Alert.alert(
+								"Error",
+								"Could not get checkout URL. Please try again.",
+							);
+						}
 					},
 					onError: (error) => {
 						Alert.alert(
@@ -195,14 +209,53 @@ export function SubscriptionStatusCard({
 		? createBoothCheckout.isPending
 		: createCheckout.isPending;
 
-	const handleManageBilling = () => {
+	const handleManageBilling = async () => {
 		const websiteUrl = process.env.EXPO_PUBLIC_WEBSITE_URL;
 
 		customerPortal.mutate(
 			{ return_url: `${websiteUrl}/pricing` },
 			{
-				onSuccess: (data) => {
-					Linking.openURL(data.portal_url);
+				onSuccess: async (data) => {
+					const portalUrl = data?.portal_url;
+
+					// Validate URL exists and is well-formed
+					if (!portalUrl || typeof portalUrl !== "string") {
+						Alert.alert(
+							"Error",
+							"Could not get billing portal URL. Please try again.",
+						);
+						return;
+					}
+
+					// Validate URL is http(s)
+					if (!portalUrl.startsWith("http://") && !portalUrl.startsWith("https://")) {
+						console.error("[Billing] Invalid portal URL format:", portalUrl);
+						Alert.alert(
+							"Error",
+							"Invalid billing portal URL. Please try again.",
+						);
+						return;
+					}
+
+					// Check if URL can be opened
+					try {
+						const canOpen = await Linking.canOpenURL(portalUrl);
+						if (canOpen) {
+							Linking.openURL(portalUrl);
+						} else {
+							console.error("[Billing] Cannot open portal URL:", portalUrl);
+							Alert.alert(
+								"Error",
+								"Unable to open billing portal. Please try again.",
+							);
+						}
+					} catch (error) {
+						console.error("[Billing] Error checking URL:", error);
+						Alert.alert(
+							"Error",
+							"Failed to open billing portal. Please try again.",
+						);
+					}
 				},
 				onError: (error) => {
 					Alert.alert(
