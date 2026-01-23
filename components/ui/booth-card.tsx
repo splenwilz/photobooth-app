@@ -9,6 +9,7 @@
  * @see https://reactnative.dev/docs/view - React Native View docs
  */
 
+import type { SubscriptionStatus } from "@/api/payments/types";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
@@ -22,11 +23,25 @@ import type { Booth, BoothStatus } from "@/types/photobooth";
 import type React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
+/**
+ * Subscription status for display in BoothCard
+ */
+interface BoothSubscriptionStatus {
+	/** Whether booth has active subscription */
+	is_active: boolean;
+	/** Current subscription status or null if no subscription */
+	status: SubscriptionStatus | null;
+	/** Whether subscription will cancel at period end */
+	cancel_at_period_end?: boolean;
+}
+
 interface BoothCardProps {
 	/** Booth data */
 	booth: Booth;
 	/** Whether this booth is currently selected */
 	isSelected?: boolean;
+	/** Subscription status for this booth */
+	subscriptionStatus?: BoothSubscriptionStatus;
 	/** Callback when card is pressed */
 	onPress?: () => void;
 }
@@ -80,9 +95,42 @@ const formatCurrency = (amount: number): string => {
 	return `$${amount.toFixed(2)}`;
 };
 
+/**
+ * Gets subscription badge display info
+ */
+const getSubscriptionDisplay = (
+	subscriptionStatus?: BoothSubscriptionStatus,
+): { label: string; color: string; icon: string } | null => {
+	if (!subscriptionStatus) {
+		return null;
+	}
+
+	if (subscriptionStatus.is_active) {
+		if (subscriptionStatus.cancel_at_period_end) {
+			return {
+				label: "Expiring",
+				color: StatusColors.warning,
+				icon: "clock",
+			};
+		}
+		return {
+			label: "Subscribed",
+			color: StatusColors.success,
+			icon: "checkmark.circle.fill",
+		};
+	}
+
+	return {
+		label: "No Subscription",
+		color: StatusColors.neutral,
+		icon: "xmark.circle",
+	};
+};
+
 export const BoothCard: React.FC<BoothCardProps> = ({
 	booth,
 	isSelected = false,
+	subscriptionStatus,
 	onPress,
 }) => {
 	const cardBg = useThemeColor({}, "card");
@@ -90,6 +138,7 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 	const textSecondary = useThemeColor({}, "textSecondary");
 	const tint = useThemeColor({}, "tint");
 	const statusColor = getStatusColor(booth.status);
+	const subscriptionDisplay = getSubscriptionDisplay(subscriptionStatus);
 
 	return (
 		<TouchableOpacity
@@ -134,6 +183,32 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 					</ThemedText>
 				</View>
 			</View>
+
+			{/* Subscription Badge */}
+			{subscriptionDisplay && (
+				<View style={styles.subscriptionRow}>
+					<View
+						style={[
+							styles.subscriptionBadge,
+							{ backgroundColor: withAlpha(subscriptionDisplay.color, 0.12) },
+						]}
+					>
+						<IconSymbol
+							name={subscriptionDisplay.icon as any}
+							size={12}
+							color={subscriptionDisplay.color}
+						/>
+						<ThemedText
+							style={[
+								styles.subscriptionText,
+								{ color: subscriptionDisplay.color },
+							]}
+						>
+							{subscriptionDisplay.label}
+						</ThemedText>
+					</View>
+				</View>
+			)}
 
 			{/* Stats Row */}
 			<View style={styles.statsRow}>
@@ -264,5 +339,21 @@ const styles = StyleSheet.create({
 		borderRadius: 10,
 		justifyContent: "center",
 		alignItems: "center",
+	},
+	subscriptionRow: {
+		marginBottom: Spacing.sm,
+	},
+	subscriptionBadge: {
+		flexDirection: "row",
+		alignItems: "center",
+		alignSelf: "flex-start",
+		paddingHorizontal: Spacing.sm,
+		paddingVertical: 3,
+		borderRadius: BorderRadius.full,
+		gap: 4,
+	},
+	subscriptionText: {
+		fontSize: 11,
+		fontWeight: "500",
 	},
 });

@@ -14,11 +14,13 @@
  */
 
 import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -43,12 +45,19 @@ import {
   PENDING_PASSWORD_KEY,
   REFRESH_TOKEN_KEY,
   USER_STORAGE_KEY,
+  clearQueryCache,
+  getStoredUser,
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
+import { useBoothSubscription, useCreateBoothCheckout } from "@/api/payments";
 import {
   ConnectionDetailsModal,
   DeleteBoothModal,
 } from "@/components/booths";
+import {
+  SubscriptionDetailsModal,
+  SubscriptionStatusCard,
+} from "@/components/subscription";
 import { AddCreditsModal } from "@/components/credits";
 import { CustomHeader } from "@/components/custom-header";
 import { EditProductModal } from "@/components/products";
@@ -241,6 +250,10 @@ export default function SettingsScreen() {
 					style: "destructive",
 					onPress: async () => {
 						try {
+							// Clear React Query cache FIRST to stop all running queries
+							// This prevents 401 errors from background queries after tokens are deleted
+							clearQueryCache();
+
 							// All SecureStore keys used in the app
 							// Imported from their source modules to prevent drift
 							const keys = [
@@ -306,7 +319,7 @@ export default function SettingsScreen() {
 	const { selectedBoothId } = useBoothStore();
 
 	// Fetch booth overview to check if user has any booths
-	const { data: boothOverview } = useBoothOverview();
+	const { data: boothOverview, refetch: refetchOverview } = useBoothOverview();
 	const hasNoBooths = !boothOverview?.booths?.length;
 
 	// Check if "All Booths" mode is active OR if user has no booths
@@ -317,7 +330,7 @@ export default function SettingsScreen() {
 	const effectiveBoothId = isAllBoothsMode ? null : selectedBoothId;
 
 	// Fetch booth details from API
-	const { data: boothDetail } = useBoothDetail(effectiveBoothId);
+	const { data: boothDetail, refetch: refetchDetail } = useBoothDetail(effectiveBoothId);
 
 	// Fetch credits from API
 	const {
@@ -327,7 +340,32 @@ export default function SettingsScreen() {
 	} = useBoothCredits(effectiveBoothId);
 
 	// Fetch pricing from API
-	const { data: pricingData } = useBoothPricing(effectiveBoothId);
+	const { data: pricingData, refetch: refetchPricing } = useBoothPricing(effectiveBoothId);
+
+	// Booth subscription check (per-booth subscription model)
+	const { data: boothSubscription, refetch: refetchSubscription } = useBoothSubscription(effectiveBoothId);
+
+	// Checkout mutation for subscribing to booth
+	const createBoothCheckout = useCreateBoothCheckout();
+
+	// Pull-to-refresh state
+	const [isRefreshing, setIsRefreshing] = useState(false);
+
+	// Pull-to-refresh handler
+	const onRefresh = useCallback(async () => {
+		setIsRefreshing(true);
+		try {
+			await Promise.all([
+				refetchOverview(),
+				refetchDetail(),
+				refetchCredits(),
+				refetchPricing(),
+				refetchSubscription(),
+			]);
+		} finally {
+			setIsRefreshing(false);
+		}
+	}, [refetchOverview, refetchDetail, refetchCredits, refetchPricing, refetchSubscription]);
 
 	// State for Add Credits modal
 	const [showAddCreditsModal, setShowAddCreditsModal] = useState(false);
@@ -341,6 +379,33 @@ export default function SettingsScreen() {
 
 	// State for Delete Booth modal
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+	// State for Subscription Details modal
+	const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
+	// User profile from stored auth data
+	const [userProfile, setUserProfile] = useState({
+		name: "",
+		email: "",
+		initials: "",
+	});
+
+	// Load user profile from storage on mount
+	useEffect(() => {
+		const loadUserProfile = async () => {
+			const user = await getStoredUser();
+			if (user) {
+				const fullName = `${user.first_name} ${user.last_name}`.trim();
+				const initials = `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase();
+				setUserProfile({
+					name: fullName || "User",
+					email: user.email,
+					initials: initials || "U",
+				});
+			}
+		};
+		loadUserProfile();
+	}, []);
 
 	// Convert API pricing to products (memoized to prevent re-renders)
 	const products = React.useMemo(
@@ -497,6 +562,34 @@ export default function SettingsScreen() {
 		return `$${amount.toFixed(2)}`;
 	};
 
+	// Handle subscribing to booth (for unsubscribed booths)
+	const handleSubscribeToBooth = () => {
+		if (!effectiveBoothId) return;
+
+		const priceId = process.env.EXPO_PUBLIC_STRIPE_PRICE_MONTHLY;
+		const websiteUrl = process.env.EXPO_PUBLIC_WEBSITE_URL;
+
+		createBoothCheckout.mutate(
+			{
+				booth_id: effectiveBoothId,
+				price_id: priceId,
+				success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${effectiveBoothId}`,
+				cancel_url: `${websiteUrl}/pricing`,
+			},
+			{
+				onSuccess: (data) => {
+					Linking.openURL(data.checkout_url);
+				},
+				onError: (error) => {
+					Alert.alert(
+						"Error",
+						error.message || "Failed to start checkout. Please try again.",
+					);
+				},
+			},
+		);
+	};
+
 	return (
 		<SafeAreaView
 			style={[styles.container, { backgroundColor }]}
@@ -508,7 +601,51 @@ export default function SettingsScreen() {
 				notificationCount={unreadAlerts}
 			/>
 
-			<ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+			<ScrollView
+				style={styles.content}
+				showsVerticalScrollIndicator={false}
+				refreshControl={
+					<RefreshControl
+						refreshing={isRefreshing}
+						onRefresh={onRefresh}
+						tintColor={BRAND_COLOR}
+						colors={[BRAND_COLOR]}
+					/>
+				}
+			>
+				{/* User Profile Section */}
+				<View style={styles.section}>
+					<View
+						style={[
+							styles.profileCard,
+							{ backgroundColor: cardBg, borderColor },
+						]}
+					>
+						<View style={styles.profileHeader}>
+							{/* Avatar */}
+							<View
+								style={[
+									styles.profileAvatar,
+									{ backgroundColor: withAlpha(BRAND_COLOR, 0.15) },
+								]}
+							>
+								<ThemedText style={[styles.profileAvatarText, { color: BRAND_COLOR }]}>
+									{userProfile.initials}
+								</ThemedText>
+							</View>
+							{/* User Info */}
+							<View style={styles.profileInfo}>
+								<ThemedText type="defaultSemiBold" style={styles.profileName}>
+									{userProfile.name}
+								</ThemedText>
+								<ThemedText style={[styles.profileEmail, { color: textSecondary }]}>
+									{userProfile.email}
+								</ThemedText>
+							</View>
+						</View>
+					</View>
+				</View>
+
 				{/* All Booths Mode / No Booths Notice */}
 				{isAllBoothsMode && (
 					<View
@@ -533,6 +670,17 @@ export default function SettingsScreen() {
 									: "Select a specific booth from the Booths tab to access booth-specific settings like credits, pricing, and hardware."}
 							</ThemedText>
 						</View>
+					</View>
+				)}
+
+				{/* Subscription & Billing Section */}
+				{!isAllBoothsMode && (
+					<View style={styles.section}>
+						<SectionHeader title="Subscription & Billing" subtitle="Manage booth subscription" />
+						<SubscriptionStatusCard
+							boothId={effectiveBoothId}
+							onViewDetails={() => setShowSubscriptionModal(true)}
+						/>
 					</View>
 				)}
 
@@ -650,12 +798,42 @@ export default function SettingsScreen() {
 							subtitle="Connection and system controls"
 						/>
 
-						<SettingsItem
-							icon="link"
-							title="Connection Details"
-							subtitle="View API key and QR code"
-							onPress={() => setShowConnectionModal(true)}
-						/>
+					<SettingsItem
+						icon="link"
+						title="Connection Details"
+						subtitle="View or generate registration code"
+						onPress={() => setShowConnectionModal(true)}
+					/>
+
+					<SettingsItem
+						icon="qrcode.viewfinder"
+						title="Activate Booth License"
+						subtitle={
+							boothSubscription?.is_active
+								? "Scan QR code to activate"
+								: "Requires active subscription"
+						}
+						onPress={() => {
+							if (boothSubscription?.is_active) {
+								router.push({
+									pathname: "/licensing/scan",
+									params: {
+										boothId: effectiveBoothId,
+										boothName: boothDetail?.booth_name ?? "Booth",
+									},
+								});
+							} else {
+								Alert.alert(
+									"Subscription Required",
+									"This booth needs an active subscription to activate licenses. Subscribe now?",
+									[
+										{ text: "Cancel", style: "cancel" },
+										{ text: "Subscribe", onPress: handleSubscribeToBooth },
+									]
+								);
+							}
+						}}
+					/>
 
 						<SettingsItem
 							icon="arrow.clockwise"
@@ -790,6 +968,13 @@ export default function SettingsScreen() {
 				onClose={() => setShowDeleteModal(false)}
 				onDeleted={handleBoothDeleted}
 			/>
+
+			{/* Subscription Details Modal */}
+			<SubscriptionDetailsModal
+				visible={showSubscriptionModal}
+				onClose={() => setShowSubscriptionModal(false)}
+				boothId={effectiveBoothId}
+			/>
 		</SafeAreaView>
 	);
 }
@@ -897,5 +1082,38 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		marginTop: 4,
 		lineHeight: 18,
+	},
+	// Profile Section
+	profileCard: {
+		padding: Spacing.lg,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+	},
+	profileHeader: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: Spacing.md,
+	},
+	profileAvatar: {
+		width: 64,
+		height: 64,
+		borderRadius: 32,
+		justifyContent: "center",
+		alignItems: "center",
+		marginRight: Spacing.md,
+	},
+	profileAvatarText: {
+		fontSize: 24,
+		fontWeight: "bold",
+	},
+	profileInfo: {
+		flex: 1,
+	},
+	profileName: {
+		fontSize: 18,
+		marginBottom: 2,
+	},
+	profileEmail: {
+		fontSize: 14,
 	},
 });

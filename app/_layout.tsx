@@ -26,14 +26,60 @@ import "react-native-reanimated";
 
 import { queryClient } from "@/api/query-client";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { usePaymentDeepLinks } from "@/hooks/use-payment-deep-links";
 import { useBoothStore } from "@/stores/booth-store";
 
 export const unstable_settings = {
 	anchor: "(tabs)",
 };
 
-export default function RootLayout() {
+/**
+ * Inner layout component that uses hooks requiring QueryClient
+ * Must be rendered inside QueryClientProvider
+ */
+function RootLayoutNav() {
   const colorScheme = useColorScheme();
+
+  // Handle deep links for payment callbacks (Stripe checkout success/cancel)
+  usePaymentDeepLinks();
+
+  return (
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <Stack screenOptions={{ headerShown: false }}>
+        {/* Main tab navigation */}
+        <Stack.Screen name="(tabs)" />
+
+        {/* Booth management */}
+        <Stack.Screen name="booths" />
+
+        {/* Transaction history */}
+        <Stack.Screen name="transactions" />
+
+        {/* Auth screens */}
+        <Stack.Screen name="auth" />
+
+        {/* Licensing screens (QR scanner, activation) */}
+        <Stack.Screen name="licensing" />
+
+        {/* Onboarding */}
+        <Stack.Screen name="onboarding" />
+
+        {/* Modal */}
+        <Stack.Screen
+          name="modal"
+          options={{
+            presentation: "modal",
+            title: "Modal",
+            headerShown: true,
+          }}
+        />
+      </Stack>
+      <StatusBar style="auto" />
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
   const hydrate = useBoothStore((state) => state.hydrate);
 
   // Hydrate booth store from SecureStore on app start
@@ -42,36 +88,8 @@ export default function RootLayout() {
   }, [hydrate]);
 
   return (
-		<QueryClientProvider client={queryClient}>
-			<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-				<Stack screenOptions={{ headerShown: false }}>
-					{/* Main tab navigation */}
-					<Stack.Screen name="(tabs)" />
-
-					{/* Booth management */}
-					<Stack.Screen name="booths" />
-
-					{/* Transaction history */}
-					<Stack.Screen name="transactions" />
-
-					{/* Auth screens */}
-					<Stack.Screen name="auth" />
-
-					{/* Onboarding */}
-					<Stack.Screen name="onboarding" />
-
-					{/* Modal */}
-					<Stack.Screen
-						name="modal"
-						options={{
-							presentation: "modal",
-							title: "Modal",
-							headerShown: true,
-						}}
-					/>
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-		</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <RootLayoutNav />
+    </QueryClientProvider>
   );
 }

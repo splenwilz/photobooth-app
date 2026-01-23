@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createMutationHook } from "../utils/query-helpers";
 import { queryKeys } from "../utils/query-keys";
 import {
 	cancelBoothRestart,
 	createBooth,
 	deleteBooth,
+	generateBoothCode,
 	getBoothCredentials,
 	getBoothDetail,
 	getBoothList,
@@ -22,8 +22,8 @@ import type {
 	BoothOverviewResponse,
 	BoothPricingResponse,
 	CreateBoothRequest,
-	CreateBoothResponse,
 	DashboardOverviewResponse,
+	GenerateCodeResponse,
 	RestartRequest,
 	UpdatePricingRequest,
 } from "./types";
@@ -37,6 +37,7 @@ import type {
 
 /**
  * Hook to create a new booth
+ * Invalidates booth list and dashboard queries after successful creation
  *
  * Usage:
  * ```tsx
@@ -49,10 +50,27 @@ import type {
  *
  * @returns React Query mutation object for booth creation
  */
-export const useCreateBooth = createMutationHook<
-	CreateBoothRequest,
-	CreateBoothResponse
->(createBooth);
+export function useCreateBooth() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (data: CreateBoothRequest) => createBooth(data),
+		onSuccess: () => {
+			// Invalidate booth list to show new booth
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.list(),
+			});
+			// Invalidate booth overview to update summary
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.all(),
+			});
+			// Invalidate dashboard overview to update total_booths count
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.dashboard.overview(),
+			});
+		},
+	});
+}
 
 /**
  * Hook to fetch list of all booths for current user
@@ -71,7 +89,7 @@ export function useBoothList() {
 	return useQuery<BoothListResponse>({
 		queryKey: queryKeys.booths.list(),
 		queryFn: getBoothList,
-		staleTime: 60000, // 1 minute
+		staleTime: 2 * 60 * 1000, // 2 minutes - booth list rarely changes
 	});
 }
 
@@ -94,9 +112,8 @@ export function useBoothDetail(boothId: string | null) {
 	return useQuery<BoothDetailResponse>({
 		queryKey: boothId ? queryKeys.booths.detail(boothId) : ['booths', 'detail', null],
 		queryFn: () => getBoothDetail(boothId!),
-		// Only run query if boothId is provided
 		enabled: !!boothId,
-		staleTime: 30000, // 30 seconds - dashboard data should be fresh
+		staleTime: 1 * 60 * 1000, // 1 minute - details may update (status)
 	});
 }
 
@@ -121,8 +138,7 @@ export function useBoothOverview() {
 	return useQuery<BoothOverviewResponse>({
 		queryKey: queryKeys.booths.all(),
 		queryFn: getBoothOverview,
-		// Data stays fresh for 1 minute - users can pull-to-refresh for updates
-		staleTime: 60000,
+		staleTime: 1 * 60 * 1000, // 1 minute - shows real-time status
 	});
 }
 
@@ -158,7 +174,7 @@ export function useDashboardOverview(options?: { enabled?: boolean }) {
 	return useQuery<DashboardOverviewResponse>({
 		queryKey: queryKeys.dashboard.overview(),
 		queryFn: getDashboardOverview,
-		staleTime: 60000, // 1 minute
+		staleTime: 1 * 60 * 1000, // 1 minute - dashboard needs recent data
 		enabled: options?.enabled ?? true,
 	});
 }
@@ -182,7 +198,7 @@ export function useBoothPricing(boothId: string | null) {
 		queryKey: boothId ? queryKeys.booths.pricing(boothId) : ['booths', 'pricing', null],
 		queryFn: () => getBoothPricing(boothId!),
 		enabled: !!boothId,
-		staleTime: 60000, // 1 minute
+		staleTime: 5 * 60 * 1000, // 5 minutes - pricing changes infrequently
 	});
 }
 
@@ -319,8 +335,40 @@ export function useBoothCredentials(boothId: string | null) {
 		queryKey: boothId ? queryKeys.booths.credentials(boothId) : ['booths', 'credentials', null],
 		queryFn: () => getBoothCredentials(boothId!),
 		enabled: !!boothId,
-		// Credentials don't change often, cache for 5 minutes
-		staleTime: 300000,
+		staleTime: 5 * 60 * 1000, // 5 minutes - credentials rarely change
+	});
+}
+
+/**
+ * Hook to generate a new registration code for a booth
+ * Code is 6-character alphanumeric, valid for 15 minutes, one-time use
+ * Easier for users to enter on booth touchscreen than scanning QR codes
+ *
+ * Usage:
+ * ```tsx
+ * const { mutate: generateCode, isPending } = useGenerateBoothCode();
+ *
+ * generateCode({ boothId: 'booth-123' }, {
+ *   onSuccess: (data) => {
+ *     console.log('Code:', data.code, 'Expires:', data.expires_at);
+ *   },
+ * });
+ * ```
+ *
+ * @returns React Query mutation for code generation
+ * @see POST /api/v1/booths/{booth_id}/generate-code
+ */
+export function useGenerateBoothCode() {
+	const queryClient = useQueryClient();
+
+	return useMutation<GenerateCodeResponse, Error, { boothId: string }>({
+		mutationFn: ({ boothId }) => generateBoothCode(boothId),
+		onSuccess: (data, variables) => {
+			// Invalidate credentials to show new code
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.credentials(variables.boothId),
+			});
+		},
 	});
 }
 

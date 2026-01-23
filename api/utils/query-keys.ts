@@ -146,8 +146,50 @@ export const queryKeys = {
      * @param boothId - The booth ID
      * @param params - Optional pagination params (limit, offset)
      */
-    history: (boothId: string, params?: { limit?: number; offset?: number }) => 
+    history: (boothId: string, params?: { limit?: number; offset?: number }) =>
       ['credits', 'history', boothId, params] as const,
+  },
+
+  /**
+   * Payments/Subscription-related query keys
+   * @see GET /api/v1/payments/access
+   * @see GET /api/v1/payments/subscription
+   * @see GET /api/v1/payments/booths/subscriptions
+   * @see GET /api/v1/booths/{booth_id}/subscription
+   */
+  payments: {
+    /**
+     * Check subscription access (lightweight check)
+     */
+    access: () => ['payments', 'access'] as const,
+
+    /**
+     * Get full subscription details
+     */
+    subscription: () => ['payments', 'subscription'] as const,
+
+    /**
+     * Get all booth subscriptions for user
+     * @see GET /api/v1/payments/booths/subscriptions
+     */
+    boothSubscriptions: () => ['payments', 'boothSubscriptions'] as const,
+
+    /**
+     * Get single booth subscription status
+     * @see GET /api/v1/booths/{booth_id}/subscription
+     */
+    boothSubscription: (boothId: string) => ['payments', 'boothSubscription', boothId] as const,
+  },
+
+  /**
+   * Licensing-related query keys
+   * @see POST /api/v1/licensing/activate-booth
+   */
+  licensing: {
+    /**
+     * Base key for all licensing queries
+     */
+    all: () => ['licensing'] as const,
   },
 } as const;
 

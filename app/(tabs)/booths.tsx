@@ -32,6 +32,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAlerts } from "@/api/alerts/queries";
 import { useBoothOverview } from "@/api/booths/queries";
 import type { BoothOverviewItem } from "@/api/booths/types";
+import { useBoothSubscriptions } from "@/api/payments/queries";
 import { CustomHeader } from "@/components/custom-header";
 import { BoothsSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
@@ -108,6 +109,25 @@ export default function BoothsScreen() {
 		return alertsData.alerts.filter((a) => !a.isRead).length;
 	}, [alertsData?.alerts]);
 
+	// Fetch booth subscriptions
+	// @see GET /api/v1/payments/booths/subscriptions
+	const { data: subscriptionsData } = useBoothSubscriptions();
+
+	// Create map of boothId → subscription status for quick lookup
+	const subscriptionMap = useMemo(() => {
+		if (!subscriptionsData?.items) return new Map();
+		return new Map(
+			subscriptionsData.items.map((sub) => [
+				sub.booth_id,
+				{
+					is_active: sub.is_active,
+					status: sub.status,
+					cancel_at_period_end: sub.cancel_at_period_end,
+				},
+			]),
+		);
+	}, [subscriptionsData?.items]);
+
 	// Only show refresh indicator when screen is focused (prevents frozen loader)
 	const isRefetching = isFocused && isQueryRefetching;
 
@@ -155,8 +175,12 @@ export default function BoothsScreen() {
 	const filteredBooths = useMemo(() => {
 		return booths.filter((booth) => {
 			// Filter by status
-			if (filterStatus !== "all" && booth.status !== filterStatus) {
-				return false;
+			// "online" filter includes: online, warning, error (connected but may have issues)
+			// "offline" filter includes: only offline
+			if (filterStatus === "online") {
+				if (booth.status === "offline") return false;
+			} else if (filterStatus === "offline") {
+				if (booth.status !== "offline") return false;
 			}
 			// Filter by search query
 			if (searchQuery) {
@@ -390,6 +414,7 @@ export default function BoothsScreen() {
 							key={booth.id}
 							booth={booth}
 							isSelected={selectedBoothId === booth.id}
+							subscriptionStatus={subscriptionMap.get(booth.id)}
 							onPress={() => {
 								// Set as active booth and navigate to dashboard
 								setSelectedBoothId(booth.id);

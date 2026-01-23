@@ -1,20 +1,31 @@
 /**
  * Credits History Screen
  *
- * Displays a paginated list of credit commands (add credits).
+ * Displays a paginated list of credit transactions with filters.
  *
  * Features:
- * - Filter by command status (All/Delivered/Completed/Pending)
+ * - Filter by transaction type, source, and date range via modal
+ * - Floating filter button
+ * - Swipe-to-delete transactions
+ * - Clear all history option
  * - Pull-to-refresh
  * - Current balance display
- * - Real API data from /api/v1/booths/{booth_id}/credits/history
  *
  * @see https://docs.expo.dev/router/introduction/ - Expo Router docs
  * @see api/credits - Credits API hooks
  */
 
-import { useBoothCredits, useCreditsHistory } from "@/api/credits";
-import type { CreditCommandStatus } from "@/api/credits/types";
+import { useBoothCredits, useCreditsHistory, useDeleteCreditsHistory } from "@/api/credits";
+import type {
+	CreditTransaction,
+	CreditTransactionType,
+	CreditsHistoryParams,
+} from "@/api/credits/types";
+import {
+	HistoryFilterModal,
+	SwipeableTransaction,
+	type FilterState,
+} from "@/components/credits";
 import { CustomHeader } from "@/components/custom-header";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -27,74 +38,112 @@ import {
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
-import { formatRelativeTime } from "@/utils";
 import { useIsFocused } from "@react-navigation/native";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
+	Alert,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
 	TouchableOpacity,
 	View,
 } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type FilterType = "all" | CreditCommandStatus;
+/**
+ * Get date range for filter
+ */
+function getDateRange(
+	filter: "all" | "today" | "7days" | "30days",
+): { from?: string; to?: string } {
+	if (filter === "all") return {};
+
+	const now = new Date();
+	const to = now.toISOString();
+
+	switch (filter) {
+		case "today": {
+			const start = new Date(now);
+			start.setHours(0, 0, 0, 0);
+			return { from: start.toISOString(), to };
+		}
+		case "7days": {
+			const start = new Date(now);
+			start.setDate(start.getDate() - 7);
+			return { from: start.toISOString(), to };
+		}
+		case "30days": {
+			const start = new Date(now);
+			start.setDate(start.getDate() - 30);
+			return { from: start.toISOString(), to };
+		}
+		default:
+			return {};
+	}
+}
 
 /**
- * Get icon for command status
+ * Get icon for transaction type
  */
-function getStatusIcon(status: CreditCommandStatus): string {
-	switch (status) {
-		case "completed":
-			return "checkmark.circle.fill";
-		case "delivered":
-			return "arrow.up.circle.fill";
-		case "pending":
-			return "clock.fill";
-		case "failed":
-			return "xmark.circle.fill";
+function getTransactionIcon(type: CreditTransactionType): string {
+	switch (type) {
+		case "Add":
+			return "plus.circle.fill";
+		case "Deduct":
+			return "minus.circle.fill";
+		case "Reset":
+			return "arrow.counterclockwise.circle.fill";
 		default:
 			return "circle.fill";
 	}
 }
 
 /**
- * Get color for command status
+ * Get color for transaction type
  */
-function getStatusColor(status: CreditCommandStatus): string {
-	switch (status) {
-		case "completed":
+function getTransactionColor(type: CreditTransactionType): string {
+	switch (type) {
+		case "Add":
 			return StatusColors.success;
-		case "delivered":
-			return BRAND_COLOR;
-		case "pending":
+		case "Deduct":
 			return StatusColors.warning;
-		case "failed":
-			return StatusColors.error;
+		case "Reset":
+			return BRAND_COLOR;
 		default:
 			return StatusColors.neutral;
 	}
 }
 
 /**
- * Get label for command status
+ * Format amount with sign based on transaction type
  */
-function getStatusLabel(status: CreditCommandStatus): string {
-	switch (status) {
-		case "completed":
-			return "Completed";
-		case "delivered":
-			return "Delivered";
-		case "pending":
-			return "Pending";
-		case "failed":
-			return "Failed";
-		default:
-			return status;
+function formatAmount(amount: number, type: CreditTransactionType): string {
+	if (type === "Add") {
+		return `+${amount.toLocaleString()}`;
 	}
+	if (type === "Reset") {
+		return amount.toLocaleString();
+	}
+	return `-${amount.toLocaleString()}`;
+}
+
+/**
+ * Get display name for source
+ */
+function getSourceDisplayName(source: string): string {
+	const names: Record<string, string> = {
+		cloud: "Mobile App",
+		booth_admin: "Booth Admin",
+		booth_pcb: "PCB Payment",
+		booth_system: "System",
+		mobile_app: "Mobile App",
+		system: "System",
+		booth: "Booth",
+	};
+	return names[source] || source.replace(/_/g, " ");
 }
 
 /**
@@ -107,47 +156,266 @@ export default function CreditsHistoryScreen() {
 	const textSecondary = useThemeColor({}, "textSecondary");
 	const isFocused = useIsFocused();
 
-	const [filterType, setFilterType] = useState<FilterType>("all");
+	// Filter modal state
+	const [showFilterModal, setShowFilterModal] = useState(false);
+	const [filters, setFilters] = useState<FilterState>({
+		transactionFilter: "all",
+		sourceFilter: "all",
+		dateFilter: "all",
+	});
 
 	// Get selected booth from global store
 	const selectedBoothId = useBoothStore((s) => s.selectedBoothId);
-	// For history, we need a specific booth, not "all booths"
 	const effectiveBoothId =
 		selectedBoothId === ALL_BOOTHS_ID ? null : selectedBoothId;
 
-	// Fetch credit balance
-	const { data: creditsData, isLoading: isLoadingCredits } =
-		useBoothCredits(effectiveBoothId);
+	// Delete mutation
+	const deleteHistory = useDeleteCreditsHistory();
 
-	// Fetch credits history
+	// Build API params from filters
+	const apiParams = useMemo<CreditsHistoryParams>(() => {
+		const params: CreditsHistoryParams = {
+			limit: 20,
+			offset: 0,
+		};
+
+		if (filters.transactionFilter !== "all") {
+			params.transaction_type = filters.transactionFilter;
+		}
+
+		if (filters.sourceFilter !== "all") {
+			params.source = filters.sourceFilter;
+		}
+
+		const dateRange = getDateRange(filters.dateFilter);
+		if (dateRange.from) params.date_from = dateRange.from;
+		if (dateRange.to) params.date_to = dateRange.to;
+
+		return params;
+	}, [filters]);
+
+	// Pagination state
+	const PAGE_SIZE = 20;
+	const [allTransactions, setAllTransactions] = useState<CreditTransaction[]>(
+		[],
+	);
+	const [totalCount, setTotalCount] = useState(0);
+	const [isLoadingMore, setIsLoadingMore] = useState(false);
+	const [reachedEnd, setReachedEnd] = useState(false);
+
+	// Fetch credit balance
+	const {
+		data: creditsData,
+		isLoading: isLoadingCredits,
+		refetch: refetchCredits,
+	} = useBoothCredits(effectiveBoothId);
+
+	// Fetch first page of credits history with filters
 	const {
 		data: historyData,
 		isLoading: isLoadingHistory,
 		refetch: refetchHistory,
 		isRefetching,
-	} = useCreditsHistory(effectiveBoothId, { limit: 50, offset: 0 });
+	} = useCreditsHistory(effectiveBoothId, apiParams);
 
-	// Filter commands by status
-	const filteredCommands = useMemo(() => {
-		const commands = historyData?.commands ?? [];
-		if (filterType === "all") return commands;
-		return commands.filter((item) => item.status === filterType);
-	}, [historyData?.commands, filterType]);
+	// Initialize with first page data
+	useEffect(() => {
+		if (historyData?.transactions) {
+			setAllTransactions(historyData.transactions);
+			setTotalCount(historyData.total);
+		}
+	}, [historyData]);
+
+	// Reset when booth or filters change
+	useEffect(() => {
+		setAllTransactions([]);
+		setTotalCount(0);
+		setReachedEnd(false);
+	}, [effectiveBoothId, filters]);
+
+	// Check if there are more items to load
+	const hasNextPage =
+		!reachedEnd && allTransactions.length < totalCount && totalCount > 0;
+
+	// Check if any filter is active
+	const hasActiveFilters =
+		filters.transactionFilter !== "all" ||
+		filters.sourceFilter !== "all" ||
+		filters.dateFilter !== "all";
+
+	// Count active filters
+	const activeFilterCount = [
+		filters.transactionFilter !== "all",
+		filters.sourceFilter !== "all",
+		filters.dateFilter !== "all",
+	].filter(Boolean).length;
+
+	// Load more handler
+	const handleLoadMore = useCallback(async () => {
+		if (isLoadingMore || !hasNextPage || !effectiveBoothId) return;
+
+		setIsLoadingMore(true);
+		try {
+			const { getCreditsHistory } = await import("@/api/credits/services");
+			const nextPage = await getCreditsHistory(effectiveBoothId, {
+				...apiParams,
+				limit: PAGE_SIZE,
+				offset: allTransactions.length,
+			});
+
+			if (nextPage?.transactions) {
+				const existingIds = new Set(allTransactions.map((t) => t.id));
+				const newTransactions = nextPage.transactions.filter(
+					(t) => !existingIds.has(t.id),
+				);
+
+				if (newTransactions.length === 0) {
+					setReachedEnd(true);
+				} else {
+					setAllTransactions((prev) => [...prev, ...newTransactions]);
+				}
+				setTotalCount(nextPage.total);
+			}
+		} catch (error) {
+			console.error("[CreditsHistory] Load more error:", error);
+		} finally {
+			setIsLoadingMore(false);
+		}
+	}, [
+		isLoadingMore,
+		hasNextPage,
+		effectiveBoothId,
+		allTransactions,
+		apiParams,
+	]);
 
 	// Handle refresh
-	const handleRefresh = async () => {
-		await refetchHistory();
-	};
+	const handleRefresh = useCallback(async () => {
+		setAllTransactions([]);
+		setTotalCount(0);
+		setReachedEnd(false);
 
-	// Filter options based on available statuses
-	const filterOptions: { value: FilterType; label: string }[] = [
-		{ value: "all", label: "All" },
-		{ value: "delivered", label: "Delivered" },
-		{ value: "completed", label: "Completed" },
-		{ value: "pending", label: "Pending" },
-	];
+		const [historyResult] = await Promise.all([
+			refetchHistory(),
+			refetchCredits(),
+		]);
 
-	const isLoading = isLoadingCredits || isLoadingHistory;
+		if (historyResult.data?.transactions) {
+			setAllTransactions(historyResult.data.transactions);
+			setTotalCount(historyResult.data.total);
+		}
+	}, [refetchHistory, refetchCredits]);
+
+	// Handle filter apply
+	const handleApplyFilters = useCallback((newFilters: FilterState) => {
+		setFilters(newFilters);
+	}, []);
+
+	// Handle delete single transaction
+	const handleDeleteTransaction = useCallback(
+		(transactionId: string) => {
+			if (!effectiveBoothId) return;
+
+			Alert.alert(
+				"Delete Transaction",
+				"Are you sure you want to delete this transaction? This action cannot be undone.",
+				[
+					{ text: "Cancel", style: "cancel" },
+					{
+						text: "Delete",
+						style: "destructive",
+						onPress: () => {
+							deleteHistory.mutate(
+								{
+									boothId: effectiveBoothId,
+									params: { transaction_id: transactionId },
+								},
+								{
+									onSuccess: () => {
+										// Remove from local state immediately
+										setAllTransactions((prev) =>
+											prev.filter((t) => t.id !== transactionId),
+										);
+										setTotalCount((prev) => Math.max(0, prev - 1));
+									},
+									onError: (error) => {
+										Alert.alert(
+											"Error",
+											"Failed to delete transaction. Please try again.",
+										);
+										console.error("[CreditsHistory] Delete error:", error);
+									},
+								},
+							);
+						},
+					},
+				],
+			);
+		},
+		[effectiveBoothId, deleteHistory],
+	);
+
+	// Handle clear all history
+	const handleClearAllHistory = useCallback(() => {
+		if (!effectiveBoothId) return;
+
+		Alert.alert(
+			"Clear All History",
+			"Are you sure you want to delete ALL credit history for this booth? This action cannot be undone!",
+			[
+				{ text: "Cancel", style: "cancel" },
+				{
+					text: "Clear All",
+					style: "destructive",
+					onPress: () => {
+						Alert.alert(
+							"Confirm Clear All",
+							"This will permanently delete all transaction records. Are you absolutely sure?",
+							[
+								{ text: "Cancel", style: "cancel" },
+								{
+									text: "Yes, Clear All",
+									style: "destructive",
+									onPress: () => {
+										deleteHistory.mutate(
+											{
+												boothId: effectiveBoothId,
+												// No params = delete all
+											},
+											{
+												onSuccess: (data) => {
+													setAllTransactions([]);
+													setTotalCount(0);
+													Alert.alert(
+														"History Cleared",
+														`Successfully deleted ${data.deleted_count} transactions.`,
+													);
+												},
+												onError: (error) => {
+													Alert.alert(
+														"Error",
+														"Failed to clear history. Please try again.",
+													);
+													console.error(
+														"[CreditsHistory] Clear all error:",
+														error,
+													);
+												},
+											},
+										);
+									},
+								},
+							],
+						);
+					},
+				},
+			],
+		);
+	}, [effectiveBoothId, deleteHistory]);
+
+	// Only show full loading state on initial load
+	const isInitialLoading =
+		(isLoadingCredits || isLoadingHistory) && allTransactions.length === 0;
 	const creditsBalance = creditsData?.credit_balance ?? 0;
 
 	// Show message if no booth selected
@@ -186,197 +454,275 @@ export default function CreditsHistoryScreen() {
 	}
 
 	return (
-		<SafeAreaView
-			style={[styles.container, { backgroundColor }]}
-			edges={["top"]}
-		>
-			<CustomHeader
-				title={`Credit History`}
-				showBackButton
-				onBackPress={() => router.back()}
-			/>
-
-			<ScrollView
-				style={styles.content}
-				contentContainerStyle={styles.contentContainer}
-				showsVerticalScrollIndicator={false}
-				refreshControl={
-					<RefreshControl
-						refreshing={isFocused && isRefetching}
-						onRefresh={handleRefresh}
-						tintColor={BRAND_COLOR}
-					/>
-				}
+		<GestureHandlerRootView style={{ flex: 1 }}>
+			<SafeAreaView
+				style={[styles.container, { backgroundColor }]}
+				edges={["top"]}
 			>
-				{/* Current Balance Card */}
-				<View style={[styles.balanceCard, { backgroundColor: BRAND_COLOR }]}>
-					<View style={styles.balanceContent}>
-						<ThemedText style={styles.balanceLabel}>Current Balance</ThemedText>
-						<View style={styles.balanceRow}>
-							{isLoadingCredits ? (
-								<ActivityIndicator size="small" color="white" />
-							) : (
-								<ThemedText style={styles.balanceValue}>
-									{creditsBalance.toLocaleString()}
-								</ThemedText>
-							)}
-							<ThemedText style={styles.balanceUnit}>credits</ThemedText>
-						</View>
-					</View>
-					<IconSymbol
-						name="creditcard.fill"
-						size={48}
-						color="rgba(255,255,255,0.3)"
-					/>
-				</View>
+				<CustomHeader
+					title="Credit History"
+					showBackButton
+					onBackPress={() => router.back()}
+				/>
 
-				{/* Filter Pills */}
-				<View style={styles.filterRow}>
-					{filterOptions.map((option) => {
-						const isActive = filterType === option.value;
-						return (
-							<TouchableOpacity
-								key={option.value}
-								style={[
-									styles.filterPill,
-									{
-										backgroundColor: isActive ? BRAND_COLOR : cardBg,
-										borderColor: isActive ? BRAND_COLOR : borderColor,
-									},
-								]}
-								onPress={() => setFilterType(option.value)}
-								activeOpacity={0.7}
+				<ScrollView
+					style={styles.content}
+					contentContainerStyle={styles.contentContainer}
+					showsVerticalScrollIndicator={false}
+					refreshControl={
+						<RefreshControl
+							refreshing={isFocused && isRefetching}
+							onRefresh={handleRefresh}
+							tintColor={BRAND_COLOR}
+						/>
+					}
+				>
+					{/* Current Balance Card */}
+					<View style={[styles.balanceCard, { backgroundColor: BRAND_COLOR }]}>
+						<View style={styles.balanceContent}>
+							<ThemedText style={styles.balanceLabel}>
+								Current Balance
+							</ThemedText>
+							<View style={styles.balanceRow}>
+								{isLoadingCredits ? (
+									<ActivityIndicator size="small" color="white" />
+								) : (
+									<ThemedText style={styles.balanceValue}>
+										{creditsBalance.toLocaleString()}
+									</ThemedText>
+								)}
+								<ThemedText style={styles.balanceUnit}>credits</ThemedText>
+							</View>
+						</View>
+						<IconSymbol
+							name="creditcard.fill"
+							size={48}
+							color="rgba(255,255,255,0.3)"
+						/>
+					</View>
+
+					{/* Clear All Button */}
+					{allTransactions.length > 0 && (
+						<TouchableOpacity
+							style={[
+								styles.clearAllButton,
+								{ borderColor: StatusColors.error },
+							]}
+							onPress={handleClearAllHistory}
+							disabled={deleteHistory.isPending}
+							activeOpacity={0.7}
+						>
+							<IconSymbol name="trash" size={16} color={StatusColors.error} />
+							<ThemedText
+								style={[styles.clearAllButtonText, { color: StatusColors.error }]}
 							>
-								<ThemedText
+								Clear All History
+							</ThemedText>
+						</TouchableOpacity>
+					)}
+
+					{/* Active Filters Badge */}
+					{hasActiveFilters && (
+						<View
+							style={[
+								styles.activeFiltersBadge,
+								{
+									backgroundColor: withAlpha(BRAND_COLOR, 0.1),
+									borderColor: BRAND_COLOR,
+								},
+							]}
+						>
+							<IconSymbol
+								name="line.3.horizontal.decrease.circle.fill"
+								size={16}
+								color={BRAND_COLOR}
+							/>
+							<ThemedText
+								style={[styles.activeFiltersText, { color: BRAND_COLOR }]}
+							>
+								{activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""}{" "}
+								active
+							</ThemedText>
+							<TouchableOpacity
+								onPress={() =>
+									setFilters({
+										transactionFilter: "all",
+										sourceFilter: "all",
+										dateFilter: "all",
+									})
+								}
+								hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+							>
+								<IconSymbol
+									name="xmark.circle.fill"
+									size={18}
+									color={BRAND_COLOR}
+								/>
+							</TouchableOpacity>
+						</View>
+					)}
+
+					{/* Swipe hint */}
+					{allTransactions.length > 0 && !hasActiveFilters && (
+						<ThemedText style={[styles.swipeHint, { color: textSecondary }]}>
+							Swipe left on a transaction to delete
+						</ThemedText>
+					)}
+
+					{/* Loading State */}
+					{isInitialLoading && (
+						<View style={styles.loadingContainer}>
+							<ActivityIndicator size="large" color={BRAND_COLOR} />
+						</View>
+					)}
+
+					{/* Deleting indicator */}
+					{deleteHistory.isPending && (
+						<View
+							style={[
+								styles.deletingBanner,
+								{ backgroundColor: withAlpha(StatusColors.error, 0.1) },
+							]}
+						>
+							<ActivityIndicator size="small" color={StatusColors.error} />
+							<ThemedText
+								style={[styles.deletingText, { color: StatusColors.error }]}
+							>
+								Deleting...
+							</ThemedText>
+						</View>
+					)}
+
+					{/* Transaction List */}
+					{!isInitialLoading && (
+						<View style={styles.transactionList}>
+							{allTransactions.length === 0 ? (
+								<View
 									style={[
-										styles.filterText,
-										{ color: isActive ? "white" : textSecondary },
+										styles.emptyCard,
+										{ backgroundColor: cardBg, borderColor },
 									]}
 								>
-									{option.label}
-								</ThemedText>
-							</TouchableOpacity>
-						);
-					})}
-				</View>
-
-				{/* Loading State */}
-				{isLoading && (
-					<View style={styles.loadingContainer}>
-						<ActivityIndicator size="large" color={BRAND_COLOR} />
-					</View>
-				)}
-
-				{/* Command List */}
-				{!isLoading && (
-					<View style={styles.transactionList}>
-						{filteredCommands.length === 0 ? (
-							<View
-								style={[
-									styles.emptyCard,
-									{ backgroundColor: cardBg, borderColor },
-								]}
-							>
-								<IconSymbol name="tray" size={40} color={textSecondary} />
-								<ThemedText
-									style={[styles.emptyText, { color: textSecondary }]}
-								>
-									No credit commands found
-								</ThemedText>
-							</View>
-						) : (
-							filteredCommands.map((item) => {
-								const statusColor = getStatusColor(item.status);
-								const statusIcon = getStatusIcon(item.status);
-								const statusLabel = getStatusLabel(item.status);
-
-								return (
-									<View
-										key={item.id}
-										style={[
-											styles.transactionCard,
-											{ backgroundColor: cardBg, borderColor },
-										]}
+									<IconSymbol name="tray" size={40} color={textSecondary} />
+									<ThemedText
+										style={[styles.emptyText, { color: textSecondary }]}
 									>
-										<View
+										{hasActiveFilters
+											? "No transactions match your filters"
+											: "No transactions found"}
+									</ThemedText>
+									{hasActiveFilters && (
+										<TouchableOpacity
 											style={[
-												styles.transactionIcon,
-												{ backgroundColor: withAlpha(statusColor, 0.15) },
+												styles.clearFiltersButton,
+												{ backgroundColor: withAlpha(BRAND_COLOR, 0.1) },
 											]}
+											onPress={() =>
+												setFilters({
+													transactionFilter: "all",
+													sourceFilter: "all",
+													dateFilter: "all",
+												})
+											}
 										>
+											<ThemedText
+												style={[styles.clearFiltersText, { color: BRAND_COLOR }]}
+											>
+												Clear Filters
+											</ThemedText>
+										</TouchableOpacity>
+									)}
+								</View>
+							) : (
+								allTransactions.map((item) => (
+									<SwipeableTransaction
+										key={item.id}
+										item={item}
+										onDelete={handleDeleteTransaction}
+										getTransactionIcon={getTransactionIcon}
+										getTransactionColor={getTransactionColor}
+										formatAmount={formatAmount}
+										getSourceDisplayName={getSourceDisplayName}
+									/>
+								))
+							)}
+
+							{/* Load More Button */}
+							{hasNextPage && (
+								<TouchableOpacity
+									style={[
+										styles.loadMoreButton,
+										{ backgroundColor: cardBg, borderColor },
+									]}
+									onPress={handleLoadMore}
+									disabled={isLoadingMore}
+									activeOpacity={0.7}
+								>
+									{isLoadingMore ? (
+										<ActivityIndicator size="small" color={BRAND_COLOR} />
+									) : (
+										<>
 											<IconSymbol
-												name={statusIcon}
-												size={20}
-												color={statusColor}
+												name="arrow.down"
+												size={16}
+												color={BRAND_COLOR}
 											/>
-										</View>
+											<ThemedText
+												style={[styles.loadMoreText, { color: BRAND_COLOR }]}
+											>
+												Load More
+											</ThemedText>
+										</>
+									)}
+								</TouchableOpacity>
+							)}
 
-										<View style={styles.transactionContent}>
-											<View style={styles.transactionHeader}>
-												<ThemedText type="defaultSemiBold">
-													+{item.amount.toLocaleString()} credits
-												</ThemedText>
-												<View
-													style={[
-														styles.statusBadge,
-														{ backgroundColor: withAlpha(statusColor, 0.15) },
-													]}
-												>
-													<ThemedText
-														style={[styles.statusText, { color: statusColor }]}
-													>
-														{statusLabel}
-													</ThemedText>
-												</View>
-											</View>
-											<View style={styles.transactionFooter}>
-												<ThemedText
-													style={[
-														styles.transactionNote,
-														{ color: textSecondary },
-													]}
-													numberOfLines={1}
-												>
-													{item.reason || "No reason provided"}
-												</ThemedText>
-												<ThemedText
-													style={[
-														styles.transactionTime,
-														{ color: textSecondary },
-													]}
-												>
-													{formatRelativeTime(item.created_at)}
-												</ThemedText>
-											</View>
-											{item.delivered_at && (
-												<View style={styles.deliveryInfo}>
-													<ThemedText
-														style={[
-															styles.deliveryText,
-															{ color: textSecondary },
-														]}
-													>
-														Delivered: {formatRelativeTime(item.delivered_at)}
-													</ThemedText>
-												</View>
-											)}
-										</View>
-									</View>
-								);
-							})
-						)}
+							{/* Total count */}
+							{allTransactions.length > 0 && (
+								<ThemedText
+									style={[styles.totalText, { color: textSecondary }]}
+								>
+									{reachedEnd || allTransactions.length >= totalCount
+										? `${allTransactions.length} transactions`
+										: `Showing ${allTransactions.length} of ${totalCount} transactions`}
+								</ThemedText>
+							)}
+						</View>
+					)}
 
-						{/* Total count */}
-						{historyData && historyData.total > 0 && (
-							<ThemedText style={[styles.totalText, { color: textSecondary }]}>
-								Showing {filteredCommands.length} of {historyData.total}{" "}
-								commands
+					{/* Bottom padding for FAB */}
+					<View style={{ height: 80 }} />
+				</ScrollView>
+
+				{/* Floating Filter Button */}
+				<TouchableOpacity
+					style={[styles.fab, { backgroundColor: BRAND_COLOR }]}
+					onPress={() => setShowFilterModal(true)}
+					activeOpacity={0.8}
+				>
+					<IconSymbol
+						name="line.3.horizontal.decrease.circle"
+						size={24}
+						color="white"
+					/>
+					{hasActiveFilters && (
+						<View style={styles.fabBadge}>
+							<ThemedText style={styles.fabBadgeText}>
+								{activeFilterCount}
 							</ThemedText>
-						)}
-					</View>
-				)}
-			</ScrollView>
-		</SafeAreaView>
+						</View>
+					)}
+				</TouchableOpacity>
+
+				{/* Filter Modal */}
+				<HistoryFilterModal
+					visible={showFilterModal}
+					filters={filters}
+					onClose={() => setShowFilterModal(false)}
+					onApply={handleApplyFilters}
+				/>
+			</SafeAreaView>
+		</GestureHandlerRootView>
 	);
 }
 
@@ -397,7 +743,7 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		padding: Spacing.lg,
 		borderRadius: BorderRadius.lg,
-		marginBottom: Spacing.lg,
+		marginBottom: Spacing.md,
 	},
 	balanceContent: {
 		flex: 1,
@@ -422,78 +768,59 @@ const styles = StyleSheet.create({
 		color: "rgba(255,255,255,0.8)",
 		fontSize: 16,
 	},
-	filterRow: {
+	// Clear all button
+	clearAllButton: {
 		flexDirection: "row",
-		gap: Spacing.sm,
-		marginBottom: Spacing.lg,
-	},
-	filterPill: {
-		paddingHorizontal: Spacing.md,
+		alignItems: "center",
+		justifyContent: "center",
 		paddingVertical: Spacing.sm,
-		borderRadius: BorderRadius.full,
+		paddingHorizontal: Spacing.md,
+		borderRadius: BorderRadius.md,
 		borderWidth: 1,
+		marginBottom: Spacing.md,
+		gap: Spacing.xs,
 	},
-	filterText: {
+	clearAllButtonText: {
+		fontSize: 14,
+		fontWeight: "500",
+	},
+	// Active filters badge
+	activeFiltersBadge: {
+		flexDirection: "row",
+		alignItems: "center",
+		padding: Spacing.sm,
+		paddingHorizontal: Spacing.md,
+		borderRadius: BorderRadius.md,
+		borderWidth: 1,
+		marginBottom: Spacing.md,
+		gap: Spacing.xs,
+	},
+	activeFiltersText: {
+		flex: 1,
 		fontSize: 13,
 		fontWeight: "500",
 	},
+	swipeHint: {
+		fontSize: 12,
+		textAlign: "center",
+		marginBottom: Spacing.sm,
+	},
+	deletingBanner: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		padding: Spacing.sm,
+		borderRadius: BorderRadius.md,
+		marginBottom: Spacing.md,
+		gap: Spacing.xs,
+	},
+	deletingText: {
+		fontSize: 13,
+		fontWeight: "500",
+	},
+	// Transaction list
 	transactionList: {
 		gap: Spacing.sm,
-	},
-	transactionCard: {
-		flexDirection: "row",
-		padding: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 1,
-		gap: Spacing.md,
-	},
-	transactionIcon: {
-		width: 40,
-		height: 40,
-		borderRadius: 20,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	transactionContent: {
-		flex: 1,
-	},
-	transactionHeader: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		marginBottom: 4,
-	},
-	transactionFooter: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		marginBottom: Spacing.xs,
-	},
-	transactionNote: {
-		fontSize: 12,
-		flex: 1,
-	},
-	transactionTime: {
-		fontSize: 11,
-		marginLeft: Spacing.sm,
-	},
-	statusBadge: {
-		paddingHorizontal: Spacing.sm,
-		paddingVertical: 2,
-		borderRadius: BorderRadius.sm,
-	},
-	statusText: {
-		fontSize: 11,
-		fontWeight: "600",
-	},
-	deliveryInfo: {
-		marginTop: Spacing.xs,
-		paddingTop: Spacing.xs,
-		borderTopWidth: StyleSheet.hairlineWidth,
-		borderTopColor: "rgba(150,150,150,0.2)",
-	},
-	deliveryText: {
-		fontSize: 11,
 	},
 	emptyCard: {
 		padding: Spacing.xl,
@@ -524,6 +851,16 @@ const styles = StyleSheet.create({
 		fontWeight: "600",
 		fontSize: 14,
 	},
+	clearFiltersButton: {
+		marginTop: Spacing.md,
+		paddingHorizontal: Spacing.lg,
+		paddingVertical: Spacing.sm,
+		borderRadius: BorderRadius.md,
+	},
+	clearFiltersText: {
+		fontSize: 14,
+		fontWeight: "500",
+	},
 	loadingContainer: {
 		padding: Spacing.xl,
 		alignItems: "center",
@@ -532,5 +869,51 @@ const styles = StyleSheet.create({
 		textAlign: "center",
 		fontSize: 12,
 		marginTop: Spacing.md,
+	},
+	loadMoreButton: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		padding: Spacing.md,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+		gap: Spacing.xs,
+		marginTop: Spacing.sm,
+	},
+	loadMoreText: {
+		fontSize: 14,
+		fontWeight: "600",
+	},
+	// Floating Action Button
+	fab: {
+		position: "absolute",
+		bottom: Spacing.xl,
+		right: Spacing.lg,
+		width: 56,
+		height: 56,
+		borderRadius: 28,
+		justifyContent: "center",
+		alignItems: "center",
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.3,
+		shadowRadius: 6,
+		elevation: 8,
+	},
+	fabBadge: {
+		position: "absolute",
+		top: -2,
+		right: -2,
+		backgroundColor: StatusColors.error,
+		width: 20,
+		height: 20,
+		borderRadius: 10,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	fabBadgeText: {
+		color: "white",
+		fontSize: 11,
+		fontWeight: "bold",
 	},
 });

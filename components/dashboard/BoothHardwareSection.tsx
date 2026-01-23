@@ -33,7 +33,7 @@ interface BoothHardwareSectionProps {
  * BoothHardwareSection - Detailed hardware status for a single booth
  *
  * Displays:
- * - Camera: Status, model, capture count
+ * - Camera: Status, name, cameras detected count
  * - Printer: Status, model, paper/ink levels, prints remaining
  * - Payment Controller: Status, payment methods, transactions today
  *
@@ -47,12 +47,10 @@ export function BoothHardwareSection({ hardware }: BoothHardwareSectionProps) {
 				<StatusCard
 					title="Camera"
 					status={mapCameraStatus(hardware.camera.status)}
-					subtitle={
-						hardware.camera.model ?? hardware.camera.name ?? "Unknown"
-					}
+					subtitle={hardware.camera.name ?? "Unknown"}
 					infoText={
 						hardware.camera.error ??
-						`${hardware.camera.total_captures?.toLocaleString() ?? 0} total captures`
+						`${hardware.camera.cameras_detected ?? 0} camera${hardware.camera.cameras_detected === 1 ? "" : "s"} detected`
 					}
 					icon={
 						<IconSymbol

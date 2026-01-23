@@ -16,13 +16,12 @@ export const queryClient = new QueryClient({
         queries: {
             // Retry failed requests once before giving up
             retry: 1,
-            // Data is considered fresh for 5 minutes (prevents unnecessary refetches)
-            staleTime: 1000 * 60 * 5, // 5 minutes
-            // Cached data is kept for 10 minutes after it becomes unused
-            gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
-            // Refetch on window focus is not needed in React Native
-            refetchOnWindowFocus: false,
-            // Refetch on reconnect can be useful for mobile
+            // Data considered fresh for 5 minutes
+            staleTime: 5 * 60 * 1000,
+            // Cached data kept for 10 minutes after unused
+            gcTime: 10 * 60 * 1000,
+            refetchOnMount: true,
+            refetchOnWindowFocus: true,
             refetchOnReconnect: true,
         },
         mutations: {

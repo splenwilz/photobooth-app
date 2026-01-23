@@ -25,6 +25,10 @@ export interface CreateBoothResponse {
   name: string;
   owner_id: string;
   api_key: string;
+  /** 6-digit registration code for easy booth connection (e.g., "7RR8B6") */
+  registration_code: string;
+  /** ISO timestamp when the registration code expires */
+  code_expires_at: string;
   qr_code: string;
   message: string;
 }
@@ -165,10 +169,9 @@ export interface PaymentControllerStatus {
  */
 export interface CameraStatus {
   name: string | null;
-  model: string | null;
   status: string;
   error: string | null;
-  total_captures: number;
+  cameras_detected: number;
 }
 
 /**
@@ -573,14 +576,33 @@ export interface CancelRestartResponse {
 
 /**
  * Response from booth credentials endpoint
- * Used for reconnecting booth - contains API key and QR code
+ * Used for reconnecting booth - contains API key, QR code, and registration code
  * @see GET /api/v1/booths/{booth_id}/credentials
  */
 export interface BoothCredentialsResponse {
   id: string;
   api_key: string;
+  /** 6-digit registration code for easy booth connection (e.g., "7RR8B6") */
+  registration_code: string;
+  /** ISO timestamp when the registration code expires */
+  code_expires_at: string;
   qr_code: string;
   message: string;
+}
+
+/**
+ * Response from generate code endpoint
+ * Generates a new 6-digit registration code for easy booth setup
+ * @see POST /api/v1/booths/{booth_id}/generate-code
+ */
+export interface GenerateCodeResponse {
+  booth_id: string;
+  /** 6-character alphanumeric registration code (e.g., "A7X92K") */
+  code: string;
+  /** ISO timestamp when the code expires */
+  expires_at: string;
+  /** Minutes until expiration (default: 15) */
+  expires_in_minutes: number;
 }
 
 // ============================================================================

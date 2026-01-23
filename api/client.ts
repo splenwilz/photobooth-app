@@ -80,6 +80,21 @@ async function parseErrorResponse(response: Response): Promise<string> {
       return response.statusText || 'An error occurred';
     }
 
+    // Check if response is HTML (server error page, ngrok offline, etc.)
+    if (errorText.trim().startsWith('<!DOCTYPE') || errorText.trim().startsWith('<html')) {
+      // Try to extract meaningful message from ngrok error page
+      if (errorText.includes('ngrok') && errorText.includes('offline')) {
+        return 'Server is offline. Please check your connection.';
+      }
+      if (errorText.includes('502') || errorText.includes('Bad Gateway')) {
+        return 'Server is temporarily unavailable. Please try again later.';
+      }
+      if (errorText.includes('503') || errorText.includes('Service Unavailable')) {
+        return 'Service is temporarily unavailable. Please try again later.';
+      }
+      return 'Server is unreachable. Please check your connection.';
+    }
+
     // Try to parse as JSON
     const errorJson = JSON.parse(errorText);
 
@@ -129,19 +144,9 @@ export function getApiBaseUrl(): string {
  */
 export async function getAccessToken(): Promise<string | null> {
   try {
-    const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
-    if (token) {
-      console.log('[API] [TOKEN] Access token retrieved:', {
-        length: token.length,
-        preview: `${token.substring(0, 20)}...${token.substring(token.length - 10)}`,
-        hasToken: true,
-      })
-    } else {
-      console.log('[API] [TOKEN] No access token found')
-    }
-    return token
+    return await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
   } catch (error) {
-    console.error('[API] [TOKEN] Failed to get access token:', error)
+    console.error('[API] Failed to get access token:', error)
     return null
   }
 }
@@ -151,19 +156,9 @@ export async function getAccessToken(): Promise<string | null> {
  */
 async function getRefreshToken(): Promise<string | null> {
   try {
-    const token = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
-    if (token) {
-      console.log('[API] [TOKEN] Refresh token retrieved:', {
-        length: token.length,
-        preview: `${token.substring(0, 20)}...${token.substring(token.length - 10)}`,
-        hasToken: true,
-      })
-    } else {
-      console.log('[API] [TOKEN] No refresh token found')
-    }
-    return token
+    return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
   } catch (error) {
-    console.error('[API] [TOKEN] Failed to get refresh token:', error)
+    console.error('[API] Failed to get refresh token:', error)
     return null
   }
 }
@@ -173,25 +168,14 @@ async function getRefreshToken(): Promise<string | null> {
  */
 export async function saveTokens(accessToken: string, refreshToken?: string): Promise<void> {
   try {
-    console.log('[API] [TOKEN] Saving tokens:', {
-      accessToken: {
-        length: accessToken.length,
-        preview: `${accessToken.substring(0, 20)}...${accessToken.substring(accessToken.length - 10)}`,
-      },
-      refreshToken: refreshToken ? {
-        length: refreshToken.length,
-        preview: `${refreshToken.substring(0, 20)}...${refreshToken.substring(refreshToken.length - 10)}`,
-      } : null,
-    })
     await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken)
     if (refreshToken) {
       await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken)
     }
     // Reset redirect flag on successful login/token save
     isRedirectingToLogin = false
-    console.log('[API] [TOKEN] Tokens saved successfully')
   } catch (error) {
-    console.error('[API] [TOKEN] Failed to save tokens:', error)
+    console.error('[API] Failed to save tokens:', error)
     throw error
   }
 }
@@ -280,7 +264,6 @@ export async function clearTokens(): Promise<void> {
 export function clearQueryCache(): void {
   try {
     queryClient.clear()
-    console.log('[API] React Query cache cleared')
   } catch (error) {
     console.error('[API] Failed to clear query cache:', error)
   }
@@ -304,7 +287,6 @@ async function handleSessionExpiration(): Promise<void> {
   }
 
   isRedirectingToLogin = true
-  console.log('[API] [SESSION] Session expired - Redirecting to login...')
 
   try {
     // Clear query cache to prevent stale data
@@ -314,7 +296,7 @@ async function handleSessionExpiration(): Promise<void> {
     const { router } = await import('expo-router')
     router.replace('/auth/signin')
   } catch (error) {
-    console.error('[API] [SESSION] Failed to redirect to login:', error)
+    console.error('[API] Failed to redirect to login:', error)
     // Reset flag on error so user can try again
     isRedirectingToLogin = false
   }
@@ -323,41 +305,26 @@ async function handleSessionExpiration(): Promise<void> {
 /**
  * Refresh access token using refresh token
  * Calls your backend refresh endpoint and updates stored tokens
- * Matches the Next.js pattern: POST to /api/auth/refresh with refresh_token
- * 
  * Uses a global lock to prevent parallel refreshes when multiple requests hit 401 simultaneously
  */
 async function triggerRefresh(): Promise<boolean> {
   // If a refresh is already in progress, wait for it instead of starting a new one
   if (refreshPromise) {
-    console.log('[API] [REFRESH] Refresh already in progress, waiting for existing refresh...')
     return refreshPromise
   }
 
   // Start new refresh and store the promise
   refreshPromise = (async (): Promise<boolean> => {
-    const refreshStartTime = Date.now()
-    console.log('[API] [REFRESH] Starting token refresh...')
-
     try {
       const refreshToken = await getRefreshToken()
       if (!refreshToken) {
-        console.log('[API] [REFRESH] No refresh token available')
-        // Clear tokens if no refresh token (session expired)
         await clearTokens()
-        // Redirect to login when refresh token is missing
         await handleSessionExpiration()
         return false
       }
 
       const apiBaseUrl = getApiBaseUrl()
-      // Backend refresh token endpoint
-      const refreshEndpoint = `${apiBaseUrl}/api/v1/auth/refresh-token`
-
-      console.log('[API] [REFRESH] Calling refresh endpoint:', refreshEndpoint)
-
-      const fetchStartTime = Date.now()
-      const response = await fetch(refreshEndpoint, {
+      const response = await fetch(`${apiBaseUrl}/api/v1/auth/refresh-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -365,66 +332,29 @@ async function triggerRefresh(): Promise<boolean> {
         },
         body: JSON.stringify({ refresh_token: refreshToken }),
       })
-      const fetchDuration = Date.now() - fetchStartTime
-
-      console.log('[API] [REFRESH] Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        duration: `${fetchDuration}ms`,
-      })
 
       if (!response.ok) {
-        // If 401 or 403, refresh token is invalid/expired - clear auth and redirect
-        if (response.status === 401 || response.status === 403) {
-          console.log('[API] [REFRESH] Refresh token invalid/expired (401/403)')
-          await clearTokens()
-          // Redirect to login when refresh token is invalid/expired
-          await handleSessionExpiration()
-          return false
-        }
-        // For other errors (like 500), also treat as session expiration
-        // since we can't refresh, user needs to login again
-        console.log(`[API] [REFRESH] Refresh failed: ${response.status}`)
         await clearTokens()
-        // Redirect to login when refresh fails
         await handleSessionExpiration()
         return false
       }
 
       const data = await response.json()
-      const totalDuration = Date.now() - refreshStartTime
 
-      // Backend returns: { access_token: string, refresh_token: string }
       if (data.access_token) {
-        console.log('[API] [REFRESH] New tokens received from backend:', {
-          accessTokenLength: data.access_token.length,
-          refreshTokenLength: data.refresh_token?.length || 0,
-          hasRefreshToken: !!data.refresh_token,
-        })
         await saveTokens(data.access_token, data.refresh_token)
-        console.log('[API] [REFRESH] Token refreshed successfully:', {
-          totalDuration: `${totalDuration}ms`,
-          hasNewRefreshToken: !!data.refresh_token,
-        })
         return true
       }
 
-      console.error('[API] [REFRESH] Refresh response missing access_token:', data)
+      console.error('[API] Refresh response missing access_token')
       await clearTokens()
       return false
     } catch (e) {
-      const totalDuration = Date.now() - refreshStartTime
-      console.error('[API] [REFRESH] Token refresh failed:', {
-        error: e instanceof Error ? e.message : String(e),
-        duration: `${totalDuration}ms`,
-      })
-      // Clear tokens on any error (matches Next.js pattern)
+      console.error('[API] Token refresh failed:', e instanceof Error ? e.message : String(e))
       await clearTokens()
-      // Redirect to login when refresh fails due to error
       await handleSessionExpiration()
       return false
     } finally {
-      // Clear the refresh promise so future requests can refresh again
       refreshPromise = null
     }
   })()
@@ -439,14 +369,11 @@ async function triggerRefresh(): Promise<boolean> {
  */
 export async function apiClient<T>(url: string, options?: RequestInit): Promise<T> {
   const apiBaseUrl = getApiBaseUrl()
-  const totalStartTime = Date.now()
 
   async function makeRequest(isRetry: boolean = false): Promise<Response> {
-    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-    const attemptLabel = isRetry ? '[RETRY]' : '[INITIAL]'
-
     // Get access token from secure storage
     const accessToken = await getAccessToken()
+    // console.log('[API] Access Token:', accessToken)
 
     // If no token and this is not a retry, check if we should redirect to login
     // Skip for public endpoints (like signin, signup, refresh-token)
@@ -461,10 +388,8 @@ export async function apiClient<T>(url: string, options?: RequestInit): Promise<
         url.includes('/auth/callback')  
 
       if (!isPublicEndpoint) {
-        // No token and not a public endpoint - session expired, redirect to login
-        console.log('[API] No access token available - Session expired, redirecting to login...')
+        // No token and not a public endpoint - session expired
         await handleSessionExpiration()
-        // Throw error to prevent the request from proceeding
         throw new ApiError(401, 'Session expired. Please sign in again.', undefined, true)
       }
     }
@@ -491,60 +416,17 @@ export async function apiClient<T>(url: string, options?: RequestInit): Promise<
 
     const targetUrl = url.startsWith('http') ? url : `${apiBaseUrl}${url}`
 
-    // Log token usage after targetUrl is defined
-    if (accessToken) {
-      console.log('[API] [TOKEN] Using access token in request:', {
-        length: accessToken.length,
-        preview: `${accessToken.substring(0, 20)}...${accessToken.substring(accessToken.length - 10)}`,
-        url: targetUrl,
-      })
-      // TEMPORARY: Full token log for debugging - REMOVE BEFORE PRODUCTION
-      // console.log('[API] [TOKEN] [DEBUG] Full access token:', accessToken)
-    } else {
-      console.log('[API] [TOKEN] No access token available for request:', { url: targetUrl })
-    }
-
     const fetchOptions: RequestInit = {
       ...options,
       headers,
     }
 
-    // Log request details
-    console.log(`[API] ${attemptLabel} Request [${requestId}]:`, {
-      method: options?.method || 'GET',
-      url: targetUrl,
-      hasAuth: !!accessToken,
-      authTokenPreview: accessToken ? `${accessToken.substring(0, 20)}...` : 'none',
-      isFormData: isFormDataBody,
-      contentType: headers['Content-Type'],
-      bodySize: options?.body ? (typeof options.body === 'string' ? options.body.length : 'FormData') : 'none',
-    })
-
-    const fetchStartTime = Date.now()
-
     try {
-      const response = await fetch(targetUrl, fetchOptions)
-      const fetchDuration = Date.now() - fetchStartTime
-
-      // Log response details
-      console.log(`[API] ${attemptLabel} Response [${requestId}]:`, {
-        status: response.status,
-        statusText: response.statusText,
-        duration: `${fetchDuration}ms`,
-        contentType: response.headers.get('content-type'),
-        hasAuthError: response.status === 401,
-      })
-
-      return response
+      return await fetch(targetUrl, fetchOptions)
     } catch (fetchError) {
-      const fetchDuration = Date.now() - fetchStartTime
-
-      // Handle network errors (connection refused, DNS errors, etc.)
-      console.error(`[API] ${attemptLabel} Network Error [${requestId}]:`, {
+      console.error('[API] Network Error:', {
         url: targetUrl,
         error: fetchError instanceof Error ? fetchError.message : String(fetchError),
-        duration: `${fetchDuration}ms`,
-        apiBaseUrl,
       })
 
       throw new ApiError(
@@ -560,113 +442,51 @@ export async function apiClient<T>(url: string, options?: RequestInit): Promise<
   let res = await makeRequest()
 
   if (res.status === 401) {
-    console.log('[API] 401 Unauthorized - Attempting token refresh...')
-    const refreshStartTime = Date.now()
-
-    // Detect token expiration by attempting refresh
-    // If refresh succeeds → access token was expired (now refreshed)
-    // If refresh fails → session expired (refresh token invalid/expired)
+    // Attempt token refresh
     const refreshed = await triggerRefresh()
-    const refreshDuration = Date.now() - refreshStartTime
 
     if (refreshed) {
-      console.log(`[API] Token refresh succeeded (${refreshDuration}ms) - Retrying original request...`)
-
-      // Refresh succeeded - access token was expired, now we have a new one
       // Retry the original request with new token
       res = await makeRequest(true)
 
-      // If still 401 after refresh, the original request had invalid credentials
-      // (not a token expiry issue - e.g., wrong user/permissions)
+      // If still 401 after refresh, invalid credentials (not token expiry)
       if (res.status === 401) {
         const msg = await parseErrorResponse(res)
-        console.log('[API] Still 401 after refresh - Invalid credentials, not token expiry')
-        throw new ApiError(401, msg, undefined, false) // Not session expired, invalid request
+        throw new ApiError(401, msg, undefined, false)
       }
-      // Success - token refresh worked and request succeeded!
-      console.log('[API] Request succeeded after token refresh')
     } else {
-      // Refresh failed - session is truly expired (refresh token invalid/expired)
-      console.log(`[API] Token refresh failed (${refreshDuration}ms) - Session expired`)
+      // Refresh failed - session expired
       const msg = await parseErrorResponse(res)
       throw new ApiError(401, msg || 'Session expired. Please sign in again.', undefined, true)
     }
   }
 
-  // Check for 204 No Content before checking res.ok
-  // 204 is a success status but has no body, so we handle it early
+  // Handle 204 No Content
   if (res.status === 204) {
-    const totalDuration = Date.now() - totalStartTime
-    console.log('[API] Request Success:', {
-      url,
-      status: res.status,
-      totalDuration: `${totalDuration}ms`,
-      responseType: 'No Content (204)',
-    })
     return undefined as T
   }
 
   if (!res.ok) {
-    const errorMessage = await parseErrorResponse(res);
-    const totalDuration = Date.now() - totalStartTime
+    const errorMessage = await parseErrorResponse(res)
 
     // Log server errors for debugging
     if (res.status >= 500) {
-      console.error('[API] Server Error:', {
-        status: res.status,
-        statusText: res.statusText,
-        url,
-        message: errorMessage,
-        totalDuration: `${totalDuration}ms`,
-      })
-    } else {
-      console.log('[API] Client Error:', {
-        status: res.status,
-        statusText: res.statusText,
-        url,
-        message: errorMessage,
-        totalDuration: `${totalDuration}ms`,
-      })
+      console.error('[API] Server Error:', { status: res.status, url, message: errorMessage })
     }
 
-    throw new ApiError(res.status, errorMessage);
+    throw new ApiError(res.status, errorMessage)
   }
 
   const responseContentType = res.headers.get('content-type') ?? ''
-  const totalDuration = Date.now() - totalStartTime
-
-  let result: T
 
   if (responseContentType.includes('application/json')) {
-    result = await res.json()
-    console.log('[API] Request Success:', {
-      url,
-      status: res.status,
-      totalDuration: `${totalDuration}ms`,
-      responseType: 'JSON',
-    })
-    return result
+    return await res.json()
   }
 
   if (res.status === 204 || responseContentType.length === 0) {
-    // No content to return (e.g., 204 No Content)
-    console.log('[API] Request Success:', {
-      url,
-      status: res.status,
-      totalDuration: `${totalDuration}ms`,
-      responseType: 'No Content',
-    })
     return undefined as T
   }
 
   // Fallback: return plain text for non-JSON responses
-  const responseText = await res.text()
-  console.log('[API] Request Success:', {
-    url,
-    status: res.status,
-    totalDuration: `${totalDuration}ms`,
-    responseType: 'Text',
-    textLength: responseText.length,
-  })
-  return responseText as unknown as T
+  return await res.text() as unknown as T
 }
