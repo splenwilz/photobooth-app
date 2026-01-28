@@ -84,7 +84,7 @@ export function usePaymentDeepLinks() {
 					case "template-purchase-success":
 						// Invalidate purchased templates query
 						queryClient.invalidateQueries({
-							queryKey: queryKeys.templates.purchased(),
+							queryKey: ["templates", "purchased"],
 						});
 						// Clear cart after successful purchase
 						useCartStore.getState().clearCart();

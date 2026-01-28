@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as WebBrowser from "expo-web-browser";
 
+import { useBoothOverview } from "@/api/booths/queries";
 import { useTemplateCheckout } from "@/api/templates/queries";
 import type { CartItem } from "@/api/templates/types";
 import { ThemedText } from "@/components/themed-text";
@@ -32,8 +33,10 @@ import {
   BRAND_COLOR,
   Spacing,
   StatusColors,
+  withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 import { useCartStore } from "@/stores/cart-store";
 
 export default function CartScreen() {
@@ -50,7 +53,28 @@ export default function CartScreen() {
   const checkout = useTemplateCheckout();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
+  const selectedBoothId = useBoothStore((s) => s.selectedBoothId);
+  const { data: boothOverview } = useBoothOverview();
+  const booths = boothOverview?.booths ?? [];
+
+  // If user has a specific booth selected, use it; otherwise they need to pick
+  const isAllMode = selectedBoothId === ALL_BOOTHS_ID;
+  const [pickedBoothId, setPickedBoothId] = useState<string | null>(null);
+
+  // Auto-select if only one booth
+  const effectiveBoothId = isAllMode
+    ? (booths.length === 1 ? booths[0].booth_id : pickedBoothId)
+    : selectedBoothId;
+
   const handleCheckout = async () => {
+    if (!effectiveBoothId) {
+      Alert.alert(
+        "Select a Booth",
+        "Please select a booth to purchase templates for.",
+      );
+      return;
+    }
+
     const paidItems = items.filter(
       (item) => parseFloat(item.template.price) > 0,
     );
@@ -69,6 +93,7 @@ export default function CartScreen() {
     setIsCheckingOut(true);
     try {
       const result = await checkout.mutateAsync({
+        booth_id: effectiveBoothId,
         items: paidItems.map((item) => ({
           template_id: item.template.id,
           quantity: item.quantity,
@@ -174,6 +199,50 @@ export default function CartScreen() {
 
           {/* Footer */}
           <View style={[styles.footer, { backgroundColor: cardBg, borderColor }]}>
+            {/* Booth picker when in "all booths" mode with multiple booths */}
+            {isAllMode && booths.length > 1 && (
+              <View style={styles.boothPickerSection}>
+                <ThemedText style={[styles.boothPickerLabel, { color: textSecondary }]}>
+                  Purchase for booth:
+                </ThemedText>
+                <View style={styles.boothPickerList}>
+                  {booths.map((booth) => {
+                    const isSelected = pickedBoothId === booth.booth_id;
+                    return (
+                      <TouchableOpacity
+                        key={booth.booth_id}
+                        style={[
+                          styles.boothPickerItem,
+                          {
+                            borderColor: isSelected ? BRAND_COLOR : borderColor,
+                            backgroundColor: isSelected
+                              ? withAlpha(BRAND_COLOR, 0.1)
+                              : cardBg,
+                          },
+                        ]}
+                        onPress={() => setPickedBoothId(booth.booth_id)}
+                      >
+                        <IconSymbol
+                          name={isSelected ? "checkmark.circle.fill" : "circle"}
+                          size={18}
+                          color={isSelected ? BRAND_COLOR : textSecondary}
+                        />
+                        <ThemedText
+                          numberOfLines={1}
+                          style={[
+                            styles.boothPickerName,
+                            isSelected && { color: BRAND_COLOR },
+                          ]}
+                        >
+                          {booth.booth_name}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
             <View style={styles.subtotalRow}>
               <ThemedText style={styles.subtotalLabel}>Subtotal</ThemedText>
               <ThemedText style={styles.subtotalValue}>
@@ -326,5 +395,31 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
+  },
+
+  // Booth picker
+  boothPickerSection: {
+    gap: Spacing.sm,
+  },
+  boothPickerLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  boothPickerList: {
+    gap: Spacing.xs,
+  },
+  boothPickerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  boothPickerName: {
+    fontSize: 14,
+    fontWeight: "500",
+    flex: 1,
   },
 });

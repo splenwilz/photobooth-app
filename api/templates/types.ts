@@ -143,6 +143,7 @@ export interface ReviewsResponse {
 export interface TemplatePurchase {
   id: number;
   template_id: number;
+  booth_id: string;
   template: Template;
   quantity: number;
   amount_paid: string;
@@ -166,6 +167,7 @@ export interface TemplateCheckoutLineItem {
 }
 
 export interface TemplateCheckoutRequest {
+  booth_id: string;
   items: TemplateCheckoutLineItem[];
   success_url: string;
   cancel_url: string;

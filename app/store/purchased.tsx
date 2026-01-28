@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Alert, FlatList, StyleSheet, TouchableOpacity, View, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useBoothOverview } from "@/api/booths/queries";
 import { useDownloadTemplate, usePurchasedTemplates } from "@/api/templates/queries";
 import type { TemplatePurchase } from "@/api/templates/types";
 import { downloadTemplateAsZip } from "@/lib/download-zip";
@@ -21,8 +22,10 @@ import {
   BorderRadius,
   BRAND_COLOR,
   Spacing,
+  withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 
 export default function PurchasedTemplatesScreen() {
   const backgroundColor = useThemeColor({}, "background");
@@ -31,7 +34,22 @@ export default function PurchasedTemplatesScreen() {
   const textSecondary = useThemeColor({}, "textSecondary");
   const textColor = useThemeColor({}, "text");
 
-  const { data, isLoading, refetch, isRefetching } = usePurchasedTemplates();
+  const selectedBoothId = useBoothStore((s) => s.selectedBoothId);
+  const { data: boothOverview } = useBoothOverview();
+  const booths = boothOverview?.booths ?? [];
+
+  const isAllMode = selectedBoothId === ALL_BOOTHS_ID;
+  const [pickedBoothId, setPickedBoothId] = useState<string | null>(null);
+
+  const effectiveBoothId = isAllMode
+    ? (booths.length === 1 ? booths[0].booth_id : pickedBoothId)
+    : selectedBoothId;
+
+  const boothName = booths.find((b) => b.booth_id === effectiveBoothId)?.booth_name;
+
+  const { data, isLoading, refetch, isRefetching } = usePurchasedTemplates({
+    booth_id: effectiveBoothId ?? undefined,
+  });
   const downloadMutation = useDownloadTemplate();
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
@@ -103,11 +121,64 @@ export default function PurchasedTemplatesScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <IconSymbol name="chevron.left" size={20} color={textColor} />
         </TouchableOpacity>
-        <ThemedText style={styles.headerTitle}>My Templates</ThemedText>
+        <ThemedText style={styles.headerTitle}>
+          {boothName ? `${boothName} Templates` : "My Templates"}
+        </ThemedText>
         <View style={styles.backButton} />
       </View>
 
-      {isLoading ? (
+      {/* Booth picker when in "all booths" mode with multiple booths */}
+      {isAllMode && booths.length > 1 && (
+        <View style={[styles.boothPickerSection, { borderColor }]}>
+          <ThemedText style={[styles.boothPickerLabel, { color: textSecondary }]}>
+            Select a booth:
+          </ThemedText>
+          <View style={styles.boothPickerList}>
+            {booths.map((booth) => {
+              const isSelected = pickedBoothId === booth.booth_id;
+              return (
+                <TouchableOpacity
+                  key={booth.booth_id}
+                  style={[
+                    styles.boothPickerItem,
+                    {
+                      borderColor: isSelected ? BRAND_COLOR : borderColor,
+                      backgroundColor: isSelected
+                        ? withAlpha(BRAND_COLOR, 0.1)
+                        : cardBg,
+                    },
+                  ]}
+                  onPress={() => setPickedBoothId(booth.booth_id)}
+                >
+                  <IconSymbol
+                    name={isSelected ? "checkmark.circle.fill" : "circle"}
+                    size={18}
+                    color={isSelected ? BRAND_COLOR : textSecondary}
+                  />
+                  <ThemedText
+                    numberOfLines={1}
+                    style={[
+                      styles.boothPickerName,
+                      isSelected && { color: BRAND_COLOR },
+                    ]}
+                  >
+                    {booth.booth_name}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {!effectiveBoothId && isAllMode && booths.length > 1 ? (
+        <View style={styles.centerState}>
+          <IconSymbol name="building.2" size={48} color={textSecondary} />
+          <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
+            Select a booth to view purchased templates
+          </ThemedText>
+        </View>
+      ) : isLoading ? (
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color={BRAND_COLOR} />
         </View>
@@ -202,5 +273,33 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     fontWeight: "500",
+  },
+
+  // Booth picker
+  boothPickerSection: {
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    gap: Spacing.sm,
+  },
+  boothPickerLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  boothPickerList: {
+    gap: Spacing.xs,
+  },
+  boothPickerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  boothPickerName: {
+    fontSize: 14,
+    fontWeight: "500",
+    flex: 1,
   },
 });

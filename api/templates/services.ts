@@ -151,7 +151,7 @@ export async function downloadTemplate(
  * @see GET /api/v1/templates/purchased
  */
 export async function getPurchasedTemplates(
-  params: { page?: number; per_page?: number } = {},
+  params: { booth_id: string; page?: number; per_page?: number },
 ): Promise<PurchasesResponse> {
   const qs = buildQueryString(params);
   return apiClient<PurchasesResponse>(`${BASE}/purchased${qs}`);

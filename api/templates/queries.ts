@@ -181,11 +181,15 @@ export function useDeleteReview() {
  * @see GET /api/v1/templates/purchased
  */
 export function usePurchasedTemplates(
-  params: { page?: number; per_page?: number } = {},
+  params: { booth_id?: string; page?: number; per_page?: number } = {},
 ) {
+  const { booth_id, ...rest } = params;
   return useQuery({
-    queryKey: [...queryKeys.templates.purchased(), params],
-    queryFn: () => getPurchasedTemplates(params),
+    queryKey: booth_id
+      ? [...queryKeys.templates.purchased(booth_id), rest]
+      : ["templates", "purchased", null],
+    queryFn: () => getPurchasedTemplates({ booth_id: booth_id!, ...rest }),
+    enabled: !!booth_id,
     staleTime: 60 * 1000,
   });
 }

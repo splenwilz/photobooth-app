@@ -237,7 +237,7 @@ export const queryKeys = {
     /**
      * Get user's purchased templates
      */
-    purchased: () => ['templates', 'purchased'] as const,
+    purchased: (boothId: string) => ['templates', 'purchased', boothId] as const,
   },
 } as const;
 

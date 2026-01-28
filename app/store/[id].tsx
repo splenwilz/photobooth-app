@@ -21,6 +21,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
+	useDeleteReview,
 	useSubmitReview,
 	useTemplateById,
 	useTemplateReviews,
@@ -83,7 +84,8 @@ export default function TemplateDetailScreen() {
 	}, [existingReview]);
 
 	const isEditing = !!existingReview;
-	const isMutating = submitReview.isPending || updateReview.isPending;
+	const deleteReview = useDeleteReview();
+	const isMutating = submitReview.isPending || updateReview.isPending || deleteReview.isPending;
 
 	const handleSubmitReview = () => {
 		if (!templateId || reviewRating === 0) {
@@ -122,6 +124,34 @@ export default function TemplateDetailScreen() {
 				},
 			);
 		}
+	};
+
+	const handleDeleteReview = () => {
+		if (!templateId || !existingReview) return;
+		Alert.alert("Delete Review", "Are you sure you want to delete your review?", [
+			{ text: "Cancel", style: "cancel" },
+			{
+				text: "Delete",
+				style: "destructive",
+				onPress: () => {
+					deleteReview.mutate(
+						{ templateId, reviewId: existingReview.id },
+						{
+							onSuccess: () => {
+								hasPreFilled.current = false;
+								setReviewRating(0);
+								setReviewTitle("");
+								setReviewComment("");
+								Alert.alert("Review Deleted", "Your review has been removed.");
+							},
+							onError: () => {
+								Alert.alert("Error", "Failed to delete review. Please try again.");
+							},
+						},
+					);
+				},
+			},
+		]);
 	};
 
 	if (isLoading || !template) {
@@ -278,6 +308,17 @@ export default function TemplateDetailScreen() {
 							{isInCart ? "In Cart" : "Add to Cart"}
 						</ThemedText>
 					</TouchableOpacity>
+					{isInCart && (
+						<TouchableOpacity
+							style={styles.goToCartLink}
+							onPress={() => router.push("/store/cart")}
+						>
+							<ThemedText style={[styles.goToCartText, { color: BRAND_COLOR }]}>
+								Go to Cart
+							</ThemedText>
+							<IconSymbol name="chevron.right" size={14} color={BRAND_COLOR} />
+						</TouchableOpacity>
+					)}
 				</View>
 
 				{/* Write a Review */}
@@ -332,23 +373,41 @@ export default function TemplateDetailScreen() {
 						textAlignVertical="top"
 					/>
 
-					{/* Submit button */}
-					<TouchableOpacity
-						style={[
-							styles.submitReviewButton,
-							{ opacity: isMutating ? 0.6 : 1 },
-						]}
-						onPress={handleSubmitReview}
-						disabled={isMutating}
-					>
-						{isMutating ? (
-							<ActivityIndicator size="small" color="#FFFFFF" />
-						) : (
-							<ThemedText style={styles.submitReviewText}>
-								{isEditing ? "Update Review" : "Submit Review"}
-							</ThemedText>
+					{/* Submit / Delete buttons */}
+					<View style={styles.reviewButtonRow}>
+						<TouchableOpacity
+							style={[
+								styles.submitReviewButton,
+								{ opacity: isMutating ? 0.6 : 1, flex: 1 },
+							]}
+							onPress={handleSubmitReview}
+							disabled={isMutating}
+						>
+							{isMutating && !deleteReview.isPending ? (
+								<ActivityIndicator size="small" color="#FFFFFF" />
+							) : (
+								<ThemedText style={styles.submitReviewText}>
+									{isEditing ? "Update Review" : "Submit Review"}
+								</ThemedText>
+							)}
+						</TouchableOpacity>
+						{isEditing && (
+							<TouchableOpacity
+								style={[
+									styles.deleteReviewButton,
+									{ opacity: isMutating ? 0.6 : 1 },
+								]}
+								onPress={handleDeleteReview}
+								disabled={isMutating}
+							>
+								{deleteReview.isPending ? (
+									<ActivityIndicator size="small" color={StatusColors.error} />
+								) : (
+									<IconSymbol name="trash" size={18} color={StatusColors.error} />
+								)}
+							</TouchableOpacity>
 						)}
-					</TouchableOpacity>
+					</View>
 				</View>
 
 				{/* Reviews Section */}
@@ -489,6 +548,16 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		fontWeight: "700",
 	},
+	goToCartLink: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: 4,
+	},
+	goToCartText: {
+		fontSize: 14,
+		fontWeight: "600",
+	},
 
 	// Review form
 	reviewFormSection: {
@@ -513,6 +582,10 @@ const styles = StyleSheet.create({
 	reviewTextArea: {
 		minHeight: 80,
 	},
+	reviewButtonRow: {
+		flexDirection: "row",
+		gap: Spacing.sm,
+	},
 	submitReviewButton: {
 		backgroundColor: BRAND_COLOR,
 		paddingVertical: Spacing.md,
@@ -524,6 +597,14 @@ const styles = StyleSheet.create({
 		color: "#FFFFFF",
 		fontSize: 15,
 		fontWeight: "600",
+	},
+	deleteReviewButton: {
+		borderWidth: 1,
+		borderColor: StatusColors.error,
+		paddingHorizontal: Spacing.md,
+		borderRadius: BorderRadius.lg,
+		alignItems: "center",
+		justifyContent: "center",
 	},
 
 	// Reviews
