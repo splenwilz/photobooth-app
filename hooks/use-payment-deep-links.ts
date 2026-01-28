@@ -16,6 +16,7 @@ import * as Linking from "expo-linking";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
 import { queryKeys } from "@/api/utils/query-keys";
+import { useCartStore } from "@/stores/cart-store";
 
 /**
  * Hook to handle payment-related deep links
@@ -78,6 +79,29 @@ export function usePaymentDeepLinks() {
 						queryClient.invalidateQueries({
 							queryKey: queryKeys.payments.subscription(),
 						});
+						break;
+
+					case "template-purchase-success":
+						// Invalidate purchased templates query
+						queryClient.invalidateQueries({
+							queryKey: queryKeys.templates.purchased(),
+						});
+						// Clear cart after successful purchase
+						useCartStore.getState().clearCart();
+
+						Alert.alert(
+							"Purchase Successful",
+							"Your templates are ready! Check your purchased templates.",
+							[{ text: "OK" }],
+						);
+						break;
+
+					case "template-purchase-cancel":
+						Alert.alert(
+							"Purchase Cancelled",
+							"Your cart items are still saved. You can try again anytime.",
+							[{ text: "OK" }],
+						);
 						break;
 
 					default:

@@ -191,5 +191,53 @@ export const queryKeys = {
      */
     all: () => ['licensing'] as const,
   },
+
+  /**
+   * Template store query keys
+   * @see /api/templates/queries.ts
+   */
+  templates: {
+    /**
+     * Base key for all template queries
+     */
+    all: () => ['templates'] as const,
+
+    /**
+     * Get templates list with filters
+     */
+    lists: () => ['templates', 'list'] as const,
+
+    /**
+     * Get templates list with specific params
+     */
+    list: (params?: Record<string, unknown>) =>
+      ['templates', 'list', params] as const,
+
+    /**
+     * Get single template by ID
+     */
+    detail: (id: number) => ['templates', 'detail', id] as const,
+
+    /**
+     * Get template reviews
+     */
+    reviews: (templateId: number) =>
+      ['templates', 'reviews', templateId] as const,
+
+    /**
+     * Get template categories
+     */
+    categories: () => ['templates', 'categories'] as const,
+
+    /**
+     * Get template layouts
+     */
+    layouts: () => ['templates', 'layouts'] as const,
+
+    /**
+     * Get user's purchased templates
+     */
+    purchased: () => ['templates', 'purchased'] as const,
+  },
 } as const;
 
