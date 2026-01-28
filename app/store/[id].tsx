@@ -8,7 +8,7 @@
 
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
@@ -51,7 +51,7 @@ export default function TemplateDetailScreen() {
 	const textColor = useThemeColor({}, "text");
 
 	const { data: template, isLoading } = useTemplateById(templateId);
-	const { data: reviewsData } = useTemplateReviews(templateId);
+	const { data: reviewsData, isLoading: isLoadingReviews } = useTemplateReviews(templateId);
 
 	const addItem = useCartStore((s) => s.addItem);
 	const isInCart = useCartStore((s) =>
@@ -71,9 +71,11 @@ export default function TemplateDetailScreen() {
 		return reviewsData.reviews.find((r) => r.user_id === session.id) ?? null;
 	}, [session?.id, reviewsData?.reviews]);
 
-	// Pre-fill form when existing review is found
+	// Pre-fill form when existing review is first found (not on refetches)
+	const hasPreFilled = useRef(false);
 	useEffect(() => {
-		if (existingReview) {
+		if (existingReview && !hasPreFilled.current) {
+			hasPreFilled.current = true;
 			setReviewRating(existingReview.rating);
 			setReviewTitle(existingReview.title ?? "");
 			setReviewComment(existingReview.comment ?? "");
@@ -357,7 +359,10 @@ export default function TemplateDetailScreen() {
 					{reviewsData?.reviews.map((review) => (
 						<TemplateReviewCard key={review.id} review={review} />
 					))}
-					{(!reviewsData || reviewsData.reviews.length === 0) && (
+					{isLoadingReviews && (
+						<ActivityIndicator size="small" color={BRAND_COLOR} style={{ paddingVertical: Spacing.lg }} />
+					)}
+					{!isLoadingReviews && (!reviewsData || reviewsData.reviews.length === 0) && (
 						<ThemedText style={[styles.noReviews, { color: textSecondary }]}>
 							No reviews yet. Be the first!
 						</ThemedText>

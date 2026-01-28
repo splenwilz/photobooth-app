@@ -9,7 +9,7 @@
  */
 
 import { router } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -91,6 +91,13 @@ export default function StoreScreen() {
       setDebouncedSearch(text);
       setPage(1);
     }, 300);
+  }, []);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
   }, []);
 
   // Build query params

@@ -45,8 +45,7 @@ export default function CartScreen() {
 
   const items = useCartStore((s) => s.items);
   const removeItem = useCartStore((s) => s.removeItem);
-  const getSubtotal = useCartStore((s) => s.getSubtotal);
-  const subtotal = getSubtotal();
+  const subtotal = useCartStore((s) => s.getSubtotal());
 
   const checkout = useTemplateCheckout();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -60,7 +59,7 @@ export default function CartScreen() {
     if (paidItems.length === 0) {
       Alert.alert(
         "Free Templates",
-        "All items in your cart are free! They have been added to your library.",
+        "All items in your cart are free! No payment needed.",
       );
       useCartStore.getState().clearCart();
       router.back();
