@@ -12,7 +12,7 @@ import { useState } from "react";
 import { Alert, FlatList, StyleSheet, TouchableOpacity, View, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useBoothOverview } from "@/api/booths/queries";
+import { useBoothOverview, useSyncBoothTemplates } from "@/api/booths/queries";
 import { useDownloadTemplate, usePurchasedTemplates } from "@/api/templates/queries";
 import type { TemplatePurchase } from "@/api/templates/types";
 import { downloadTemplateAsZip } from "@/lib/download-zip";
@@ -51,7 +51,32 @@ export default function PurchasedTemplatesScreen() {
     booth_id: effectiveBoothId ?? undefined,
   });
   const downloadMutation = useDownloadTemplate();
+  const syncMutation = useSyncBoothTemplates();
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  const handleSync = () => {
+    if (!effectiveBoothId) {
+      Alert.alert("Select a Booth", "Please select a booth first.");
+      return;
+    }
+    syncMutation.mutate(
+      { boothId: effectiveBoothId },
+      {
+        onSuccess: (result) => {
+          Alert.alert(
+            result.status === "delivered" ? "Sync Started" : "Sync Queued",
+            result.message,
+          );
+        },
+        onError: (error) => {
+          Alert.alert(
+            "Sync Failed",
+            error instanceof Error ? error.message : "Failed to sync templates.",
+          );
+        },
+      },
+    );
+  };
 
   const handleDownload = async (purchase: TemplatePurchase) => {
     setDownloadingId(purchase.template.id);
@@ -101,9 +126,9 @@ export default function PurchasedTemplatesScreen() {
         </ThemedText>
       </View>
       <TouchableOpacity
-        style={[styles.downloadButton, { backgroundColor: BRAND_COLOR, opacity: downloadingId === item.template.id ? 0.6 : 1 }]}
+        style={[styles.downloadButton, { backgroundColor: BRAND_COLOR, opacity: downloadingId !== null ? 0.6 : 1 }]}
         onPress={() => handleDownload(item)}
-        disabled={downloadingId === item.template.id}
+        disabled={downloadingId !== null}
       >
         {downloadingId === item.template.id ? (
           <ActivityIndicator size="small" color="#FFFFFF" />
@@ -124,7 +149,21 @@ export default function PurchasedTemplatesScreen() {
         <ThemedText style={styles.headerTitle}>
           {boothName ? `${boothName} Templates` : "My Templates"}
         </ThemedText>
-        <View style={styles.backButton} />
+        <TouchableOpacity
+          onPress={handleSync}
+          style={styles.backButton}
+          disabled={!effectiveBoothId || syncMutation.isPending}
+        >
+          {syncMutation.isPending ? (
+            <ActivityIndicator size="small" color={BRAND_COLOR} />
+          ) : (
+            <IconSymbol
+              name="arrow.triangle.2.circlepath"
+              size={20}
+              color={effectiveBoothId ? BRAND_COLOR : textSecondary}
+            />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Booth picker when in "all booths" mode with multiple booths */}

@@ -618,3 +618,18 @@ export interface DeleteBoothResponse {
   message: string;
 }
 
+// ============================================================================
+// SYNC TEMPLATES TYPES
+// ============================================================================
+
+/**
+ * Response from sync-templates endpoint
+ * @see POST /api/v1/booths/{booth_id}/sync-templates
+ */
+export interface SyncTemplatesResponse {
+  command_id: number;
+  booth_id: string;
+  status: "delivered" | "queued";
+  message: string;
+}
+

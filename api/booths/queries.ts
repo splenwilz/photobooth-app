@@ -13,6 +13,7 @@ import {
 	getDashboardOverview,
 	restartBoothApp,
 	restartBoothSystem,
+	syncBoothTemplates,
 	updateBoothPricing,
 } from "./services";
 import type {
@@ -422,5 +423,25 @@ export function useDeleteBooth() {
 				queryKey: queryKeys.booths.credentials(variables.boothId),
 			});
 		},
+	});
+}
+
+/**
+ * Hook to trigger template sync for a booth
+ * Queues a SYNC_TEMPLATE command for the booth to download purchased templates
+ *
+ * Usage:
+ * ```tsx
+ * const { mutate: syncTemplates, isPending } = useSyncBoothTemplates();
+ *
+ * syncTemplates({ boothId: 'booth-123' }, {
+ *   onSuccess: (data) => Alert.alert('Success', data.message),
+ * });
+ * ```
+ */
+export function useSyncBoothTemplates() {
+	return useMutation({
+		mutationFn: ({ boothId }: { boothId: string }) =>
+			syncBoothTemplates(boothId),
 	});
 }

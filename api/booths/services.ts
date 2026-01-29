@@ -14,6 +14,7 @@ import type {
 	RestartAppResponse,
 	RestartRequest,
 	RestartSystemResponse,
+	SyncTemplatesResponse,
 	UpdatePricingRequest,
 	UpdatePricingResponse,
 } from "./types";
@@ -262,6 +263,25 @@ export async function deleteBooth(
 		`/api/v1/booths/${boothId}`,
 		{
 			method: "DELETE",
+		},
+	);
+	return response;
+}
+
+/**
+ * Trigger template sync for a booth
+ * Queues a SYNC_TEMPLATE command for the booth to download purchased templates
+ * @param boothId - The booth ID to sync
+ * @returns Promise resolving to command result
+ * @see POST /api/v1/booths/{booth_id}/sync-templates
+ */
+export async function syncBoothTemplates(
+	boothId: string,
+): Promise<SyncTemplatesResponse> {
+	const response = await apiClient<SyncTemplatesResponse>(
+		`/api/v1/booths/${boothId}/sync-templates`,
+		{
+			method: "POST",
 		},
 	);
 	return response;

@@ -43,7 +43,8 @@ import { useCartStore } from "@/stores/cart-store";
 
 export default function TemplateDetailScreen() {
 	const { id } = useLocalSearchParams<{ id: string }>();
-	const templateId = id ? Number(id) : null;
+	const parsedId = id ? Number(id) : null;
+	const templateId = parsedId && !Number.isNaN(parsedId) ? parsedId : null;
 
 	const backgroundColor = useThemeColor({}, "background");
 	const cardBg = useThemeColor({}, "card");
@@ -154,11 +155,31 @@ export default function TemplateDetailScreen() {
 		]);
 	};
 
-	if (isLoading || !template) {
+	if (isLoading) {
 		return (
 			<SafeAreaView style={[styles.container, { backgroundColor }]}>
 				<View style={styles.loadingContainer}>
 					<ActivityIndicator size="large" color={BRAND_COLOR} />
+				</View>
+			</SafeAreaView>
+		);
+	}
+
+	if (!template) {
+		return (
+			<SafeAreaView style={[styles.container, { backgroundColor }]}>
+				<View style={[styles.header, { borderColor }]}>
+					<TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+						<IconSymbol name="chevron.left" size={20} color={textColor} />
+					</TouchableOpacity>
+					<ThemedText style={styles.headerTitle}>Template</ThemedText>
+					<View style={styles.backButton} />
+				</View>
+				<View style={styles.loadingContainer}>
+					<IconSymbol name="exclamationmark.triangle" size={48} color={textSecondary} />
+					<ThemedText style={{ color: textSecondary, marginTop: Spacing.md }}>
+						Template not found
+					</ThemedText>
 				</View>
 			</SafeAreaView>
 		);

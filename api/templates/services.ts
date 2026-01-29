@@ -58,7 +58,7 @@ export async function getTemplateById(id: number): Promise<Template> {
  * @see GET /api/v1/templates/by-slug/{slug}
  */
 export async function getTemplateBySlug(slug: string): Promise<Template> {
-  return apiClient<Template>(`${BASE}/by-slug/${slug}`);
+  return apiClient<Template>(`${BASE}/by-slug/${encodeURIComponent(slug)}`);
 }
 
 /**
