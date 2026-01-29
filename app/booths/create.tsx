@@ -9,6 +9,7 @@
 
 import * as Clipboard from "expo-clipboard";
 import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -21,10 +22,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 // API hooks
 import { useCreateBooth } from "@/api/booths/queries";
 import type { CreateBoothResponse } from "@/api/booths/types";
 import { useCreateBoothCheckout } from "@/api/payments";
+import { queryKeys } from "@/api/utils/query-keys";
 import { FormInput } from "@/components/auth/form-input";
 import { PrimaryButton } from "@/components/auth/primary-button";
 import { ThemedText } from "@/components/themed-text";
@@ -76,6 +79,7 @@ export default function CreateBoothScreen() {
 
 	// Booth checkout mutation for subscribing to newly created booth
 	const createBoothCheckout = useCreateBoothCheckout();
+	const queryClient = useQueryClient();
 
 	// Booth store for auto-selecting created booth
 	const { setSelectedBoothId } = useBoothStore();
@@ -91,13 +95,35 @@ export default function CreateBoothScreen() {
 			{
 				booth_id: createdBooth.id,
 				price_id: priceId,
-				success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${createdBooth.id}`,
+				success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${createdBooth.id}&type=subscription`,
 				cancel_url: `${websiteUrl}/pricing`,
 			},
 			{
-				onSuccess: (data) => {
+				onSuccess: async (data) => {
 					if (data.checkout_url) {
-						Linking.openURL(data.checkout_url);
+						const browserResult = await WebBrowser.openAuthSessionAsync(
+							data.checkout_url,
+							`boothiq://payment-success?booth_id=${createdBooth.id}`,
+							{ preferEphemeralSession: true }
+						);
+
+						if (browserResult.type === "success" && browserResult.url?.includes("payment-success")) {
+							queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
+							queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
+							queryClient.invalidateQueries({ queryKey: queryKeys.booths.detail(createdBooth.id) });
+							queryClient.invalidateQueries({ queryKey: queryKeys.payments.boothSubscription(createdBooth.id) });
+
+							// Select the subscribed booth as active
+							setSelectedBoothId(createdBooth.id);
+
+							router.replace("/(tabs)/booths");
+
+							Alert.alert(
+								"Payment Successful",
+								"Your subscription has been activated!",
+								[{ text: "OK" }],
+							);
+						}
 					} else {
 						Alert.alert(
 							"Error",

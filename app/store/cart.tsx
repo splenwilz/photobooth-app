@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as WebBrowser from "expo-web-browser";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useBoothOverview } from "@/api/booths/queries";
 import { useTemplateCheckout } from "@/api/templates/queries";
 import type { CartItem } from "@/api/templates/types";
@@ -51,6 +52,8 @@ export default function CartScreen() {
   const subtotal = useCartStore((s) => s.getSubtotal());
 
   const checkout = useTemplateCheckout();
+  const queryClient = useQueryClient();
+  const clearCart = useCartStore((s) => s.clearCart);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const selectedBoothId = useBoothStore((s) => s.selectedBoothId);
@@ -103,7 +106,29 @@ export default function CartScreen() {
       });
 
       if (result.checkout_url) {
-        await WebBrowser.openBrowserAsync(result.checkout_url);
+        const browserResult = await WebBrowser.openAuthSessionAsync(
+          result.checkout_url,
+          "boothiq://template-purchase-success",
+          { preferEphemeralSession: true } // Avoids "wants to sign in" prompt
+        );
+
+        // Handle the deep link result directly since openAuthSessionAsync intercepts it
+        if (browserResult.type === "success" && browserResult.url?.includes("template-purchase-success")) {
+          // Clear cart and invalidate queries
+          clearCart();
+          queryClient.invalidateQueries({
+            queryKey: ["templates", "purchased"],
+          });
+
+          // Navigate to store
+          router.replace("/store");
+
+          Alert.alert(
+            "Purchase Successful",
+            "Your templates are ready! Check your purchased templates.",
+            [{ text: "OK" }],
+          );
+        }
       }
     } catch (error) {
       Alert.alert(
