@@ -15,7 +15,9 @@
 
 import Constants from "expo-constants";
 import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import { router } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -50,6 +52,7 @@ import {
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
 import { useBoothSubscription, useCreateBoothCheckout } from "@/api/payments";
+import { queryKeys } from "@/api/utils/query-keys";
 import {
   ConnectionDetailsModal,
   DeleteBoothModal,
@@ -347,6 +350,7 @@ export default function SettingsScreen() {
 
 	// Checkout mutation for subscribing to booth
 	const createBoothCheckout = useCreateBoothCheckout();
+	const queryClient = useQueryClient();
 
 	// Pull-to-refresh state
 	const [isRefreshing, setIsRefreshing] = useState(false);
@@ -573,12 +577,34 @@ export default function SettingsScreen() {
 			{
 				booth_id: effectiveBoothId,
 				price_id: priceId,
-				success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${effectiveBoothId}`,
+				success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${effectiveBoothId}&type=subscription`,
 				cancel_url: `${websiteUrl}/pricing`,
 			},
 			{
-				onSuccess: (data) => {
-					Linking.openURL(data.checkout_url);
+				onSuccess: async (data) => {
+					if (data.checkout_url) {
+						const browserResult = await WebBrowser.openAuthSessionAsync(
+							data.checkout_url,
+							`boothiq://payment-success?booth_id=${effectiveBoothId}`,
+							{ preferEphemeralSession: true }
+						);
+
+						if (browserResult.type === "success" && browserResult.url?.includes("payment-success")) {
+							queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
+							queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
+							queryClient.invalidateQueries({ queryKey: queryKeys.booths.detail(effectiveBoothId) });
+							queryClient.invalidateQueries({ queryKey: queryKeys.payments.boothSubscription(effectiveBoothId) });
+
+							// Select the subscribed booth as active
+							setSelectedBoothId(effectiveBoothId);
+
+							Alert.alert(
+								"Payment Successful",
+								"Your subscription has been activated!",
+								[{ text: "OK" }],
+							);
+						}
+					}
 				},
 				onError: (error) => {
 					Alert.alert(

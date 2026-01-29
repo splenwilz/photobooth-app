@@ -18,6 +18,7 @@ import { Alert } from "react-native";
 import { router } from "expo-router";
 import { queryKeys } from "@/api/utils/query-keys";
 import { useCartStore } from "@/stores/cart-store";
+import { useBoothStore } from "@/stores/booth-store";
 
 /**
  * Hook to handle payment-related deep links
@@ -61,7 +62,7 @@ export function usePaymentDeepLinks() {
 							queryKey: queryKeys.payments.subscription(),
 						});
 
-						// If booth-specific, also invalidate booth queries
+						// If booth-specific, also invalidate booth queries and select the booth
 						if (boothId) {
 							queryClient.invalidateQueries({
 								queryKey: queryKeys.booths.detail(boothId),
@@ -69,12 +70,12 @@ export function usePaymentDeepLinks() {
 							queryClient.invalidateQueries({
 								queryKey: queryKeys.payments.boothSubscription(boothId),
 							});
-							// Navigate to booth details
-							router.replace(`/booths/${boothId}`);
-						} else {
-							// Navigate to dashboard for user-level subscriptions
-							router.replace("/");
+							// Select the subscribed booth as active
+							useBoothStore.getState().setSelectedBoothId(boothId);
 						}
+
+						// Navigate to booths tab
+						router.replace("/(tabs)/booths");
 
 						Alert.alert(
 							"Payment Successful",

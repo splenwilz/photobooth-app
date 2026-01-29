@@ -34,6 +34,7 @@ import {
 	View,
 } from "react-native";
 import { queryKeys } from "@/api/utils/query-keys";
+import { useBoothStore } from "@/stores/booth-store";
 
 interface SubscriptionStatusCardProps {
 	/** Booth ID for per-booth subscription. If null, shows user-level subscription. */
@@ -130,6 +131,7 @@ export function SubscriptionStatusCard({
 	const createBoothCheckout = useCreateBoothCheckout();
 	const customerPortal = useCustomerPortal();
 	const queryClient = useQueryClient();
+	const setSelectedBoothId = useBoothStore((s) => s.setSelectedBoothId);
 
 	// Normalize subscription data from either source
 	const hasSubscription = isPerBooth
@@ -158,7 +160,7 @@ export function SubscriptionStatusCard({
 				{
 					booth_id: boothId,
 					price_id: priceId,
-					success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${boothId}`,
+					success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${boothId}&type=subscription`,
 					cancel_url: `${websiteUrl}/pricing`,
 				},
 				{
@@ -178,8 +180,11 @@ export function SubscriptionStatusCard({
 								queryClient.invalidateQueries({ queryKey: queryKeys.booths.detail(boothId) });
 								queryClient.invalidateQueries({ queryKey: queryKeys.payments.boothSubscription(boothId) });
 
-								// Navigate to booth details
-								router.replace(`/booths/${boothId}`);
+								// Select the subscribed booth as active
+								setSelectedBoothId(boothId);
+
+								// Navigate to booths tab
+								router.replace("/(tabs)/booths");
 
 								Alert.alert(
 									"Payment Successful",
@@ -207,7 +212,7 @@ export function SubscriptionStatusCard({
 			createCheckout.mutate(
 				{
 					price_id: priceId,
-					success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+					success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&type=subscription`,
 					cancel_url: `${websiteUrl}/pricing`,
 				},
 				{
