@@ -28,6 +28,7 @@ import { queryClient } from "@/api/query-client";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { usePaymentDeepLinks } from "@/hooks/use-payment-deep-links";
 import { useBoothStore } from "@/stores/booth-store";
+import { useCartStore } from "@/stores/cart-store";
 
 export const unstable_settings = {
 	anchor: "(tabs)",
@@ -51,6 +52,9 @@ function RootLayoutNav() {
 
         {/* Booth management */}
         <Stack.Screen name="booths" />
+
+        {/* Template store sub-screens (detail, cart, purchased) */}
+        <Stack.Screen name="store" />
 
         {/* Transaction history */}
         <Stack.Screen name="transactions" />
@@ -80,12 +84,14 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const hydrate = useBoothStore((state) => state.hydrate);
+  const hydrateBooth = useBoothStore((state) => state.hydrate);
+  const hydrateCart = useCartStore((state) => state.hydrate);
 
-  // Hydrate booth store from SecureStore on app start
+  // Hydrate stores from SecureStore on app start
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    hydrateBooth();
+    hydrateCart();
+  }, [hydrateBooth, hydrateCart]);
 
   return (
     <QueryClientProvider client={queryClient}>

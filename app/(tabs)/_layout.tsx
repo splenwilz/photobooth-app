@@ -18,17 +18,21 @@ import { Tabs } from 'expo-router';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors, StatusColors } from '@/constants/theme';
+import { Colors, StatusColors, BRAND_COLOR } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAlerts } from '@/api/alerts/queries';
+import { useCartStore } from '@/stores/cart-store';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  
+
   // Fetch alerts to show unread count badge
   // @see GET /api/v1/analytics/alerts
   const { data: alertsData } = useAlerts();
-  
+
+  // Cart item count for store tab badge
+  const cartItemCount = useCartStore((s) => s.getItemCount());
+
   // Calculate unread alerts count
   const unreadCount = useMemo(() => {
     if (!alertsData?.alerts) return 0;
@@ -71,6 +75,24 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <IconSymbol size={24} name="photo.stack" color={color} />
           ),
+        }}
+      />
+
+      {/* Store Tab - Template marketplace */}
+      <Tabs.Screen
+        name="store"
+        options={{
+          title: 'Store',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={24} name="bag.fill" color={color} />
+          ),
+          tabBarBadge: cartItemCount > 0 ? cartItemCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: BRAND_COLOR,
+            fontSize: 10,
+            minWidth: 18,
+            height: 18,
+          },
         }}
       />
 
