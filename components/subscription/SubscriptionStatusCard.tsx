@@ -23,6 +23,9 @@ import {
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
+import { router } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	ActivityIndicator,
 	Alert,
@@ -30,6 +33,7 @@ import {
 	TouchableOpacity,
 	View,
 } from "react-native";
+import { queryKeys } from "@/api/utils/query-keys";
 
 interface SubscriptionStatusCardProps {
 	/** Booth ID for per-booth subscription. If null, shows user-level subscription. */
@@ -125,6 +129,7 @@ export function SubscriptionStatusCard({
 	const createCheckout = useCreateCheckout();
 	const createBoothCheckout = useCreateBoothCheckout();
 	const customerPortal = useCustomerPortal();
+	const queryClient = useQueryClient();
 
 	// Normalize subscription data from either source
 	const hasSubscription = isPerBooth
@@ -157,9 +162,31 @@ export function SubscriptionStatusCard({
 					cancel_url: `${websiteUrl}/pricing`,
 				},
 				{
-					onSuccess: (data) => {
+					onSuccess: async (data) => {
 						if (data?.checkout_url && typeof data.checkout_url === "string") {
-							Linking.openURL(data.checkout_url);
+							const browserResult = await WebBrowser.openAuthSessionAsync(
+								data.checkout_url,
+								`boothiq://payment-success?booth_id=${boothId}`,
+								{ preferEphemeralSession: true } // Avoids "wants to sign in" prompt
+							);
+
+							// Handle the deep link result directly
+							if (browserResult.type === "success" && browserResult.url?.includes("payment-success")) {
+								// Invalidate subscription queries
+								queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
+								queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
+								queryClient.invalidateQueries({ queryKey: queryKeys.booths.detail(boothId) });
+								queryClient.invalidateQueries({ queryKey: queryKeys.payments.boothSubscription(boothId) });
+
+								// Navigate to booth details
+								router.replace(`/booths/${boothId}`);
+
+								Alert.alert(
+									"Payment Successful",
+									"Your subscription has been activated!",
+									[{ text: "OK" }],
+								);
+							}
 						} else {
 							Alert.alert(
 								"Error",
@@ -184,9 +211,29 @@ export function SubscriptionStatusCard({
 					cancel_url: `${websiteUrl}/pricing`,
 				},
 				{
-					onSuccess: (data) => {
+					onSuccess: async (data) => {
 						if (data?.checkout_url && typeof data.checkout_url === "string") {
-							Linking.openURL(data.checkout_url);
+							const browserResult = await WebBrowser.openAuthSessionAsync(
+								data.checkout_url,
+								"boothiq://payment-success",
+								{ preferEphemeralSession: true } // Avoids "wants to sign in" prompt
+							);
+
+							// Handle the deep link result directly
+							if (browserResult.type === "success" && browserResult.url?.includes("payment-success")) {
+								// Invalidate subscription queries
+								queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
+								queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
+
+								// Navigate to dashboard
+								router.replace("/");
+
+								Alert.alert(
+									"Payment Successful",
+									"Your subscription has been activated!",
+									[{ text: "OK" }],
+								);
+							}
 						} else {
 							Alert.alert(
 								"Error",

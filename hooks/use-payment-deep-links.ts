@@ -15,6 +15,7 @@ import { useEffect, useCallback } from "react";
 import * as Linking from "expo-linking";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
+import { router } from "expo-router";
 import { queryKeys } from "@/api/utils/query-keys";
 import { useCartStore } from "@/stores/cart-store";
 
@@ -48,6 +49,10 @@ export function usePaymentDeepLinks() {
 
 				switch (path) {
 					case "payment-success":
+						// Extract query params for more targeted invalidation
+						const sessionId = parsed.queryParams?.session_id as string | undefined;
+						const boothId = parsed.queryParams?.booth_id as string | undefined;
+
 						// Invalidate subscription queries to refresh status
 						queryClient.invalidateQueries({
 							queryKey: queryKeys.payments.access(),
@@ -56,9 +61,24 @@ export function usePaymentDeepLinks() {
 							queryKey: queryKeys.payments.subscription(),
 						});
 
+						// If booth-specific, also invalidate booth queries
+						if (boothId) {
+							queryClient.invalidateQueries({
+								queryKey: queryKeys.booths.detail(boothId),
+							});
+							queryClient.invalidateQueries({
+								queryKey: queryKeys.payments.boothSubscription(boothId),
+							});
+							// Navigate to booth details
+							router.replace(`/booths/${boothId}`);
+						} else {
+							// Navigate to dashboard for user-level subscriptions
+							router.replace("/");
+						}
+
 						Alert.alert(
 							"Payment Successful",
-							"Your subscription has been activated. You can now activate booths!",
+							"Your subscription has been activated!",
 							[{ text: "OK" }],
 						);
 						break;
@@ -88,6 +108,9 @@ export function usePaymentDeepLinks() {
 						});
 						// Clear cart after successful purchase
 						useCartStore.getState().clearCart();
+
+						// Navigate to store immediately so user doesn't see empty cart
+						router.replace("/store");
 
 						Alert.alert(
 							"Purchase Successful",
