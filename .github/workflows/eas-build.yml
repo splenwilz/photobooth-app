@@ -4,9 +4,13 @@ on:
   push:
     branches:
       - main
+      - production
+      - staging
   pull_request:
     branches:
       - main
+      - production
+      - staging
 
 jobs:
   build:
@@ -32,34 +36,53 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Publish EAS Update (PR)
-        if: github.event_name == 'pull_request'
-        run: |
-          eas update \
-            --branch preview \
-            --message "PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}" \
-            --non-interactive
-
-      - name: Build Android Preview (PR)
-        if: github.event_name == 'pull_request'
-        run: eas build --profile preview --platform android --non-interactive --no-wait
-        continue-on-error: true
-
-      - name: Publish EAS Update (Production)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      # ===================
+      # PRODUCTION (production branch)
+      # ===================
+      - name: EAS Update (Production)
+        if: github.ref == 'refs/heads/production'
         run: |
           eas update \
             --branch production \
             --message "${{ github.event.head_commit.message }}" \
             --non-interactive
 
-      - name: Build Android Production (Push to main)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Build Android Production
+        if: github.ref == 'refs/heads/production'
         run: eas build --profile production --platform android --non-interactive --no-wait
         continue-on-error: true
 
+      # ===================
+      # PREVIEW (staging branch)
+      # ===================
+      - name: EAS Update (Preview)
+        if: github.ref == 'refs/heads/staging'
+        run: |
+          eas update \
+            --branch preview \
+            --message "${{ github.event.head_commit.message }}" \
+            --non-interactive
+
+      - name: Build Android Preview
+        if: github.ref == 'refs/heads/staging'
+        run: eas build --profile preview --platform android --non-interactive --no-wait
+        continue-on-error: true
+
+      # ===================
+      # DEVELOPMENT (main + other branches / PRs)
+      # ===================
+      - name: EAS Update (Development)
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        run: |
+          eas update \
+            --branch development \
+            --message "${{ github.event.head_commit.message || github.event.pull_request.title }}" \
+            --non-interactive
+
+      - name: Build Android Development
+        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        run: eas build --profile development --platform android --non-interactive --no-wait
+        continue-on-error: true
+
       # iOS builds commented out until Apple credentials are configured
-      # To enable, run locally: eas build --profile preview --platform ios
-      # - name: Build iOS Preview (PR)
-      #   if: github.event_name == 'pull_request'
-      #   run: eas build --profile preview --platform ios --non-interactive --no-wait
+      # To enable, run locally: eas build --profile <profile> --platform ios
