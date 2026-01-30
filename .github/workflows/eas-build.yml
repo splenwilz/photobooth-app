@@ -40,10 +40,20 @@ jobs:
             --message "PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}" \
             --non-interactive
 
-      - name: Build Preview (PR)
+      - name: Build iOS Preview (PR)
         if: github.event_name == 'pull_request'
-        run: eas build --profile preview --platform all --non-interactive --no-wait
+        run: eas build --profile preview --platform ios --non-interactive --no-wait
 
-      - name: Build Production (Push to main)
+      - name: Build Android Preview (PR)
+        if: github.event_name == 'pull_request'
+        run: eas build --profile preview --platform android --non-interactive --no-wait
+        continue-on-error: true
+
+      - name: Build iOS Production (Push to main)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: eas build --profile production --platform all --non-interactive --no-wait
+        run: eas build --profile production --platform ios --non-interactive --no-wait
+
+      - name: Build Android Production (Push to main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: eas build --profile production --platform android --non-interactive --no-wait
+        continue-on-error: true
