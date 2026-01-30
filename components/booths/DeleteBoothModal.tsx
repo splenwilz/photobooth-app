@@ -25,7 +25,6 @@ import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
   BorderRadius,
-  BRAND_COLOR,
   Spacing,
   StatusColors,
   withAlpha,

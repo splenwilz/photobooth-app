@@ -133,7 +133,7 @@ export default function SetupBoothScreen() {
       setTimeout(() => setCopiedField(null), 2000);
       // Show visual feedback - the checkmark icon will appear
       console.log(`Copied ${field}: ${value}`);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to copy to clipboard');
     }
   };
@@ -338,7 +338,7 @@ export default function SetupBoothScreen() {
               Add Your First Booth
             </ThemedText>
             <ThemedText style={[styles.subtitle, { color: textSecondary }]}>
-              Enter your booth details to get started. You'll receive credentials to connect your PhotoBooth software.
+              {"Enter your booth details to get started. You'll receive credentials to connect your PhotoBooth software."}
             </ThemedText>
           </View>
 
@@ -368,7 +368,7 @@ export default function SetupBoothScreen() {
             <View style={[styles.infoBox, { backgroundColor: withAlpha(BRAND_COLOR, 0.1), borderColor: withAlpha(BRAND_COLOR, 0.3) }]}>
               <IconSymbol name="info.circle" size={20} color={BRAND_COLOR} />
               <ThemedText style={[styles.infoBoxText, { color: textSecondary }]}>
-                After creating your booth, you'll receive an API key and QR code to connect your PhotoBooth software.
+                {"After creating your booth, you'll receive an API key and QR code to connect your PhotoBooth software."}
               </ThemedText>
             </View>
 

@@ -8,7 +8,6 @@
  */
 
 import * as Clipboard from "expo-clipboard";
-import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -190,7 +189,7 @@ export default function CreateBoothScreen() {
 			await Clipboard.setStringAsync(text);
 			setCopiedField(field);
 			setTimeout(() => setCopiedField(null), 2000);
-		} catch (error) {
+		} catch {
 			Alert.alert("Error", "Failed to copy to clipboard");
 		}
 	};

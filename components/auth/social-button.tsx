@@ -7,11 +7,10 @@
  */
 
 import React from 'react';
-import { 
-  TouchableOpacity, 
-  StyleSheet, 
+import {
+  TouchableOpacity,
+  StyleSheet,
   View,
-  Image,
 } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';

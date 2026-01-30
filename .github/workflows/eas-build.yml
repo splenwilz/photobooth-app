@@ -40,20 +40,26 @@ jobs:
             --message "PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}" \
             --non-interactive
 
-      - name: Build iOS Preview (PR)
-        if: github.event_name == 'pull_request'
-        run: eas build --profile preview --platform ios --non-interactive --no-wait
-
       - name: Build Android Preview (PR)
         if: github.event_name == 'pull_request'
         run: eas build --profile preview --platform android --non-interactive --no-wait
         continue-on-error: true
 
-      - name: Build iOS Production (Push to main)
+      - name: Publish EAS Update (Production)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: eas build --profile production --platform ios --non-interactive --no-wait
+        run: |
+          eas update \
+            --branch production \
+            --message "${{ github.event.head_commit.message }}" \
+            --non-interactive
 
       - name: Build Android Production (Push to main)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: eas build --profile production --platform android --non-interactive --no-wait
         continue-on-error: true
+
+      # iOS builds commented out until Apple credentials are configured
+      # To enable, run locally: eas build --profile preview --platform ios
+      # - name: Build iOS Preview (PR)
+      #   if: github.event_name == 'pull_request'
+      #   run: eas build --profile preview --platform ios --non-interactive --no-wait

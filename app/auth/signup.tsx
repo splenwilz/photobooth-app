@@ -15,14 +15,13 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  ScrollView, 
+import {
+  StyleSheet,
+  View,
+  ScrollView,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
