@@ -5,12 +5,9 @@ on:
     branches:
       - main
       - production
-      - staging
   pull_request:
     branches:
       - main
-      - production
-      - staging
 
 jobs:
   build:
@@ -53,10 +50,10 @@ jobs:
         continue-on-error: true
 
       # ===================
-      # PREVIEW (staging branch)
+      # PREVIEW/STAGING (main branch)
       # ===================
       - name: EAS Update (Preview)
-        if: github.ref == 'refs/heads/staging'
+        if: github.ref == 'refs/heads/main'
         run: |
           eas update \
             --branch preview \
@@ -64,23 +61,23 @@ jobs:
             --non-interactive
 
       - name: Build Android Preview
-        if: github.ref == 'refs/heads/staging'
+        if: github.ref == 'refs/heads/main'
         run: eas build --profile preview --platform android --non-interactive --no-wait
         continue-on-error: true
 
       # ===================
-      # DEVELOPMENT (main + other branches / PRs)
+      # DEVELOPMENT (PRs to main)
       # ===================
       - name: EAS Update (Development)
-        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         run: |
           eas update \
             --branch development \
-            --message "${{ github.event.head_commit.message || github.event.pull_request.title }}" \
+            --message "PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}" \
             --non-interactive
 
       - name: Build Android Development
-        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         run: eas build --profile development --platform android --non-interactive --no-wait
         continue-on-error: true
 
