@@ -96,13 +96,13 @@ export default function ForgotPasswordScreen() {
               Check Your Email
             </ThemedText>
             <ThemedText style={[styles.successText, { color: textSecondary }]}>
-              We've sent password reset instructions to:
+              {"We've sent password reset instructions to:"}
             </ThemedText>
             <ThemedText type="defaultSemiBold" style={styles.emailText}>
               {email}
             </ThemedText>
             <ThemedText style={[styles.successText, { color: textSecondary }]}>
-              If you don't see it, check your spam folder.
+              {"If you don't see it, check your spam folder."}
             </ThemedText>
 
             <View style={styles.buttonSection}>
@@ -146,7 +146,7 @@ export default function ForgotPasswordScreen() {
               Forgot Password?
             </ThemedText>
             <ThemedText style={[styles.subtitle, { color: textSecondary }]}>
-              No worries! Enter your email and we'll send you reset instructions.
+              {"No worries! Enter your email and we'll send you reset instructions."}
             </ThemedText>
           </View>
 

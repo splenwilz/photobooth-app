@@ -288,7 +288,7 @@ export default function VerifyEmailScreen() {
             disabled={isResending || isPending}
           >
             <ThemedText style={[styles.resendText, { color: textSecondary }]}>
-              Didn't receive the code?{' '}
+              {"Didn't receive the code? "}
             </ThemedText>
             <ThemedText style={[
               styles.resendLink, 

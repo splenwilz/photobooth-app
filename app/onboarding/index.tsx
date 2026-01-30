@@ -80,7 +80,6 @@ export default function OnboardingScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const cardBg = useThemeColor({}, 'card');
   const textSecondary = useThemeColor({}, 'textSecondary');
-  const borderColor = useThemeColor({}, 'border');
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);

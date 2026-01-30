@@ -46,7 +46,7 @@ function StatusItem({ color, label, count, textSecondary }: StatusItemProps) {
 interface SummaryCardProps {
 	icon: IconSymbolName;
 	title: string;
-	items: Array<{ color: string; label: string; count: number }>;
+	items: { color: string; label: string; count: number }[];
 	cardBg: string;
 	borderColor: string;
 	textSecondary: string;

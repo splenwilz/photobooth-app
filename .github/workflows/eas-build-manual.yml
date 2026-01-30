@@ -1,0 +1,60 @@
+name: EAS Build (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Build profile'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - development
+          - preview
+          - production
+      platform:
+        description: 'Platform to build'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ios
+          - android
+      message:
+        description: 'Build message (optional)'
+        required: false
+        type: string
+
+jobs:
+  build:
+    name: EAS Build (${{ inputs.profile }} - ${{ inputs.platform }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Expo CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run EAS Build
+        run: |
+          eas build \
+            --profile ${{ inputs.profile }} \
+            --platform ${{ inputs.platform }} \
+            --non-interactive \
+            --no-wait \
+            ${{ inputs.message && format('--message "{0}"', inputs.message) || '' }}

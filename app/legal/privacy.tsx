@@ -293,7 +293,7 @@ export default function PrivacyPolicyScreen() {
           material changes via:
           {"\n\n"}• Email notification
           {"\n"}• In-app notification
-          {"\n"}• Updated "Last Updated" date
+          {"\n"}• Updated {'"'}Last Updated{'"'} date
           {"\n\n"}
           Continued use after changes constitutes acceptance of the updated
           policy.

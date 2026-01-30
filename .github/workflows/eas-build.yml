@@ -1,0 +1,85 @@
+name: EAS Build
+
+on:
+  push:
+    branches:
+      - main
+      - production
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: EAS Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Expo CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ===================
+      # PRODUCTION (production branch)
+      # ===================
+      - name: EAS Update (Production)
+        if: github.ref == 'refs/heads/production'
+        run: |
+          eas update \
+            --branch production \
+            --message "${{ github.event.head_commit.message }}" \
+            --non-interactive
+
+      - name: Build Android Production
+        if: github.ref == 'refs/heads/production'
+        run: eas build --profile production --platform android --non-interactive --no-wait
+        continue-on-error: true
+
+      # ===================
+      # PREVIEW/STAGING (main branch)
+      # ===================
+      - name: EAS Update (Preview)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          eas update \
+            --branch preview \
+            --message "${{ github.event.head_commit.message }}" \
+            --non-interactive
+
+      - name: Build Android Preview
+        if: github.ref == 'refs/heads/main'
+        run: eas build --profile preview --platform android --non-interactive --no-wait
+        continue-on-error: true
+
+      # ===================
+      # DEVELOPMENT (PRs to main)
+      # ===================
+      - name: EAS Update (Development)
+        if: github.event_name == 'pull_request'
+        run: |
+          eas update \
+            --branch development \
+            --message "PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}" \
+            --non-interactive
+
+      - name: Build Android Development
+        if: github.event_name == 'pull_request'
+        run: eas build --profile development --platform android --non-interactive --no-wait
+        continue-on-error: true
+
+      # iOS builds commented out until Apple credentials are configured
+      # To enable, run locally: eas build --profile <profile> --platform ios

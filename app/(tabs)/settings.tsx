@@ -14,7 +14,6 @@
  */
 
 import Constants from "expo-constants";
-import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";

@@ -14,7 +14,7 @@
  * @see https://docs.expo.dev/router/introduction/ - Expo Router docs
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -294,7 +294,7 @@ export default function SignInScreen() {
           {/* Sign Up Link */}
           <View style={styles.footer}>
             <ThemedText style={[styles.footerText, { color: textSecondary }]}>
-              Don't have an account?{' '}
+              {"Don't have an account? "}
             </ThemedText>
             <TouchableOpacity onPress={handleSignUpPress}>
               <ThemedText style={[styles.footerLink, { color: BRAND_COLOR }]}>

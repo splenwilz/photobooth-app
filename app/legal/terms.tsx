@@ -79,11 +79,11 @@ export default function TermsOfServiceScreen() {
 
         <Section title="1. Acceptance of Terms">
           By downloading, installing, or using the {APP_NAME} application
-          ("App"), you agree to these Terms of Service ("Terms") and our Privacy
+          ({'"'}App{'"'}), you agree to these Terms of Service ({'"'}Terms{'"'}) and our Privacy
           Policy. If you do not agree to these Terms, you may not use the App.
           {"\n\n"}
           These Terms constitute a legally binding agreement between you and{" "}
-          {COMPANY_NAME} ("Company," "we," "us," or "our") governing your use of
+          {COMPANY_NAME} ({'"'}Company,{'"'} {'"'}we,{'"'} {'"'}us,{'"'} or {'"'}our{'"'}) governing your use of
           the App and related services.
         </Section>
 
@@ -170,7 +170,7 @@ export default function TermsOfServiceScreen() {
         </Section>
 
         <Section title="9. Disclaimer of Warranties">
-          THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES
+          THE SERVICE IS PROVIDED {'"'}AS IS{'"'} AND {'"'}AS AVAILABLE{'"'} WITHOUT WARRANTIES
           OF ANY KIND, EITHER EXPRESS OR IMPLIED. WE DO NOT WARRANT THAT:
           {"\n\n"}• The Service will be uninterrupted or error-free
           {"\n"}• Defects will be corrected
