@@ -7,11 +7,15 @@
  * @see /api/tickets/queries.ts - useTicketDetail, useAddMessage
  */
 
+import * as ImagePicker from "expo-image-picker";
+import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
+	Alert,
 	FlatList,
+	Image,
 	KeyboardAvoidingView,
 	Platform,
 	RefreshControl,
@@ -22,7 +26,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useAddMessage, useTicketDetail } from "@/api/tickets";
+import { useAddMessage, useGetUploadUrl, useTicketDetail } from "@/api/tickets";
 import type {
 	TicketMessage,
 	TicketPriority,
@@ -187,8 +191,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 							key={attachment.id}
 							style={[styles.attachment, { borderColor }]}
 							onPress={() => {
-								// TODO: Open attachment
-								console.log("Open attachment:", attachment.download_url);
+								// Open attachment URL in browser to view/download
+								Linking.openURL(attachment.download_url);
 							}}
 						>
 							<IconSymbol name="paperclip" size={14} color={textSecondary} />
@@ -208,7 +212,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
 export default function TicketDetailScreen() {
 	const { id } = useLocalSearchParams<{ id: string }>();
-	const ticketId = id ? Number.parseInt(id, 10) : null;
+	const parsed = id ? Number.parseInt(id, 10) : NaN;
+	const ticketId = Number.isNaN(parsed) ? null : parsed;
 
 	const backgroundColor = useThemeColor({}, "background");
 	const cardBg = useThemeColor({}, "card");
@@ -222,6 +227,10 @@ export default function TicketDetailScreen() {
 
 	// State
 	const [replyText, setReplyText] = useState("");
+	const [pendingAttachments, setPendingAttachments] = useState<
+		{ uri: string; name: string; type: string }[]
+	>([]);
+	const [isUploading, setIsUploading] = useState(false);
 
 	// API hooks
 	const {
@@ -231,6 +240,7 @@ export default function TicketDetailScreen() {
 		refetch,
 	} = useTicketDetail(ticketId);
 	const { mutate: addMessage, isPending: isSending } = useAddMessage();
+	const { mutateAsync: getUploadUrl } = useGetUploadUrl();
 
 	// Can reply to non-closed tickets
 	const canReply = ticket && ticket.status !== "closed";
@@ -245,28 +255,111 @@ export default function TicketDetailScreen() {
 		refetch();
 	}, [refetch]);
 
-	// Send reply
-	const handleSendReply = () => {
-		if (!ticketId || !replyText.trim() || isSending) return;
+	// Pick image from library
+	const handlePickImage = async () => {
+		const permissionResult =
+			await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-		addMessage(
-			{
-				ticketId,
-				data: { message: replyText.trim() },
-			},
-			{
-				onSuccess: () => {
-					setReplyText("");
-					// Scroll to bottom after new message
-					setTimeout(() => {
-						flatListRef.current?.scrollToEnd({ animated: true });
-					}, 100);
+		if (!permissionResult.granted) {
+			Alert.alert(
+				"Permission Required",
+				"Please allow access to your photo library to attach images.",
+			);
+			return;
+		}
+
+		const result = await ImagePicker.launchImageLibraryAsync({
+			mediaTypes: ["images"],
+			allowsMultipleSelection: false,
+			quality: 0.8,
+		});
+
+		if (!result.canceled && result.assets[0]) {
+			const asset = result.assets[0];
+			const fileName = asset.fileName ?? `image_${Date.now()}.jpg`;
+			const mimeType = asset.mimeType ?? "image/jpeg";
+
+			setPendingAttachments((prev) => [
+				...prev,
+				{ uri: asset.uri, name: fileName, type: mimeType },
+			]);
+		}
+	};
+
+	// Remove pending attachment
+	const handleRemoveAttachment = (index: number) => {
+		setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
+	};
+
+	// Upload attachment to S3 and return s3_key
+	const uploadAttachment = async (
+		attachment: { uri: string; name: string; type: string },
+	): Promise<string> => {
+		if (!ticketId) throw new Error("No ticket ID");
+
+		// Get presigned upload URL
+		const { upload_url, s3_key } = await getUploadUrl({
+			ticketId,
+			data: { filename: attachment.name, content_type: attachment.type },
+		});
+
+		// Fetch the file and upload to S3
+		const response = await fetch(attachment.uri);
+		const blob = await response.blob();
+
+		await fetch(upload_url, {
+			method: "PUT",
+			headers: { "Content-Type": attachment.type },
+			body: blob,
+		});
+
+		return s3_key;
+	};
+
+	// Send reply with optional attachments
+	const handleSendReply = async () => {
+		if (!ticketId || (!replyText.trim() && pendingAttachments.length === 0) || isSending || isUploading) return;
+
+		setIsUploading(true);
+
+		try {
+			// Upload all attachments first
+			const s3Keys: string[] = [];
+			for (const attachment of pendingAttachments) {
+				const s3Key = await uploadAttachment(attachment);
+				s3Keys.push(s3Key);
+			}
+
+			// Send message with attachments
+			addMessage(
+				{
+					ticketId,
+					data: {
+						message: replyText.trim() || "Attachment",
+						attachment_s3_keys: s3Keys.length > 0 ? s3Keys : undefined,
+					},
 				},
-				onError: (error) => {
-					console.error("[TicketDetail] Error sending message:", error);
+				{
+					onSuccess: () => {
+						setReplyText("");
+						setPendingAttachments([]);
+						// Scroll to bottom after new message
+						setTimeout(() => {
+							flatListRef.current?.scrollToEnd({ animated: true });
+						}, 100);
+					},
+					onError: (error) => {
+						Alert.alert("Error", "Failed to send message. Please try again.");
+						console.error("[TicketDetail] Error sending message:", error);
+					},
 				},
-			},
-		);
+			);
+		} catch (error) {
+			Alert.alert("Upload Failed", "Failed to upload attachment. Please try again.");
+			console.error("[TicketDetail] Error uploading attachment:", error);
+		} finally {
+			setIsUploading(false);
+		}
 	};
 
 	// Render message
@@ -446,35 +539,72 @@ export default function TicketDetailScreen() {
 							{ backgroundColor: cardBg, borderColor },
 						]}
 					>
-						<TextInput
-							ref={inputRef}
-							style={[styles.replyInput, { color: textColor }]}
-							placeholder="Type your reply..."
-							placeholderTextColor={textSecondary}
-							value={replyText}
-							onChangeText={setReplyText}
-							multiline
-							maxLength={5000}
-						/>
-						<TouchableOpacity
-							style={[
-								styles.sendButton,
-								{
-									backgroundColor:
-										replyText.trim() && !isSending
-											? BRAND_COLOR
-											: withAlpha(BRAND_COLOR, 0.3),
-								},
-							]}
-							onPress={handleSendReply}
-							disabled={!replyText.trim() || isSending}
-						>
-							{isSending ? (
-								<ActivityIndicator size="small" color="white" />
-							) : (
-								<IconSymbol name="arrow.up" size={20} color="white" />
-							)}
-						</TouchableOpacity>
+						{/* Pending Attachments Preview */}
+						{pendingAttachments.length > 0 && (
+							<View style={styles.attachmentsPreview}>
+								{pendingAttachments.map((attachment, index) => (
+									<View key={index} style={styles.attachmentPreviewItem}>
+										<Image
+											source={{ uri: attachment.uri }}
+											style={styles.attachmentPreviewImage}
+										/>
+										<TouchableOpacity
+											style={styles.removeAttachmentButton}
+											onPress={() => handleRemoveAttachment(index)}
+										>
+											<IconSymbol name="xmark.circle.fill" size={20} color={StatusColors.error} />
+										</TouchableOpacity>
+									</View>
+								))}
+							</View>
+						)}
+
+						{/* Input Row */}
+						<View style={styles.inputRow}>
+							{/* Attachment Button */}
+							<TouchableOpacity
+								style={styles.attachButton}
+								onPress={handlePickImage}
+								disabled={isUploading || isSending}
+							>
+								<IconSymbol
+									name="paperclip"
+									size={22}
+									color={isUploading ? textSecondary : BRAND_COLOR}
+								/>
+							</TouchableOpacity>
+
+							<TextInput
+								ref={inputRef}
+								style={[styles.replyInput, { color: textColor }]}
+								placeholder="Type your reply..."
+								placeholderTextColor={textSecondary}
+								value={replyText}
+								onChangeText={setReplyText}
+								multiline
+								maxLength={5000}
+							/>
+
+							<TouchableOpacity
+								style={[
+									styles.sendButton,
+									{
+										backgroundColor:
+											(replyText.trim() || pendingAttachments.length > 0) && !isSending && !isUploading
+												? BRAND_COLOR
+												: withAlpha(BRAND_COLOR, 0.3),
+									},
+								]}
+								onPress={handleSendReply}
+								disabled={(!replyText.trim() && pendingAttachments.length === 0) || isSending || isUploading}
+							>
+								{isSending || isUploading ? (
+									<ActivityIndicator size="small" color="white" />
+								) : (
+									<IconSymbol name="arrow.up" size={20} color="white" />
+								)}
+							</TouchableOpacity>
+						</View>
 					</View>
 				) : (
 					<View
@@ -662,11 +792,40 @@ const styles = StyleSheet.create({
 		fontSize: 12,
 	},
 	replyContainer: {
-		flexDirection: "row",
-		alignItems: "flex-end",
 		padding: Spacing.md,
 		borderTopWidth: 1,
+	},
+	attachmentsPreview: {
+		flexDirection: "row",
+		flexWrap: "wrap",
 		gap: Spacing.sm,
+		marginBottom: Spacing.sm,
+	},
+	attachmentPreviewItem: {
+		position: "relative",
+	},
+	attachmentPreviewImage: {
+		width: 60,
+		height: 60,
+		borderRadius: BorderRadius.sm,
+	},
+	removeAttachmentButton: {
+		position: "absolute",
+		top: -8,
+		right: -8,
+		backgroundColor: "white",
+		borderRadius: 10,
+	},
+	inputRow: {
+		flexDirection: "row",
+		alignItems: "flex-end",
+		gap: Spacing.sm,
+	},
+	attachButton: {
+		width: 40,
+		height: 40,
+		justifyContent: "center",
+		alignItems: "center",
 	},
 	replyInput: {
 		flex: 1,
