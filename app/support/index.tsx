@@ -46,8 +46,6 @@ const STATUS_FILTERS: { label: string; value: TicketStatus | "all" }[] = [
 
 export default function SupportTicketsScreen() {
 	const backgroundColor = useThemeColor({}, "background");
-	const cardBg = useThemeColor({}, "card");
-	const borderColor = useThemeColor({}, "border");
 	const textSecondary = useThemeColor({}, "textSecondary");
 
 	// Filter state
