@@ -193,6 +193,28 @@ export const queryKeys = {
   },
 
   /**
+   * Support tickets query keys
+   * @see /api/tickets/queries.ts
+   */
+  tickets: {
+    /**
+     * Base key for all ticket queries
+     */
+    all: () => ['tickets'] as const,
+
+    /**
+     * Get tickets list with optional filters
+     */
+    list: (params?: { page?: number; per_page?: number; status?: string }) =>
+      ['tickets', 'list', params] as const,
+
+    /**
+     * Get single ticket by ID with messages
+     */
+    detail: (ticketId: number) => ['tickets', 'detail', ticketId] as const,
+  },
+
+  /**
    * Template store query keys
    * @see /api/templates/queries.ts
    */

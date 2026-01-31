@@ -65,6 +65,9 @@ function RootLayoutNav() {
         {/* Licensing screens (QR scanner, activation) */}
         <Stack.Screen name="licensing" />
 
+        {/* Support tickets */}
+        <Stack.Screen name="support" />
+
         {/* Onboarding */}
         <Stack.Screen name="onboarding" />
 

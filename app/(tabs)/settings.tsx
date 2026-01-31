@@ -903,6 +903,28 @@ export default function SettingsScreen() {
 					</View>
 				)}
 
+				{/* Help & Support */}
+				<View style={styles.section}>
+					<SectionHeader title="Help & Support" subtitle="Get assistance" />
+
+					<SettingsItem
+						icon="ticket"
+						title="Support Tickets"
+						subtitle="View or create support requests"
+						onPress={() => router.push("/support")}
+					/>
+
+					<SettingsItem
+						icon="questionmark.circle"
+						title="Help Center"
+						subtitle="Browse FAQs and guides"
+						onPress={() => {
+							// TODO: Open help center
+							console.log("Open help center");
+						}}
+					/>
+				</View>
+
 				{/* App Info */}
 				<View style={styles.section}>
 					<SectionHeader title="About" />
