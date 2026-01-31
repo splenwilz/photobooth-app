@@ -253,6 +253,17 @@ export default function TicketDetailScreen() {
 	// Can reply to non-closed tickets
 	const canReply = ticket && ticket.status !== "closed";
 
+	// Scroll to bottom on initial load
+	const hasScrolledRef = useRef(false);
+	React.useEffect(() => {
+		if (ticket?.messages && !hasScrolledRef.current) {
+			hasScrolledRef.current = true;
+			setTimeout(() => {
+				flatListRef.current?.scrollToEnd({ animated: false });
+			}, 100);
+		}
+	}, [ticket?.messages]);
+
 	// Navigation
 	const handleBack = () => {
 		router.back();
@@ -538,10 +549,6 @@ export default function TicketDetailScreen() {
 							colors={[BRAND_COLOR]}
 						/>
 					}
-					onContentSizeChange={() => {
-						// Scroll to bottom when new messages arrive
-						flatListRef.current?.scrollToEnd({ animated: false });
-					}}
 				/>
 
 				{/* Reply Input */}
