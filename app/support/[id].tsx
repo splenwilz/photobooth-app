@@ -190,9 +190,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 						<TouchableOpacity
 							key={attachment.id}
 							style={[styles.attachment, { borderColor }]}
-							onPress={() => {
-								// Open attachment URL in browser to view/download
-								Linking.openURL(attachment.download_url);
+							onPress={async () => {
+								try {
+									const canOpen = await Linking.canOpenURL(attachment.download_url);
+									if (canOpen) {
+										await Linking.openURL(attachment.download_url);
+									} else {
+										Alert.alert("Error", "Unable to open this attachment.");
+									}
+								} catch {
+									Alert.alert("Error", "Failed to open attachment.");
+								}
 							}}
 						>
 							<IconSymbol name="paperclip" size={14} color={textSecondary} />
@@ -257,32 +265,37 @@ export default function TicketDetailScreen() {
 
 	// Pick image from library
 	const handlePickImage = async () => {
-		const permissionResult =
-			await ImagePicker.requestMediaLibraryPermissionsAsync();
+		try {
+			const permissionResult =
+				await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-		if (!permissionResult.granted) {
-			Alert.alert(
-				"Permission Required",
-				"Please allow access to your photo library to attach images.",
-			);
-			return;
-		}
+			if (!permissionResult.granted) {
+				Alert.alert(
+					"Permission Required",
+					"Please allow access to your photo library to attach images.",
+				);
+				return;
+			}
 
-		const result = await ImagePicker.launchImageLibraryAsync({
-			mediaTypes: ["images"],
-			allowsMultipleSelection: false,
-			quality: 0.8,
-		});
+			const result = await ImagePicker.launchImageLibraryAsync({
+				mediaTypes: ["images"],
+				allowsMultipleSelection: false,
+				quality: 0.8,
+			});
 
-		if (!result.canceled && result.assets[0]) {
-			const asset = result.assets[0];
-			const fileName = asset.fileName ?? `image_${Date.now()}.jpg`;
-			const mimeType = asset.mimeType ?? "image/jpeg";
+			if (!result.canceled && result.assets[0]) {
+				const asset = result.assets[0];
+				const fileName = asset.fileName ?? `image_${Date.now()}.jpg`;
+				const mimeType = asset.mimeType ?? "image/jpeg";
 
-			setPendingAttachments((prev) => [
-				...prev,
-				{ uri: asset.uri, name: fileName, type: mimeType },
-			]);
+				setPendingAttachments((prev) => [
+					...prev,
+					{ uri: asset.uri, name: fileName, type: mimeType },
+				]);
+			}
+		} catch (error) {
+			console.error("[TicketDetail] Error picking image:", error);
+			Alert.alert("Error", "Failed to select image. Please try again.");
 		}
 	};
 
