@@ -328,14 +328,20 @@ export default function TicketDetailScreen() {
 		});
 
 		// Fetch the file and upload to S3
-		const response = await fetch(attachment.uri);
-		const blob = await response.blob();
+		const fileResponse = await fetch(attachment.uri);
+		if (!fileResponse.ok) {
+			throw new Error("Failed to read file");
+		}
+		const blob = await fileResponse.blob();
 
-		await fetch(upload_url, {
+		const uploadResponse = await fetch(upload_url, {
 			method: "PUT",
 			headers: { "Content-Type": attachment.type },
 			body: blob,
 		});
+		if (!uploadResponse.ok) {
+			throw new Error("Failed to upload to S3");
+		}
 
 		return s3_key;
 	};
