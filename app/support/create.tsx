@@ -132,10 +132,10 @@ export default function CreateTicketScreen() {
 
 		if (!result.success) {
 			const newErrors: FormErrors = {};
-			for (const error of result.error.errors) {
-				const field = error.path[0] as keyof FormErrors;
+			for (const issue of result.error.issues) {
+				const field = issue.path[0] as keyof FormErrors;
 				if (field === "subject" || field === "message") {
-					newErrors[field] = error.message;
+					newErrors[field] = issue.message;
 				}
 			}
 			setErrors(newErrors);
