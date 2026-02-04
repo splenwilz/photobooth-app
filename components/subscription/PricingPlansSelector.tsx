@@ -67,7 +67,12 @@ export function PricingPlansSelector({
 	const queryClient = useQueryClient();
 	const setSelectedBoothId = useBoothStore((s) => s.setSelectedBoothId);
 
-	// Calculate max discount across all plans for toggle display
+	// Check if any plan has annual option (for showing toggle)
+	const hasAnyAnnualOption = pricingData?.plans.some(
+		(plan) => plan.has_annual_option
+	);
+
+	// Calculate max discount across all plans for savings badge display
 	const maxDiscount = pricingData?.plans.reduce((max, plan) => {
 		return plan.has_annual_option && plan.annual_discount_percent > max
 			? plan.annual_discount_percent
@@ -204,8 +209,8 @@ export function PricingPlansSelector({
 				)}
 			</View>
 
-			{/* Billing Interval Toggle */}
-			{maxDiscount && maxDiscount > 0 && (
+			{/* Billing Interval Toggle - only show if any plan has annual option */}
+			{hasAnyAnnualOption && (
 				<View style={styles.toggleWrapper}>
 					<BillingIntervalToggle
 						value={billingInterval}

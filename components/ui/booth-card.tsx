@@ -24,9 +24,10 @@ import type React from "react";
 import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 
 /**
- * Subscription status for display in BoothCard
+ * Subscription display info for BoothCard
+ * Named differently from BoothSubscriptionStatus in api/booths/types.ts to avoid confusion
  */
-interface BoothSubscriptionStatus {
+interface BoothCardSubscriptionInfo {
 	/** Whether booth has active subscription */
 	is_active: boolean;
 	/** Current subscription status or null if no subscription */
@@ -41,7 +42,7 @@ interface BoothCardProps {
 	/** Whether this booth is currently selected */
 	isSelected?: boolean;
 	/** Subscription status for this booth */
-	subscriptionStatus?: BoothSubscriptionStatus;
+	subscriptionStatus?: BoothCardSubscriptionInfo;
 	/** Callback when card is pressed */
 	onPress?: () => void;
 }
@@ -93,7 +94,7 @@ const formatCurrency = (amount: number): string => {
  * Gets subscription badge display info
  */
 const getSubscriptionDisplay = (
-	subscriptionStatus?: BoothSubscriptionStatus,
+	subscriptionStatus?: BoothCardSubscriptionInfo,
 ): { label: string; color: string; icon: string } | null => {
 	if (!subscriptionStatus) {
 		return null;
@@ -168,30 +169,32 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 				<View style={styles.badgesContainer}>
 					{/* Hardware Error Badge - Tappable for details */}
 					{booth.has_error && (
-						<TouchableOpacity
-							style={[
-								styles.errorBadge,
-								{ backgroundColor: withAlpha(StatusColors.error, 0.15) },
-							]}
-							onPress={(e) => {
-								e.stopPropagation();
+						<View
+							onStartShouldSetResponder={() => true}
+							onResponderRelease={() => {
 								Alert.alert(
 									"Hardware Error",
 									booth.error_details || "Unknown error occurred",
 									[{ text: "OK" }],
 								);
 							}}
-							activeOpacity={0.7}
 						>
-							<IconSymbol
-								name="exclamationmark.triangle.fill"
-								size={12}
-								color={StatusColors.error}
-							/>
-							<ThemedText style={[styles.statusText, { color: StatusColors.error }]}>
-								Error
-							</ThemedText>
-						</TouchableOpacity>
+							<View
+								style={[
+									styles.errorBadge,
+									{ backgroundColor: withAlpha(StatusColors.error, 0.15) },
+								]}
+							>
+								<IconSymbol
+									name="exclamationmark.triangle.fill"
+									size={12}
+									color={StatusColors.error}
+								/>
+								<ThemedText style={[styles.statusText, { color: StatusColors.error }]}>
+									Error
+								</ThemedText>
+							</View>
+						</View>
 					)}
 
 					{/* Connectivity Status Badge */}

@@ -13,7 +13,6 @@ import type { PricingPlansResponse } from "./types";
  * Get available pricing plans
  *
  * Returns all available subscription plans with pricing and features.
- * This is a public endpoint - no authentication required.
  *
  * @returns Pricing plans with trial period info
  *

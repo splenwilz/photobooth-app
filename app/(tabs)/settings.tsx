@@ -709,7 +709,11 @@ export default function SettingsScreen() {
 						<SubscriptionStatusCard
 							boothId={effectiveBoothId}
 							onViewDetails={() => setShowSubscriptionModal(true)}
-							onSelectPlan={() => setShowPricingModal(true)}
+							onSelectPlan={() => {
+								if (effectiveBoothId) {
+									setShowPricingModal(true);
+								}
+							}}
 						/>
 					</View>
 				)}
@@ -1028,21 +1032,23 @@ export default function SettingsScreen() {
 				boothId={effectiveBoothId}
 			/>
 
-			{/* Pricing Plans Modal */}
-			<Modal
-				visible={showPricingModal}
-				animationType="slide"
-				presentationStyle="pageSheet"
-				onRequestClose={() => setShowPricingModal(false)}
-			>
-				<SafeAreaView style={[styles.pricingModal, { backgroundColor: cardBg }]}>
-					<PricingPlansSelector
-						boothId={effectiveBoothId ?? ""}
-						onCheckoutComplete={() => setShowPricingModal(false)}
-						onCancel={() => setShowPricingModal(false)}
-					/>
-				</SafeAreaView>
-			</Modal>
+			{/* Pricing Plans Modal - only render when boothId is valid */}
+			{effectiveBoothId && (
+				<Modal
+					visible={showPricingModal}
+					animationType="slide"
+					presentationStyle="pageSheet"
+					onRequestClose={() => setShowPricingModal(false)}
+				>
+					<SafeAreaView style={[styles.pricingModal, { backgroundColor: cardBg }]}>
+						<PricingPlansSelector
+							boothId={effectiveBoothId}
+							onCheckoutComplete={() => setShowPricingModal(false)}
+							onCancel={() => setShowPricingModal(false)}
+						/>
+					</SafeAreaView>
+				</Modal>
+			)}
 		</SafeAreaView>
 	);
 }

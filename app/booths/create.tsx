@@ -86,12 +86,9 @@ export default function CreateBoothScreen() {
 	};
 
 	// Handle checkout completion from pricing selector
+	// Note: PricingPlansSelector already handles setSelectedBoothId and navigation
 	const handleCheckoutComplete = () => {
 		setShowPricingModal(false);
-		if (createdBooth) {
-			setSelectedBoothId(createdBooth.id);
-		}
-		router.replace("/(tabs)/booths");
 	};
 
 	// Update form field
