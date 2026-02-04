@@ -6,10 +6,10 @@
  */
 
 /**
- * Booth status indicating online/offline/warning/error state
+ * Booth connectivity status - based on heartbeat freshness
  * @see GET /api/v1/booths/overview - API returns these status values
  */
-export type BoothStatus = 'online' | 'offline' | 'warning' | 'error';
+export type BoothStatus = 'online' | 'offline' | 'warning';
 
 /**
  * Operation mode for the photobooth
@@ -35,6 +35,10 @@ export interface Booth {
   credits?: number;
   /** Last updated timestamp from API */
   lastUpdated?: string;
+  /** Whether the booth has a hardware error (printer, camera, payment controller) */
+  has_error?: boolean;
+  /** Details about the error when has_error is true */
+  error_details?: string;
 }
 
 /**

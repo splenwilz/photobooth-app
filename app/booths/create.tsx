@@ -8,12 +8,12 @@
  */
 
 import * as Clipboard from "expo-clipboard";
-import * as WebBrowser from "expo-web-browser";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -21,12 +21,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQueryClient } from "@tanstack/react-query";
 // API hooks
 import { useCreateBooth } from "@/api/booths/queries";
 import type { CreateBoothResponse } from "@/api/booths/types";
-import { useCreateBoothCheckout } from "@/api/payments";
-import { queryKeys } from "@/api/utils/query-keys";
+import { PricingPlansSelector } from "@/components/subscription";
 import { FormInput } from "@/components/auth/form-input";
 import { PrimaryButton } from "@/components/auth/primary-button";
 import { ThemedText } from "@/components/themed-text";
@@ -72,72 +70,28 @@ export default function CreateBoothScreen() {
 	const [copiedField, setCopiedField] = useState<
 		"id" | "apiKey" | "code" | null
 	>(null);
+	// Pricing modal state
+	const [showPricingModal, setShowPricingModal] = useState(false);
 
 	// API mutation hook
 	const { mutate: createBooth, isPending, error: apiError } = useCreateBooth();
 
-	// Booth checkout mutation for subscribing to newly created booth
-	const createBoothCheckout = useCreateBoothCheckout();
-	const queryClient = useQueryClient();
-
 	// Booth store for auto-selecting created booth
 	const { setSelectedBoothId } = useBoothStore();
 
-	// Handle subscribing to the newly created booth
+	// Handle subscribing to the newly created booth - opens pricing modal
 	const handleSubscribeToBooth = () => {
 		if (!createdBooth) return;
+		setShowPricingModal(true);
+	};
 
-		const priceId = process.env.EXPO_PUBLIC_STRIPE_PRICE_MONTHLY;
-		const websiteUrl = process.env.EXPO_PUBLIC_WEBSITE_URL;
-
-		createBoothCheckout.mutate(
-			{
-				booth_id: createdBooth.id,
-				price_id: priceId,
-				success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${createdBooth.id}&type=subscription`,
-				cancel_url: `${websiteUrl}/pricing`,
-			},
-			{
-				onSuccess: async (data) => {
-					if (data.checkout_url) {
-						const browserResult = await WebBrowser.openAuthSessionAsync(
-							data.checkout_url,
-							`boothiq://payment-success?booth_id=${createdBooth.id}`,
-							{ preferEphemeralSession: true }
-						);
-
-						if (browserResult.type === "success" && browserResult.url?.includes("payment-success")) {
-							queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
-							queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
-							queryClient.invalidateQueries({ queryKey: queryKeys.booths.detail(createdBooth.id) });
-							queryClient.invalidateQueries({ queryKey: queryKeys.payments.boothSubscription(createdBooth.id) });
-
-							// Select the subscribed booth as active
-							setSelectedBoothId(createdBooth.id);
-
-							router.replace("/(tabs)/booths");
-
-							Alert.alert(
-								"Payment Successful",
-								"Your subscription has been activated!",
-								[{ text: "OK" }],
-							);
-						}
-					} else {
-						Alert.alert(
-							"Error",
-							"Could not get checkout URL. The booth may already be subscribed.",
-						);
-					}
-				},
-				onError: (error) => {
-					Alert.alert(
-						"Error",
-						error.message || "Failed to start checkout. Please try again.",
-					);
-				},
-			},
-		);
+	// Handle checkout completion from pricing selector
+	const handleCheckoutComplete = () => {
+		setShowPricingModal(false);
+		if (createdBooth) {
+			setSelectedBoothId(createdBooth.id);
+		}
+		router.replace("/(tabs)/booths");
 	};
 
 	// Update form field
@@ -382,20 +336,11 @@ export default function CreateBoothScreen() {
 								{ backgroundColor: BRAND_COLOR },
 							]}
 							onPress={handleSubscribeToBooth}
-							disabled={createBoothCheckout.isPending}
 						>
-							{createBoothCheckout.isPending ? (
-								<ThemedText style={styles.activationButtonText}>
-									Loading...
-								</ThemedText>
-							) : (
-								<>
-									<IconSymbol name="star.fill" size={20} color="white" />
-									<ThemedText style={styles.activationButtonText}>
-										Subscribe to This Booth
-									</ThemedText>
-								</>
-							)}
+							<IconSymbol name="star.fill" size={20} color="white" />
+							<ThemedText style={styles.activationButtonText}>
+								Subscribe to This Booth
+							</ThemedText>
 						</TouchableOpacity>
 
 						<ThemedText
@@ -421,6 +366,22 @@ export default function CreateBoothScreen() {
 						</TouchableOpacity>
 					</View>
 				</ScrollView>
+
+				{/* Pricing Plans Modal */}
+				<Modal
+					visible={showPricingModal}
+					animationType="slide"
+					presentationStyle="pageSheet"
+					onRequestClose={() => setShowPricingModal(false)}
+				>
+					<SafeAreaView style={[styles.pricingModal, { backgroundColor: cardBg }]}>
+						<PricingPlansSelector
+							boothId={createdBooth.id}
+							onCheckoutComplete={handleCheckoutComplete}
+							onCancel={() => setShowPricingModal(false)}
+						/>
+					</SafeAreaView>
+				</Modal>
 			</SafeAreaView>
 		);
 	}
@@ -517,6 +478,10 @@ export default function CreateBoothScreen() {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
+	},
+	pricingModal: {
+		flex: 1,
+		padding: Spacing.lg,
 	},
 	keyboardView: {
 		flex: 1,

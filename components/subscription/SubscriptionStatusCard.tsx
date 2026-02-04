@@ -41,6 +41,10 @@ interface SubscriptionStatusCardProps {
 	boothId?: string | null;
 	/** Called when user wants to see full subscription details */
 	onViewDetails?: () => void;
+	/** Called when user wants to select a plan (opens pricing selector) */
+	onSelectPlan?: () => void;
+	/** Plan name to display when subscribed */
+	planName?: string | null;
 }
 
 /**
@@ -112,6 +116,8 @@ function formatExpiryDate(dateString: string | null): string {
 export function SubscriptionStatusCard({
 	boothId,
 	onViewDetails,
+	onSelectPlan,
+	planName,
 }: SubscriptionStatusCardProps) {
 	const cardBg = useThemeColor({}, "card");
 	const borderColor = useThemeColor({}, "border");
@@ -151,6 +157,13 @@ export function SubscriptionStatusCard({
 	const statusText = getStatusText(status);
 
 	const handleSubscribe = () => {
+		// If onSelectPlan is provided, open the pricing selector instead of direct checkout
+		if (onSelectPlan) {
+			onSelectPlan();
+			return;
+		}
+
+		// Fallback to legacy direct checkout with hardcoded price
 		const priceId = process.env.EXPO_PUBLIC_STRIPE_PRICE_MONTHLY;
 		const websiteUrl = process.env.EXPO_PUBLIC_WEBSITE_URL;
 
@@ -179,6 +192,8 @@ export function SubscriptionStatusCard({
 								queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
 								queryClient.invalidateQueries({ queryKey: queryKeys.booths.detail(boothId) });
 								queryClient.invalidateQueries({ queryKey: queryKeys.payments.boothSubscription(boothId) });
+								// Also invalidate all booth subscriptions list (used by booths screen)
+								queryClient.invalidateQueries({ queryKey: queryKeys.payments.boothSubscriptions() });
 
 								// Select the subscribed booth as active
 								setSelectedBoothId(boothId);
@@ -358,6 +373,11 @@ export function SubscriptionStatusCard({
 									{statusText}
 								</ThemedText>
 							</View>
+							{planName && hasSubscription && (
+								<ThemedText style={[styles.planNameText, { color: textSecondary }]}>
+									{planName}
+								</ThemedText>
+							)}
 						</View>
 						{expiresAt && (
 							<ThemedText
@@ -485,6 +505,10 @@ const styles = StyleSheet.create({
 		color: "white",
 		fontSize: 12,
 		fontWeight: "600",
+	},
+	planNameText: {
+		fontSize: 13,
+		fontWeight: "500",
 	},
 	expiryText: {
 		fontSize: 12,

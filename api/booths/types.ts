@@ -42,7 +42,11 @@ export interface Booth {
   name: string;
   owner_id: string;
   address?: string;
-  status?: 'online' | 'offline' | 'warning' | 'error';
+  status?: 'online' | 'offline' | 'warning';
+  /** Whether booth has a hardware error (printer, camera, payment controller) */
+  has_error?: boolean;
+  /** Details about the error when has_error is true */
+  error_details?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -60,7 +64,11 @@ export interface BoothListItem {
   name: string;
   owner_id: string;
   address: string | null;
-  status: 'online' | 'offline' | 'warning' | 'error';
+  status: 'online' | 'offline' | 'warning';
+  /** Whether booth has a hardware error */
+  has_error: boolean;
+  /** Details about the error when has_error is true */
+  error_details: string | null;
   last_heartbeat: string | null;
   last_sync: string | null;
   created_at: string;
@@ -221,7 +229,11 @@ export interface BoothDetailResponse {
   booth_id: string;
   booth_name: string;
   booth_address: string | null;
-  booth_status: 'online' | 'offline' | 'warning' | 'error';
+  booth_status: 'online' | 'offline' | 'warning';
+  /** Whether booth has a hardware error */
+  has_error: boolean;
+  /** Details about the error when has_error is true */
+  error_details: string | null;
   last_heartbeat: string | null;
   last_heartbeat_ago: string;
   revenue: BoothDetailRevenue;
@@ -287,8 +299,39 @@ export interface BoothRevenue {
 /**
  * Booth status type from API
  */
-/** Booth status from API - includes error state for hardware issues */
-export type BoothStatus = 'online' | 'offline' | 'warning' | 'error';
+/**
+ * Booth connectivity status from API
+ * - online: Fresh heartbeat received
+ * - offline: No heartbeat for extended period
+ * - warning: Heartbeat delayed but not offline
+ * Note: Hardware errors are indicated separately via has_error field
+ */
+export type BoothStatus = 'online' | 'offline' | 'warning';
+
+/**
+ * Subscription status for a booth
+ * @see GET /api/v1/booths/overview
+ */
+export type BoothSubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'none';
+
+/**
+ * Subscription info embedded in booth overview
+ * @see GET /api/v1/booths/overview
+ */
+export interface BoothSubscription {
+  /** Plan ID the booth is subscribed to */
+  plan_id: number;
+  /** Plan name for display (e.g., "Pro") */
+  plan_name: string;
+  /** Stripe price ID */
+  price_id: string;
+  /** Subscription status */
+  status: BoothSubscriptionStatus;
+  /** End of current billing period (ISO 8601) */
+  current_period_end: string;
+  /** Whether subscription will cancel at period end */
+  cancel_at_period_end: boolean;
+}
 
 /**
  * Individual booth in the overview response
@@ -299,11 +342,17 @@ export interface BoothOverviewItem {
   booth_name: string;
   booth_address: string | null;
   booth_status: BoothStatus;
+  /** Whether booth has a hardware error */
+  has_error: boolean;
+  /** Details about the error when has_error is true */
+  error_details: string | null;
   credits: BoothCredits | null;
   operation: BoothOperation | null;
   transactions: BoothTransactions | null;
   revenue: BoothRevenue | null;
   last_updated: string;
+  /** Subscription info (null if not subscribed) */
+  subscription: BoothSubscription | null;
 }
 
 /**

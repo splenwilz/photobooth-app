@@ -21,6 +21,7 @@ import * as SecureStore from "expo-secure-store";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -59,6 +60,7 @@ import {
 import {
   SubscriptionDetailsModal,
   SubscriptionStatusCard,
+  PricingPlansSelector,
 } from "@/components/subscription";
 import { AddCreditsModal } from "@/components/credits";
 import { CustomHeader } from "@/components/custom-header";
@@ -385,6 +387,8 @@ export default function SettingsScreen() {
 
 	// State for Subscription Details modal
 	const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+	// Pricing plans modal for selecting a subscription plan
+	const [showPricingModal, setShowPricingModal] = useState(false);
 
 	// User profile from stored auth data
 	const [userProfile, setUserProfile] = useState({
@@ -705,6 +709,7 @@ export default function SettingsScreen() {
 						<SubscriptionStatusCard
 							boothId={effectiveBoothId}
 							onViewDetails={() => setShowSubscriptionModal(true)}
+							onSelectPlan={() => setShowPricingModal(true)}
 						/>
 					</View>
 				)}
@@ -1022,6 +1027,22 @@ export default function SettingsScreen() {
 				onClose={() => setShowSubscriptionModal(false)}
 				boothId={effectiveBoothId}
 			/>
+
+			{/* Pricing Plans Modal */}
+			<Modal
+				visible={showPricingModal}
+				animationType="slide"
+				presentationStyle="pageSheet"
+				onRequestClose={() => setShowPricingModal(false)}
+			>
+				<SafeAreaView style={[styles.pricingModal, { backgroundColor: cardBg }]}>
+					<PricingPlansSelector
+						boothId={effectiveBoothId ?? ""}
+						onCheckoutComplete={() => setShowPricingModal(false)}
+						onCancel={() => setShowPricingModal(false)}
+					/>
+				</SafeAreaView>
+			</Modal>
 		</SafeAreaView>
 	);
 }
@@ -1029,6 +1050,10 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
+	},
+	pricingModal: {
+		flex: 1,
+		padding: Spacing.lg,
 	},
 	content: {
 		flex: 1,

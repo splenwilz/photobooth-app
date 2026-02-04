@@ -21,7 +21,7 @@ import {
 import { useThemeColor } from "@/hooks/use-theme-color";
 import type { Booth, BoothStatus } from "@/types/photobooth";
 import type React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 
 /**
  * Subscription status for display in BoothCard
@@ -47,8 +47,8 @@ interface BoothCardProps {
 }
 
 /**
- * Maps booth status to color
- * @see BoothStatus - Valid status values: online, offline, warning, error
+ * Maps booth connectivity status to color
+ * @see BoothStatus - Valid status values: online, offline, warning
  */
 const getStatusColor = (status: BoothStatus): string => {
 	switch (status) {
@@ -57,19 +57,16 @@ const getStatusColor = (status: BoothStatus): string => {
 		case "warning":
 			return StatusColors.warning;
 		case "offline":
-			return StatusColors.neutral; // Neutral for offline (not actively erroring)
-		case "error":
-			return StatusColors.error; // Red for error state
+			return StatusColors.neutral;
 		default:
-			// Log unexpected status values for debugging
 			console.warn("[BoothCard] Unknown status received:", status);
 			return StatusColors.neutral;
 	}
 };
 
 /**
- * Maps booth status to label
- * @see BoothStatus - Valid status values: online, offline, warning, error
+ * Maps booth connectivity status to label
+ * @see BoothStatus - Valid status values: online, offline, warning
  */
 const getStatusLabel = (status: BoothStatus): string => {
 	switch (status) {
@@ -79,10 +76,7 @@ const getStatusLabel = (status: BoothStatus): string => {
 			return "Warning";
 		case "offline":
 			return "Offline";
-		case "error":
-			return "Error";
 		default:
-			// Log unexpected status values for debugging
 			console.warn("[BoothCard] Unknown status label for:", status);
 			return "Unknown";
 	}
@@ -170,19 +164,72 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 					</View>
 				</View>
 
-				{/* Status Badge */}
-				<View
-					style={[
-						styles.statusBadge,
-						{ backgroundColor: withAlpha(statusColor, 0.15) },
-					]}
-				>
-					<View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-					<ThemedText style={[styles.statusText, { color: statusColor }]}>
-						{getStatusLabel(booth.status)}
-					</ThemedText>
+				{/* Status Badges Container */}
+				<View style={styles.badgesContainer}>
+					{/* Hardware Error Badge - Tappable for details */}
+					{booth.has_error && (
+						<TouchableOpacity
+							style={[
+								styles.errorBadge,
+								{ backgroundColor: withAlpha(StatusColors.error, 0.15) },
+							]}
+							onPress={(e) => {
+								e.stopPropagation();
+								Alert.alert(
+									"Hardware Error",
+									booth.error_details || "Unknown error occurred",
+									[{ text: "OK" }],
+								);
+							}}
+							activeOpacity={0.7}
+						>
+							<IconSymbol
+								name="exclamationmark.triangle.fill"
+								size={12}
+								color={StatusColors.error}
+							/>
+							<ThemedText style={[styles.statusText, { color: StatusColors.error }]}>
+								Error
+							</ThemedText>
+						</TouchableOpacity>
+					)}
+
+					{/* Connectivity Status Badge */}
+					<View
+						style={[
+							styles.statusBadge,
+							{ backgroundColor: withAlpha(statusColor, 0.15) },
+						]}
+					>
+						<View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+						<ThemedText style={[styles.statusText, { color: statusColor }]}>
+							{getStatusLabel(booth.status)}
+						</ThemedText>
+					</View>
 				</View>
 			</View>
+
+			{/* Error Details Row - Shows truncated error when has_error */}
+			{booth.has_error && booth.error_details && (
+				<View
+					style={[
+						styles.errorDetailsRow,
+						{ backgroundColor: withAlpha(StatusColors.error, 0.08) },
+					]}
+				>
+					<IconSymbol
+						name="exclamationmark.circle"
+						size={14}
+						color={StatusColors.error}
+					/>
+					<ThemedText
+						style={[styles.errorDetailsText, { color: StatusColors.error }]}
+						numberOfLines={1}
+					>
+						{booth.error_details}
+					</ThemedText>
+				</View>
+			)}
 
 			{/* Subscription Badge */}
 			{subscriptionDisplay && (
@@ -292,12 +339,25 @@ const styles = StyleSheet.create({
 		fontSize: 12,
 		flex: 1,
 	},
+	badgesContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 6,
+	},
 	statusBadge: {
 		flexDirection: "row",
 		alignItems: "center",
 		paddingHorizontal: Spacing.sm,
 		paddingVertical: 4,
 		borderRadius: BorderRadius.full,
+	},
+	errorBadge: {
+		flexDirection: "row",
+		alignItems: "center",
+		paddingHorizontal: Spacing.sm,
+		paddingVertical: 4,
+		borderRadius: BorderRadius.full,
+		gap: 4,
 	},
 	statusDot: {
 		width: 8,
@@ -354,6 +414,20 @@ const styles = StyleSheet.create({
 	},
 	subscriptionText: {
 		fontSize: 11,
+		fontWeight: "500",
+	},
+	errorDetailsRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		paddingHorizontal: Spacing.sm,
+		paddingVertical: Spacing.xs,
+		borderRadius: BorderRadius.md,
+		marginBottom: Spacing.sm,
+		gap: 6,
+	},
+	errorDetailsText: {
+		flex: 1,
+		fontSize: 12,
 		fontWeight: "500",
 	},
 });
