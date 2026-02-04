@@ -92,6 +92,11 @@ export function PricingPlansSelector({
 		}
 
 		const websiteUrl = process.env.EXPO_PUBLIC_WEBSITE_URL;
+		if (!websiteUrl) {
+			Alert.alert("Configuration Error", "Payment configuration is missing. Please contact support.");
+			return;
+		}
+
 		const isAnnual = billingInterval === "year" && selectedPlan.has_annual_option;
 		const priceId = isAnnual
 			? selectedPlan.stripe_annual_price_id
@@ -188,9 +193,11 @@ export function PricingPlansSelector({
 				<ThemedText style={[styles.errorText, { color: textSecondary }]}>
 					Unable to load pricing plans
 				</ThemedText>
-				<TouchableOpacity onPress={onCancel} style={styles.cancelButton}>
-					<ThemedText style={{ color: BRAND_COLOR }}>Go Back</ThemedText>
-				</TouchableOpacity>
+				{onCancel && (
+					<TouchableOpacity onPress={onCancel} style={styles.cancelButton}>
+						<ThemedText style={{ color: BRAND_COLOR }}>Go Back</ThemedText>
+					</TouchableOpacity>
+				)}
 			</View>
 		);
 	}
