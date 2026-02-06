@@ -21,12 +21,13 @@ import {
 import { useThemeColor } from "@/hooks/use-theme-color";
 import type { Booth, BoothStatus } from "@/types/photobooth";
 import type React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 
 /**
- * Subscription status for display in BoothCard
+ * Subscription display info for BoothCard
+ * Named differently from BoothSubscriptionStatus in api/booths/types.ts to avoid confusion
  */
-interface BoothSubscriptionStatus {
+interface BoothCardSubscriptionInfo {
 	/** Whether booth has active subscription */
 	is_active: boolean;
 	/** Current subscription status or null if no subscription */
@@ -41,14 +42,14 @@ interface BoothCardProps {
 	/** Whether this booth is currently selected */
 	isSelected?: boolean;
 	/** Subscription status for this booth */
-	subscriptionStatus?: BoothSubscriptionStatus;
+	subscriptionStatus?: BoothCardSubscriptionInfo;
 	/** Callback when card is pressed */
 	onPress?: () => void;
 }
 
 /**
- * Maps booth status to color
- * @see BoothStatus - Valid status values: online, offline, warning, error
+ * Maps booth connectivity status to color
+ * @see BoothStatus - Valid status values: online, offline, warning
  */
 const getStatusColor = (status: BoothStatus): string => {
 	switch (status) {
@@ -57,19 +58,16 @@ const getStatusColor = (status: BoothStatus): string => {
 		case "warning":
 			return StatusColors.warning;
 		case "offline":
-			return StatusColors.neutral; // Neutral for offline (not actively erroring)
-		case "error":
-			return StatusColors.error; // Red for error state
+			return StatusColors.neutral;
 		default:
-			// Log unexpected status values for debugging
 			console.warn("[BoothCard] Unknown status received:", status);
 			return StatusColors.neutral;
 	}
 };
 
 /**
- * Maps booth status to label
- * @see BoothStatus - Valid status values: online, offline, warning, error
+ * Maps booth connectivity status to label
+ * @see BoothStatus - Valid status values: online, offline, warning
  */
 const getStatusLabel = (status: BoothStatus): string => {
 	switch (status) {
@@ -79,10 +77,7 @@ const getStatusLabel = (status: BoothStatus): string => {
 			return "Warning";
 		case "offline":
 			return "Offline";
-		case "error":
-			return "Error";
 		default:
-			// Log unexpected status values for debugging
 			console.warn("[BoothCard] Unknown status label for:", status);
 			return "Unknown";
 	}
@@ -99,7 +94,7 @@ const formatCurrency = (amount: number): string => {
  * Gets subscription badge display info
  */
 const getSubscriptionDisplay = (
-	subscriptionStatus?: BoothSubscriptionStatus,
+	subscriptionStatus?: BoothCardSubscriptionInfo,
 ): { label: string; color: string; icon: string } | null => {
 	if (!subscriptionStatus) {
 		return null;
@@ -170,19 +165,74 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 					</View>
 				</View>
 
-				{/* Status Badge */}
-				<View
-					style={[
-						styles.statusBadge,
-						{ backgroundColor: withAlpha(statusColor, 0.15) },
-					]}
-				>
-					<View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-					<ThemedText style={[styles.statusText, { color: statusColor }]}>
-						{getStatusLabel(booth.status)}
-					</ThemedText>
+				{/* Status Badges Container */}
+				<View style={styles.badgesContainer}>
+					{/* Hardware Error Badge - Tappable for details */}
+					{booth.has_error && (
+						<View
+							onStartShouldSetResponder={() => true}
+							onResponderRelease={() => {
+								Alert.alert(
+									"Hardware Error",
+									booth.error_details || "Unknown error occurred",
+									[{ text: "OK" }],
+								);
+							}}
+						>
+							<View
+								style={[
+									styles.errorBadge,
+									{ backgroundColor: withAlpha(StatusColors.error, 0.15) },
+								]}
+							>
+								<IconSymbol
+									name="exclamationmark.triangle.fill"
+									size={12}
+									color={StatusColors.error}
+								/>
+								<ThemedText style={[styles.statusText, { color: StatusColors.error }]}>
+									Error
+								</ThemedText>
+							</View>
+						</View>
+					)}
+
+					{/* Connectivity Status Badge */}
+					<View
+						style={[
+							styles.statusBadge,
+							{ backgroundColor: withAlpha(statusColor, 0.15) },
+						]}
+					>
+						<View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+						<ThemedText style={[styles.statusText, { color: statusColor }]}>
+							{getStatusLabel(booth.status)}
+						</ThemedText>
+					</View>
 				</View>
 			</View>
+
+			{/* Error Details Row - Shows truncated error when has_error */}
+			{booth.has_error && booth.error_details && (
+				<View
+					style={[
+						styles.errorDetailsRow,
+						{ backgroundColor: withAlpha(StatusColors.error, 0.08) },
+					]}
+				>
+					<IconSymbol
+						name="exclamationmark.circle"
+						size={14}
+						color={StatusColors.error}
+					/>
+					<ThemedText
+						style={[styles.errorDetailsText, { color: StatusColors.error }]}
+						numberOfLines={1}
+					>
+						{booth.error_details}
+					</ThemedText>
+				</View>
+			)}
 
 			{/* Subscription Badge */}
 			{subscriptionDisplay && (
@@ -292,12 +342,25 @@ const styles = StyleSheet.create({
 		fontSize: 12,
 		flex: 1,
 	},
+	badgesContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 6,
+	},
 	statusBadge: {
 		flexDirection: "row",
 		alignItems: "center",
 		paddingHorizontal: Spacing.sm,
 		paddingVertical: 4,
 		borderRadius: BorderRadius.full,
+	},
+	errorBadge: {
+		flexDirection: "row",
+		alignItems: "center",
+		paddingHorizontal: Spacing.sm,
+		paddingVertical: 4,
+		borderRadius: BorderRadius.full,
+		gap: 4,
 	},
 	statusDot: {
 		width: 8,
@@ -354,6 +417,20 @@ const styles = StyleSheet.create({
 	},
 	subscriptionText: {
 		fontSize: 11,
+		fontWeight: "500",
+	},
+	errorDetailsRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		paddingHorizontal: Spacing.sm,
+		paddingVertical: Spacing.xs,
+		borderRadius: BorderRadius.md,
+		marginBottom: Spacing.sm,
+		gap: 6,
+	},
+	errorDetailsText: {
+		flex: 1,
+		fontSize: 12,
 		fontWeight: "500",
 	},
 });
