@@ -130,8 +130,7 @@ export default function NotificationHistoryScreen() {
 	}, [data?.items, offset]);
 
 	const hasMore = useMemo(() => {
-		if (!data) return false;
-		return allItems.length < data.total;
+		return data?.total ? allItems.length < data.total : false;
 	}, [allItems.length, data?.total]);
 
 	const handleLoadMore = useCallback(() => {

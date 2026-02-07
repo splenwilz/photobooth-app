@@ -48,7 +48,6 @@ import {
 	BRAND_COLOR,
 	Spacing,
 	StatusColors,
-	withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
