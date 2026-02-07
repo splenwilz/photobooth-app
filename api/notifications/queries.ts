@@ -61,33 +61,46 @@ export function useUpdatePreference() {
 				queryKey: queryKeys.notifications.preferences(),
 			});
 
-			// Snapshot previous value for rollback
-			const previousPreferences =
+			// Snapshot only the affected preference for rollback
+			const current =
 				queryClient.getQueryData<NotificationPreferencesResponse>(
 					queryKeys.notifications.preferences(),
 				);
+			const previousEnabled = current?.preferences.find(
+				(p) => p.event_type === eventType,
+			)?.enabled;
 
 			// Optimistically update the cache immediately
-			if (previousPreferences) {
+			if (current) {
 				queryClient.setQueryData<NotificationPreferencesResponse>(
 					queryKeys.notifications.preferences(),
 					{
-						...previousPreferences,
-						preferences: previousPreferences.preferences.map((pref) =>
+						...current,
+						preferences: current.preferences.map((pref) =>
 							pref.event_type === eventType ? { ...pref, enabled } : pref,
 						),
 					},
 				);
 			}
 
-			return { previousPreferences };
+			return { eventType, previousEnabled };
 		},
 		onError: (_err, _variables, context) => {
-			// Roll back optimistic update on error
-			if (context?.previousPreferences) {
-				queryClient.setQueryData(
+			// Roll back only the affected preference — preserves other concurrent optimistic updates
+			if (context?.previousEnabled !== undefined) {
+				queryClient.setQueryData<NotificationPreferencesResponse>(
 					queryKeys.notifications.preferences(),
-					context.previousPreferences,
+					(prev) => {
+						if (!prev) return prev;
+						return {
+							...prev,
+							preferences: prev.preferences.map((p) =>
+								p.event_type === context.eventType
+									? { ...p, enabled: context.previousEnabled! }
+									: p,
+							),
+						};
+					},
 				);
 			}
 		},
@@ -113,18 +126,29 @@ export function useBulkUpdatePreferences() {
 				queryKey: queryKeys.notifications.preferences(),
 			});
 
-			const previousPreferences =
+			const current =
 				queryClient.getQueryData<NotificationPreferencesResponse>(
 					queryKeys.notifications.preferences(),
 				);
 
+			// Snapshot only the affected preferences for rollback
+			const affectedKeys = Object.keys(preferences) as NotificationEventType[];
+			const previousValues: Partial<Record<NotificationEventType, boolean>> = {};
+			if (current) {
+				for (const pref of current.preferences) {
+					if (affectedKeys.includes(pref.event_type)) {
+						previousValues[pref.event_type] = pref.enabled;
+					}
+				}
+			}
+
 			// Optimistically update all affected preferences
-			if (previousPreferences) {
+			if (current) {
 				queryClient.setQueryData<NotificationPreferencesResponse>(
 					queryKeys.notifications.preferences(),
 					{
-						...previousPreferences,
-						preferences: previousPreferences.preferences.map((pref) => {
+						...current,
+						preferences: current.preferences.map((pref) => {
 							const newValue = preferences[pref.event_type];
 							return newValue !== undefined
 								? { ...pref, enabled: newValue }
@@ -134,13 +158,25 @@ export function useBulkUpdatePreferences() {
 				);
 			}
 
-			return { previousPreferences };
+			return { previousValues };
 		},
 		onError: (_err, _variables, context) => {
-			if (context?.previousPreferences) {
-				queryClient.setQueryData(
+			// Roll back only the affected preferences — preserves other concurrent optimistic updates
+			if (context?.previousValues) {
+				queryClient.setQueryData<NotificationPreferencesResponse>(
 					queryKeys.notifications.preferences(),
-					context.previousPreferences,
+					(prev) => {
+						if (!prev) return prev;
+						return {
+							...prev,
+							preferences: prev.preferences.map((p) => {
+								const rollback = context.previousValues[p.event_type];
+								return rollback !== undefined
+									? { ...p, enabled: rollback }
+									: p;
+							}),
+						};
+					},
 				);
 			}
 		},
