@@ -68,6 +68,9 @@ function RootLayoutNav() {
         {/* Support tickets */}
         <Stack.Screen name="support" />
 
+        {/* Notification preferences */}
+        <Stack.Screen name="notifications" />
+
         {/* Onboarding */}
         <Stack.Screen name="onboarding" />
 
