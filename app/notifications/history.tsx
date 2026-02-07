@@ -55,7 +55,7 @@ const STATUS_LABELS: Record<NotificationStatus, string> = {
 /** Format ISO timestamp to readable date */
 function formatTimestamp(iso: string): string {
 	const date = new Date(iso);
-	return date.toLocaleDateString(undefined, {
+	return date.toLocaleString(undefined, {
 		month: "short",
 		day: "numeric",
 		year: "numeric",
