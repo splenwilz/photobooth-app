@@ -139,9 +139,14 @@ export default function NotificationHistoryScreen() {
 	}, []);
 
 	const handleRefresh = useCallback(() => {
-		setOffset(0);
-		refetch();
-	}, [refetch]);
+		if (offset === 0) {
+			// Already on first page — just refetch it
+			refetch();
+		} else {
+			// Reset to first page — query key change triggers fetch automatically
+			setOffset(0);
+		}
+	}, [offset, refetch]);
 
 	// Loading state (initial load only)
 	if (isLoading && offset === 0) {
