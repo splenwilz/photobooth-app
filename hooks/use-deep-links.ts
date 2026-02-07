@@ -1,12 +1,19 @@
 /**
- * Payment Deep Link Handler Hook
+ * Deep Link Handler Hook
  *
- * Handles deep link callbacks from Stripe checkout and customer portal.
+ * Handles deep link callbacks from Stripe checkout, customer portal,
+ * and email notification redirects.
  *
  * Supported URLs:
  * - boothiq://payment-success - Stripe checkout completed
  * - boothiq://payment-cancel - Stripe checkout cancelled
  * - boothiq://settings - Return from customer portal
+ * - boothiq://template-purchase-success - Template checkout completed
+ * - boothiq://template-purchase-cancel - Template checkout cancelled
+ * - boothiq://booths - Navigate to booths (optional booth_id param)
+ * - boothiq://alerts - Navigate to alerts
+ * - boothiq://pricing - Navigate to pricing/subscription settings
+ * - boothiq://billing - Navigate to billing settings
  *
  * @see https://docs.expo.dev/guides/linking/
  */
@@ -21,20 +28,18 @@ import { useCartStore } from "@/stores/cart-store";
 import { useBoothStore } from "@/stores/booth-store";
 
 /**
- * Hook to handle payment-related deep links
+ * Hook to handle all app deep links
  *
- * Listens for deep link events and:
- * - On payment-success: Invalidates subscription queries, shows success alert
- * - On payment-cancel: Shows cancelled alert
+ * Listens for deep link events and routes to the appropriate screen.
  *
  * @example
  * // In _layout.tsx
  * export default function RootLayout() {
- *   usePaymentDeepLinks();
+ *   useDeepLinks();
  *   // ...
  * }
  */
-export function usePaymentDeepLinks() {
+export function useDeepLinks() {
 	const queryClient = useQueryClient();
 
 	const handleDeepLink = useCallback(
@@ -49,7 +54,7 @@ export function usePaymentDeepLinks() {
 				console.log("[DeepLink] Parsed path:", path);
 
 				switch (path) {
-					case "payment-success":
+					case "payment-success": {
 						// Extract query params for more targeted invalidation
 						const sessionId = parsed.queryParams?.session_id as string | undefined;
 						const boothId = parsed.queryParams?.booth_id as string | undefined;
@@ -83,6 +88,7 @@ export function usePaymentDeepLinks() {
 							[{ text: "OK" }],
 						);
 						break;
+					}
 
 					case "payment-cancel":
 						Alert.alert(
@@ -126,6 +132,37 @@ export function usePaymentDeepLinks() {
 							"Your cart items are still saved. You can try again anytime.",
 							[{ text: "OK" }],
 						);
+						break;
+
+					// Email notification deep links
+					case "booths": {
+						const targetBoothId = parsed.queryParams?.booth_id as string | undefined;
+						if (targetBoothId) {
+							useBoothStore.getState().setSelectedBoothId(targetBoothId);
+							queryClient.invalidateQueries({
+								queryKey: queryKeys.booths.detail(targetBoothId),
+							});
+						}
+						router.replace("/(tabs)/booths");
+						break;
+					}
+
+					case "alerts":
+						router.replace("/(tabs)/alerts");
+						break;
+
+					case "pricing":
+						router.replace("/(tabs)/settings");
+						break;
+
+					case "billing":
+						queryClient.invalidateQueries({
+							queryKey: queryKeys.payments.subscription(),
+						});
+						queryClient.invalidateQueries({
+							queryKey: queryKeys.payments.access(),
+						});
+						router.replace("/(tabs)/settings");
 						break;
 
 					default:

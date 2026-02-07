@@ -26,7 +26,7 @@ import "react-native-reanimated";
 
 import { queryClient } from "@/api/query-client";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { usePaymentDeepLinks } from "@/hooks/use-payment-deep-links";
+import { useDeepLinks } from "@/hooks/use-deep-links";
 import { useBoothStore } from "@/stores/booth-store";
 import { useCartStore } from "@/stores/cart-store";
 
@@ -41,8 +41,8 @@ export const unstable_settings = {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
-  // Handle deep links for payment callbacks (Stripe checkout success/cancel)
-  usePaymentDeepLinks();
+  // Handle deep links for payment callbacks and email notification redirects
+  useDeepLinks();
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
