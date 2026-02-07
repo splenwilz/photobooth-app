@@ -912,6 +912,18 @@ export default function SettingsScreen() {
 					</View>
 				)}
 
+				{/* Email Notifications - user-level, always visible */}
+				<View style={styles.section}>
+					<SectionHeader title="Notifications" subtitle="Email notification settings" />
+
+					<SettingsItem
+						icon="envelope"
+						title="Email Notifications"
+						subtitle="Manage which emails you receive"
+						onPress={() => router.push("/notifications/preferences")}
+					/>
+				</View>
+
 				{/* Help & Support */}
 				<View style={styles.section}>
 					<SectionHeader title="Help & Support" subtitle="Get assistance" />

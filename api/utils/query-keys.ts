@@ -215,6 +215,28 @@ export const queryKeys = {
   },
 
   /**
+   * Notification preferences query keys
+   * @see /api/notifications/queries.ts
+   */
+  notifications: {
+    /**
+     * Base key for all notification queries
+     */
+    all: () => ['notifications'] as const,
+
+    /**
+     * Get notification preferences
+     */
+    preferences: () => ['notifications', 'preferences'] as const,
+
+    /**
+     * Get notification history with pagination
+     */
+    history: (params?: { limit?: number; offset?: number }) =>
+      ['notifications', 'history', params] as const,
+  },
+
+  /**
    * Pricing-related query keys
    * @see GET /api/v1/pricing/plans
    */
