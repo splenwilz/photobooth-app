@@ -118,13 +118,14 @@ export default function NotificationHistoryScreen() {
 	const { data, isLoading, error, refetch, isRefetching } =
 		useNotificationHistory({ limit: PAGE_SIZE, offset });
 
-	// Append new items when data changes
+	// Update items when data changes — truncate to offset before appending
+	// to prevent duplicates if React Query background-refetches a page
 	useEffect(() => {
 		if (data?.items) {
 			if (offset === 0) {
 				setAllItems(data.items);
 			} else {
-				setAllItems((prev) => [...prev, ...data.items]);
+				setAllItems((prev) => [...prev.slice(0, offset), ...data.items]);
 			}
 		}
 	}, [data?.items, offset]);
