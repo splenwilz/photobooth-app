@@ -34,6 +34,7 @@ import { AnalyticsSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
 // Extracted components for reusability
 import { BreakdownCard } from "@/components/ui/breakdown-card";
+import { ErrorState } from "@/components/ui/error-state";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SectionHeader } from "@/components/ui/section-header";
 import { SimpleBarChart } from "@/components/ui/simple-bar-chart";
@@ -197,25 +198,11 @@ export default function AnalyticsScreen() {
 					onNotificationPress={handleNotificationPress}
 					notificationCount={unreadAlerts}
 				/>
-				<View style={styles.errorContainer}>
-					<IconSymbol
-						name="exclamationmark.triangle.fill"
-						size={48}
-						color={StatusColors.error}
-					/>
-					<ThemedText style={styles.errorTitle}>
-						Failed to load analytics
-					</ThemedText>
-					<ThemedText style={[styles.errorMessage, { color: textSecondary }]}>
-						{error.message || "An unexpected error occurred"}
-					</ThemedText>
-					<TouchableOpacity
-						style={[styles.retryButton, { backgroundColor: BRAND_COLOR }]}
-						onPress={() => refetch()}
-					>
-						<ThemedText style={styles.retryButtonText}>Try Again</ThemedText>
-					</TouchableOpacity>
-				</View>
+				<ErrorState
+					title="Failed to load analytics"
+					message={error.message || "An unexpected error occurred"}
+					onRetry={() => refetch()}
+				/>
 			</SafeAreaView>
 		);
 	}
@@ -518,33 +505,6 @@ const styles = StyleSheet.create({
 	loadingText: {
 		marginTop: Spacing.md,
 		fontSize: 16,
-	},
-	errorContainer: {
-		flex: 1,
-		justifyContent: "center",
-		alignItems: "center",
-		paddingHorizontal: Spacing.xl,
-	},
-	errorTitle: {
-		fontSize: 18,
-		fontWeight: "600",
-		marginTop: Spacing.md,
-		textAlign: "center",
-	},
-	errorMessage: {
-		fontSize: 14,
-		marginTop: Spacing.sm,
-		textAlign: "center",
-	},
-	retryButton: {
-		marginTop: Spacing.lg,
-		paddingVertical: Spacing.sm,
-		paddingHorizontal: Spacing.xl,
-		borderRadius: BorderRadius.md,
-	},
-	retryButtonText: {
-		color: "#FFFFFF",
-		fontWeight: "600",
 	},
 	statsGrid: {
 		gap: Spacing.sm,

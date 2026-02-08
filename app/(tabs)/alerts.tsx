@@ -31,6 +31,7 @@ import type { AlertSeverity } from "@/api/alerts/types";
 import { CustomHeader } from "@/components/custom-header";
 import { AlertsSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
+import { ErrorState } from "@/components/ui/error-state";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SectionHeader } from "@/components/ui/section-header";
 import {
@@ -259,25 +260,11 @@ export default function AlertsScreen() {
 				edges={["top"]}
 			>
 				<CustomHeader title="Alerts" />
-				<View style={styles.errorContainer}>
-					<IconSymbol
-						name="exclamationmark.triangle.fill"
-						size={48}
-						color={StatusColors.error}
-					/>
-					<ThemedText style={styles.errorTitle}>
-						Failed to load alerts
-					</ThemedText>
-					<ThemedText style={[styles.errorMessage, { color: textSecondary }]}>
-						{error.message || "An unexpected error occurred"}
-					</ThemedText>
-					<TouchableOpacity
-						style={[styles.retryButton, { backgroundColor: BRAND_COLOR }]}
-						onPress={() => refetch()}
-					>
-						<ThemedText style={styles.retryButtonText}>Try Again</ThemedText>
-					</TouchableOpacity>
-				</View>
+				<ErrorState
+					title="Failed to load alerts"
+					message={error.message || "An unexpected error occurred"}
+					onRetry={() => refetch()}
+				/>
 			</SafeAreaView>
 		);
 	}
@@ -521,33 +508,6 @@ const styles = StyleSheet.create({
 	loadingText: {
 		marginTop: Spacing.md,
 		fontSize: 16,
-	},
-	errorContainer: {
-		flex: 1,
-		justifyContent: "center",
-		alignItems: "center",
-		paddingHorizontal: Spacing.xl,
-	},
-	errorTitle: {
-		fontSize: 18,
-		fontWeight: "600",
-		marginTop: Spacing.md,
-		textAlign: "center",
-	},
-	errorMessage: {
-		fontSize: 14,
-		marginTop: Spacing.sm,
-		textAlign: "center",
-	},
-	retryButton: {
-		marginTop: Spacing.lg,
-		paddingVertical: Spacing.sm,
-		paddingHorizontal: Spacing.xl,
-		borderRadius: BorderRadius.md,
-	},
-	retryButtonText: {
-		color: "#FFFFFF",
-		fontWeight: "600",
 	},
 	unreadBadge: {
 		minWidth: 24,
