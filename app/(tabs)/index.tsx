@@ -36,6 +36,7 @@ import {
 } from "@/components/dashboard";
 import { DashboardSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
+import { ErrorState } from "@/components/ui/error-state";
 import { AlertCard } from "@/components/ui/alert-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -80,6 +81,7 @@ export default function DashboardScreen() {
 	const {
 		data: boothDetail,
 		isLoading: isLoadingDetail,
+		error: errorDetail,
 		refetch: refetchDetail,
 		isRefetching: isRefetchingDetail,
 	} = useBoothDetail(hasBoothSelected ? selectedBoothId : null);
@@ -92,6 +94,7 @@ export default function DashboardScreen() {
 	const {
 		data: dashboardOverview,
 		isLoading: isLoadingOverview,
+		error: errorOverview,
 		refetch: refetchOverview,
 		isRefetching: isRefetchingOverview,
 	} = useDashboardOverview({
@@ -172,8 +175,28 @@ export default function DashboardScreen() {
 	const isWaitingForBoothData = !isAllMode && !boothDetail && !isLoadingDetail;
 	const isInitialLoading = !isHydrated || isLoadingOverview || (hasBoothSelected && isLoadingDetail);
 
+	// Error state - check before skeleton to prevent infinite skeleton on API failure
+	const activeError = isAllMode ? errorOverview : errorDetail;
+	const activeRefetch = isAllMode ? refetchOverview : refetchDetail;
+
+	if (!isInitialLoading && activeError) {
+		return (
+			<SafeAreaView
+				style={[styles.container, { backgroundColor }]}
+				edges={["top"]}
+			>
+				<CustomHeader title="Dashboard" />
+				<ErrorState
+					title="Failed to load dashboard"
+					message={activeError.message || "An unexpected error occurred"}
+					onRetry={() => activeRefetch()}
+				/>
+			</SafeAreaView>
+		);
+	}
+
 	// Show skeleton while loading OR while data hasn't arrived yet
-	if (isInitialLoading || isInvalidBoothSelection || isWaitingForDashboardData || isWaitingForBoothData) {
+	if ((isInitialLoading || isInvalidBoothSelection || isWaitingForDashboardData || isWaitingForBoothData) && !activeError) {
 		return (
 			<SafeAreaView
 				style={[styles.container, { backgroundColor }]}

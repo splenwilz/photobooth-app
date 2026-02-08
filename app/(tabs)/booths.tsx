@@ -36,6 +36,7 @@ import { useBoothSubscriptions } from "@/api/payments/queries";
 import { CustomHeader } from "@/components/custom-header";
 import { BoothsSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
+import { ErrorState } from "@/components/ui/error-state";
 import { BoothCard } from "@/components/ui/booth-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -97,6 +98,7 @@ export default function BoothsScreen() {
 	const {
 		data: boothData,
 		isLoading,
+		error,
 		isRefetching: isQueryRefetching,
 		refetch,
 	} = useBoothOverview();
@@ -234,6 +236,27 @@ export default function BoothsScreen() {
 					notificationCount={unreadAlerts}
 				/>
 				<BoothsSkeleton />
+			</SafeAreaView>
+		);
+	}
+
+	// Error state
+	if (error) {
+		return (
+			<SafeAreaView
+				style={[styles.container, { backgroundColor }]}
+				edges={["top"]}
+			>
+				<CustomHeader
+					title="Booths"
+					onNotificationPress={handleNotificationPress}
+					notificationCount={unreadAlerts}
+				/>
+				<ErrorState
+					title="Failed to load booths"
+					message={error.message || "An unexpected error occurred"}
+					onRetry={() => refetch()}
+				/>
 			</SafeAreaView>
 		);
 	}
