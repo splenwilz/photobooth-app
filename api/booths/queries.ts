@@ -479,7 +479,7 @@ export function useBoothBusinessSettings(boothId: string | null) {
  * Hook to update booth settings (address, use_custom_logo, show_logo_on_prints)
  *
  * @returns React Query mutation for booth settings update
- * @see PUT /api/v1/booths/{booth_id}
+ * @see PATCH /api/v1/booths/{booth_id}
  */
 export function useUpdateBoothSettings() {
 	const queryClient = useQueryClient();

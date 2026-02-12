@@ -96,6 +96,10 @@ export function BusinessSettingsModal({
 	const [businessName, setBusinessName] = useState("");
 	const [address, setAddress] = useState("");
 	const [showLogoOnPrints, setShowLogoOnPrints] = useState(true);
+	const [showBusinessName, setShowBusinessName] = useState(true);
+	const [showLogo, setShowLogo] = useState(true);
+	const [welcomeSubtitle, setWelcomeSubtitle] = useState("");
+	const [showWelcomeSubtitle, setShowWelcomeSubtitle] = useState(true);
 	const [logoTab, setLogoTab] = useState<"account" | "booth">("account");
 	const [keyboardHeight, setKeyboardHeight] = useState(0);
 
@@ -121,6 +125,10 @@ export function BusinessSettingsModal({
 		setBusinessName(userProfile?.business_name ?? "");
 		setAddress(boothSettings?.address ?? "");
 		setShowLogoOnPrints(boothSettings?.show_logo_on_prints ?? true);
+		setShowBusinessName(boothSettings?.show_business_name ?? true);
+		setShowLogo(boothSettings?.show_logo ?? true);
+		setWelcomeSubtitle(boothSettings?.welcome_subtitle ?? "");
+		setShowWelcomeSubtitle(boothSettings?.show_welcome_subtitle ?? true);
 		setLogoTab(useCustomLogo ? "booth" : "account");
 		hasPopulated.current = true;
 	}, [visible, userProfile, boothSettings, boothId, useCustomLogo]);
@@ -148,9 +156,21 @@ export function BusinessSettingsModal({
 		businessName !== (userProfile?.business_name ?? "");
 	const hasAddressChange =
 		boothId != null && address !== (boothSettings?.address ?? "");
-	const hasShowLogoChange =
+	const hasShowLogoOnPrintsChange =
 		boothId != null &&
 		showLogoOnPrints !== (boothSettings?.show_logo_on_prints ?? true);
+	const hasShowBusinessNameChange =
+		boothId != null &&
+		showBusinessName !== (boothSettings?.show_business_name ?? true);
+	const hasShowLogoChange =
+		boothId != null &&
+		showLogo !== (boothSettings?.show_logo ?? true);
+	const hasWelcomeSubtitleChange =
+		boothId != null &&
+		welcomeSubtitle !== (boothSettings?.welcome_subtitle ?? "");
+	const hasShowWelcomeSubtitleChange =
+		boothId != null &&
+		showWelcomeSubtitle !== (boothSettings?.show_welcome_subtitle ?? true);
 
 	const isProcessing =
 		updateBusinessNameMutation.isPending ||
@@ -165,39 +185,70 @@ export function BusinessSettingsModal({
 		}
 	};
 
-	const handleSaveBusinessName = async () => {
-		if (!hasBusinessNameChange || !userId) return;
-		Keyboard.dismiss();
-		try {
-			await updateBusinessNameMutation.mutateAsync({
-				userId,
-				business_name: businessName,
-			});
-			// Sync to SecureStore so settings screen shows updated name
-			const stored = await getStoredUser();
-			if (stored) {
-				await saveUser({ ...stored, business_name: businessName });
-			}
-			Alert.alert("Saved", "Business name has been updated.");
-		} catch (error: any) {
-			Alert.alert("Error", error.message || "Failed to save business name.");
-		}
-	};
+	const hasBoothSettingsChange =
+		hasAddressChange || hasShowLogoOnPrintsChange || hasShowBusinessNameChange || hasShowLogoChange || hasWelcomeSubtitleChange || hasShowWelcomeSubtitleChange;
 
-	const handleSaveBoothSettings = async () => {
-		if (!boothId || (!hasAddressChange && !hasShowLogoChange)) return;
+	const hasAnyChange = hasBusinessNameChange || hasBoothSettingsChange;
+
+	const handleSave = async () => {
+		if (!hasAnyChange) return;
 		Keyboard.dismiss();
-		try {
-			await updateBoothSettingsMutation.mutateAsync({
-				boothId,
-				...(hasAddressChange ? { address } : {}),
-				...(hasShowLogoChange
-					? { show_logo_on_prints: showLogoOnPrints }
-					: {}),
-			});
-			Alert.alert("Saved", "Booth settings have been updated.");
-		} catch (error: any) {
-			Alert.alert("Error", error.message || "Failed to save booth settings.");
+
+		const errors: string[] = [];
+
+		// Fire both API calls in parallel when both have changes
+		const promises: Promise<void>[] = [];
+
+		if (hasBusinessNameChange && userId) {
+			promises.push(
+				updateBusinessNameMutation
+					.mutateAsync({ userId, business_name: businessName })
+					.then(async () => {
+						const stored = await getStoredUser();
+						if (stored) {
+							await saveUser({ ...stored, business_name: businessName });
+						}
+					})
+					.catch((error: any) => {
+						errors.push(error.message || "Failed to save business name.");
+					}),
+			);
+		}
+
+		if (hasBoothSettingsChange && boothId) {
+			promises.push(
+				updateBoothSettingsMutation
+					.mutateAsync({
+						boothId,
+						...(hasAddressChange ? { address } : {}),
+						...(hasShowLogoOnPrintsChange
+							? { show_logo_on_prints: showLogoOnPrints }
+							: {}),
+						...(hasShowBusinessNameChange
+							? { show_business_name: showBusinessName }
+							: {}),
+						...(hasShowLogoChange
+							? { show_logo: showLogo }
+							: {}),
+						...(hasWelcomeSubtitleChange
+							? { welcome_subtitle: welcomeSubtitle || null }
+							: {}),
+						...(hasShowWelcomeSubtitleChange
+							? { show_welcome_subtitle: showWelcomeSubtitle }
+							: {}),
+					})
+					.catch((error: any) => {
+						errors.push(error.message || "Failed to save booth settings.");
+					}),
+			);
+		}
+
+		await Promise.all(promises);
+
+		if (errors.length > 0) {
+			Alert.alert("Error", errors.join("\n"));
+		} else {
+			Alert.alert("Saved", "Settings have been updated.");
 		}
 	};
 
@@ -679,24 +730,6 @@ export function BusinessSettingsModal({
 							>
 								Applies to all your booths
 							</ThemedText>
-							{hasBusinessNameChange && (
-								<TouchableOpacity
-									style={[
-										styles.saveFieldButton,
-										{ backgroundColor: BRAND_COLOR },
-									]}
-									onPress={handleSaveBusinessName}
-									disabled={updateBusinessNameMutation.isPending}
-								>
-									{updateBusinessNameMutation.isPending ? (
-										<ActivityIndicator color="white" size="small" />
-									) : (
-										<ThemedText style={styles.saveFieldButtonText}>
-											Save Name
-										</ThemedText>
-									)}
-								</TouchableOpacity>
-							)}
 						</View>
 
 						{/* ── Booth-level fields ──────────────────────── */}
@@ -738,6 +771,140 @@ export function BusinessSettingsModal({
 									</ThemedText>
 								</View>
 
+								{/* Welcome Subtitle */}
+								<View style={styles.fieldContainer}>
+									<ThemedText
+										style={[styles.fieldLabel, { color: textSecondary }]}
+									>
+										Welcome Subtitle
+									</ThemedText>
+									<View
+										style={[
+											styles.inputContainer,
+											{ backgroundColor: cardBg, borderColor },
+										]}
+									>
+										<IconSymbol
+											name="text.quote"
+											size={20}
+											color={textSecondary}
+											style={styles.inputIcon}
+										/>
+										<TextInput
+											style={[styles.input, { color: textColor }]}
+											value={welcomeSubtitle}
+											onChangeText={setWelcomeSubtitle}
+											placeholder="e.g. Create Amazing Photo Memories"
+											placeholderTextColor={textSecondary}
+											maxLength={255}
+											editable={!updateBoothSettingsMutation.isPending}
+										/>
+									</View>
+									<ThemedText
+										style={[styles.fieldHint, { color: textSecondary }]}
+									>
+										Custom tagline on the welcome screen. This booth only
+									</ThemedText>
+								</View>
+
+								{/* ── Display toggles ────────────────────── */}
+
+								{/* Show Business Name */}
+								<View
+									style={[
+										styles.toggleContainer,
+										{ backgroundColor: cardBg, borderColor },
+									]}
+								>
+									<View style={styles.toggleContent}>
+										<View
+											style={[
+												styles.toggleIconContainer,
+												{
+													backgroundColor: withAlpha(BRAND_COLOR, 0.15),
+												},
+											]}
+										>
+											<IconSymbol
+												name="building.2"
+												size={20}
+												color={BRAND_COLOR}
+											/>
+										</View>
+										<View style={styles.toggleTextContainer}>
+											<ThemedText
+												type="defaultSemiBold"
+												style={styles.toggleTitle}
+											>
+												Show Business Name
+											</ThemedText>
+											<ThemedText
+												style={[
+													styles.toggleSubtitle,
+													{ color: textSecondary },
+												]}
+											>
+												Display name on the welcome screen
+											</ThemedText>
+										</View>
+									</View>
+									<Switch
+										value={showBusinessName}
+										onValueChange={setShowBusinessName}
+										trackColor={{ false: borderColor, true: BRAND_COLOR }}
+										thumbColor="white"
+										disabled={updateBoothSettingsMutation.isPending}
+									/>
+								</View>
+
+								{/* Show Logo */}
+								<View
+									style={[
+										styles.toggleContainer,
+										{ backgroundColor: cardBg, borderColor },
+									]}
+								>
+									<View style={styles.toggleContent}>
+										<View
+											style={[
+												styles.toggleIconContainer,
+												{
+													backgroundColor: withAlpha(BRAND_COLOR, 0.15),
+												},
+											]}
+										>
+											<IconSymbol
+												name="photo"
+												size={20}
+												color={BRAND_COLOR}
+											/>
+										</View>
+										<View style={styles.toggleTextContainer}>
+											<ThemedText
+												type="defaultSemiBold"
+												style={styles.toggleTitle}
+											>
+												Show Logo
+											</ThemedText>
+											<ThemedText
+												style={[
+													styles.toggleSubtitle,
+													{ color: textSecondary },
+												]}
+											>
+												Display logo on the welcome screen
+											</ThemedText>
+										</View>
+									</View>
+									<Switch
+										value={showLogo}
+										onValueChange={setShowLogo}
+										trackColor={{ false: borderColor, true: BRAND_COLOR }}
+										thumbColor="white"
+										disabled={updateBoothSettingsMutation.isPending}
+									/>
+								</View>
+
 								{/* Show Logo on Prints */}
 								<View
 									style={[
@@ -773,7 +940,7 @@ export function BusinessSettingsModal({
 													{ color: textSecondary },
 												]}
 											>
-												Display your logo on printed photos
+												Display your logo on printed photos on color mode
 											</ThemedText>
 										</View>
 									</View>
@@ -786,26 +953,75 @@ export function BusinessSettingsModal({
 									/>
 								</View>
 
-								{/* Save booth settings */}
-								{(hasAddressChange || hasShowLogoChange) && (
-									<TouchableOpacity
-										style={[
-											styles.saveFieldButton,
-											{ backgroundColor: BRAND_COLOR },
-										]}
-										onPress={handleSaveBoothSettings}
-										disabled={updateBoothSettingsMutation.isPending}
-									>
-										{updateBoothSettingsMutation.isPending ? (
-											<ActivityIndicator color="white" size="small" />
-										) : (
-											<ThemedText style={styles.saveFieldButtonText}>
-												Save Booth Settings
+								{/* Show Welcome Subtitle */}
+								<View
+									style={[
+										styles.toggleContainer,
+										{ backgroundColor: cardBg, borderColor },
+									]}
+								>
+									<View style={styles.toggleContent}>
+										<View
+											style={[
+												styles.toggleIconContainer,
+												{
+													backgroundColor: withAlpha(BRAND_COLOR, 0.15),
+												},
+											]}
+										>
+											<IconSymbol
+												name="text.bubble"
+												size={20}
+												color={BRAND_COLOR}
+											/>
+										</View>
+										<View style={styles.toggleTextContainer}>
+											<ThemedText
+												type="defaultSemiBold"
+												style={styles.toggleTitle}
+											>
+												Show Welcome Subtitle
 											</ThemedText>
-										)}
-									</TouchableOpacity>
+											<ThemedText
+												style={[
+													styles.toggleSubtitle,
+													{ color: textSecondary },
+												]}
+											>
+												Display subtitle on the welcome screen
+											</ThemedText>
+										</View>
+									</View>
+									<Switch
+										value={showWelcomeSubtitle}
+										onValueChange={setShowWelcomeSubtitle}
+										trackColor={{ false: borderColor, true: BRAND_COLOR }}
+										thumbColor="white"
+										disabled={updateBoothSettingsMutation.isPending}
+									/>
+								</View>
+
+								</>
+						)}
+
+						{/* Unified save button */}
+						{hasAnyChange && (
+							<TouchableOpacity
+								style={[
+									styles.saveFieldButton,
+									{ backgroundColor: BRAND_COLOR },
+								]}
+								onPress={handleSave}
+								disabled={isProcessing}
+							>
+								{isProcessing ? (
+									<ActivityIndicator color="white" size="small" />
+								) : (
+									<ThemedText style={styles.saveFieldButtonText}>
+										Save Changes
+									</ThemedText>
 								)}
-							</>
+							</TouchableOpacity>
 						)}
 					</ScrollView>
 				</View>

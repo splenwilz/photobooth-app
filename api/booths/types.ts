@@ -703,11 +703,19 @@ export interface BoothBusinessSettingsResponse {
   show_logo_on_prints: boolean;
   /** Booth physical address */
   address: string | null;
+  /** Whether to show the business name on the welcome screen */
+  show_business_name: boolean;
+  /** Whether to show the logo on the welcome screen */
+  show_logo: boolean;
+  /** Custom welcome screen subtitle text */
+  welcome_subtitle: string | null;
+  /** Whether to show the subtitle on the welcome screen */
+  show_welcome_subtitle: boolean;
 }
 
 /**
  * Request body for updating booth settings
- * @see PUT /api/v1/booths/{booth_id}
+ * @see PATCH /api/v1/booths/{booth_id}
  */
 export interface UpdateBoothSettingsRequest {
   /** Booth name (1-100 chars) */
@@ -718,11 +726,19 @@ export interface UpdateBoothSettingsRequest {
   use_custom_logo?: boolean;
   /** Whether to show the logo on printed photos */
   show_logo_on_prints?: boolean;
+  /** Whether to show the business name on the welcome screen */
+  show_business_name?: boolean;
+  /** Whether to show the logo on the welcome screen */
+  show_logo?: boolean;
+  /** Custom welcome screen subtitle (max 255 chars). null to use default */
+  welcome_subtitle?: string | null;
+  /** Whether to show the subtitle on the welcome screen */
+  show_welcome_subtitle?: boolean;
 }
 
 /**
  * Response from booth settings update
- * @see PUT /api/v1/booths/{booth_id}
+ * @see PATCH /api/v1/booths/{booth_id}
  */
 export interface UpdateBoothSettingsResponse {
   id: string;
@@ -733,6 +749,10 @@ export interface UpdateBoothSettingsResponse {
   /** Presigned URL for the effective logo */
   logo_url: string | null;
   show_logo_on_prints: boolean;
+  show_business_name: boolean;
+  show_logo: boolean;
+  welcome_subtitle: string | null;
+  show_welcome_subtitle: boolean;
   status: 'online' | 'offline' | 'warning';
   last_heartbeat: string | null;
   last_sync: string | null;
