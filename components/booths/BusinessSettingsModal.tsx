@@ -237,6 +237,7 @@ export function BusinessSettingsModal({
 							? { show_welcome_subtitle: showWelcomeSubtitle }
 							: {}),
 					})
+					.then(() => {})
 					.catch((error: any) => {
 						errors.push(error.message || "Failed to save booth settings.");
 					}),
