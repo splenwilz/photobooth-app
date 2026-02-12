@@ -143,7 +143,7 @@ export function useBoothDetail(boothId: string | null) {
  */
 export function useBoothOverview() {
 	return useQuery<BoothOverviewResponse>({
-		queryKey: queryKeys.booths.all(),
+		queryKey: queryKeys.booths.overview(),
 		queryFn: getBoothOverview,
 		staleTime: 1 * 60 * 1000, // 1 minute - shows real-time status
 	});
