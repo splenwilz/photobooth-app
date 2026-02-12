@@ -258,6 +258,7 @@ export function BusinessSettingsModal({
 	};
 
 	const handleUploadLogo = async (scope: "account" | "booth") => {
+		if (scope === "account" && !userId) return;
 		if (scope === "booth" && !boothId) return;
 
 		const { status } =
@@ -345,6 +346,7 @@ export function BusinessSettingsModal({
 	};
 
 	const handleDeleteLogo = (scope: "account" | "booth") => {
+		if (scope === "account" && !userId) return;
 		if (scope === "booth" && !boothId) return;
 
 		const title =

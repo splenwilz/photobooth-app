@@ -39,7 +39,7 @@ export function useUserProfile(userId: string | null) {
  * Invalidates user profile and booth caches since business_name syncs to all booths.
  *
  * @returns React Query mutation for business name update
- * @see PUT /api/v1/users/{user_id}
+ * @see PATCH /api/v1/users/{user_id}
  */
 export function useUpdateBusinessName() {
 	const queryClient = useQueryClient();
