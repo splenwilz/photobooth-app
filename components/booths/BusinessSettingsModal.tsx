@@ -204,9 +204,13 @@ export function BusinessSettingsModal({
 				updateBusinessNameMutation
 					.mutateAsync({ userId, business_name: businessName })
 					.then(async () => {
-						const stored = await getStoredUser();
-						if (stored) {
-							await saveUser({ ...stored, business_name: businessName });
+						try {
+							const stored = await getStoredUser();
+							if (stored) {
+								await saveUser({ ...stored, business_name: businessName });
+							}
+						} catch (e) {
+							console.error("[BusinessSettings] SecureStore sync failed:", e);
 						}
 					})
 					.catch((error: any) => {
@@ -300,10 +304,14 @@ export function BusinessSettingsModal({
 				{ userId, fileUri: asset.uri, mimeType, filename },
 				{
 					onSuccess: async (response) => {
-						// Sync logo_url to SecureStore
-						const stored = await getStoredUser();
-						if (stored) {
-							await saveUser({ ...stored, logo_url: response.logo_url });
+						// Sync logo_url to SecureStore (best-effort, don't fail the upload)
+						try {
+							const stored = await getStoredUser();
+							if (stored) {
+								await saveUser({ ...stored, logo_url: response.logo_url });
+							}
+						} catch (e) {
+							console.error("[BusinessSettings] SecureStore sync failed:", e);
 						}
 						Alert.alert("Logo Uploaded", "Account logo updated for all booths.");
 					},
@@ -357,9 +365,13 @@ export function BusinessSettingsModal({
 							{ userId },
 							{
 								onSuccess: async () => {
-									const stored = await getStoredUser();
-									if (stored) {
-										await saveUser({ ...stored, logo_url: null });
+									try {
+										const stored = await getStoredUser();
+										if (stored) {
+											await saveUser({ ...stored, logo_url: null });
+										}
+									} catch (e) {
+										console.error("[BusinessSettings] SecureStore sync failed:", e);
 									}
 								},
 								onError: (error) => {
