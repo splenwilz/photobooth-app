@@ -35,6 +35,18 @@ export const queryKeys = {
   },
 
   /**
+   * User profile query keys
+   * @see /api/users/queries.ts
+   */
+  users: {
+    /**
+     * Get user profile by ID
+     * @see GET /api/v1/users/{user_id}
+     */
+    profile: (userId: string) => ['users', 'profile', userId] as const,
+  },
+
+  /**
    * Booth-related query keys
    * @see /api/booths/queries.ts
    */
@@ -70,6 +82,12 @@ export const queryKeys = {
      * @see GET /api/v1/booths/{booth_id}/credentials
      */
     credentials: (boothId: string) => ['booths', 'credentials', boothId] as const,
+
+    /**
+     * Get booth business settings
+     * @see GET /api/v1/booths/{booth_id}/business-settings
+     */
+    businessSettings: (boothId: string) => ['booths', 'businessSettings', boothId] as const,
   },
 
   /**

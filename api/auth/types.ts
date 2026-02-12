@@ -19,6 +19,10 @@ export interface AuthUser {
   created_at: string;
   updated_at: string;
   is_onboarded: boolean;
+  /** Account-level business name (null if not set) */
+  business_name: string | null;
+  /** Presigned URL for account logo (null if no logo) */
+  logo_url: string | null;
 }
 
 /**
