@@ -682,3 +682,81 @@ export interface SyncTemplatesResponse {
   message: string;
 }
 
+// ============================================================================
+// BUSINESS SETTINGS TYPES
+// ============================================================================
+
+/**
+ * Response from booth business settings endpoint
+ * @see GET /api/v1/booths/{booth_id}/business-settings
+ */
+export interface BoothBusinessSettingsResponse {
+  /** Account-level business name */
+  business_name: string | null;
+  /** Presigned URL for the effective logo (custom if overridden, otherwise account) */
+  logo_url: string | null;
+  /** Presigned URL for the booth's own uploaded custom logo, or null if none */
+  custom_logo_url: string | null;
+  /** Whether this booth uses a custom logo override */
+  use_custom_logo: boolean;
+  /** Whether to show logo on printed photos */
+  show_logo_on_prints: boolean;
+  /** Booth physical address */
+  address: string | null;
+  /** Whether to show the business name on the welcome screen */
+  show_business_name: boolean;
+  /** Whether to show the logo on the welcome screen */
+  show_logo: boolean;
+  /** Custom welcome screen subtitle text */
+  welcome_subtitle: string | null;
+  /** Whether to show the subtitle on the welcome screen */
+  show_welcome_subtitle: boolean;
+}
+
+/**
+ * Request body for updating booth settings
+ * @see PATCH /api/v1/booths/{booth_id}
+ */
+export interface UpdateBoothSettingsRequest {
+  /** Booth name (1-100 chars) */
+  name?: string;
+  /** Physical location (max 500 chars) */
+  address?: string;
+  /** true = use custom booth logo, false = use account logo */
+  use_custom_logo?: boolean;
+  /** Whether to show the logo on printed photos */
+  show_logo_on_prints?: boolean;
+  /** Whether to show the business name on the welcome screen */
+  show_business_name?: boolean;
+  /** Whether to show the logo on the welcome screen */
+  show_logo?: boolean;
+  /** Custom welcome screen subtitle (max 255 chars). null to use default */
+  welcome_subtitle?: string | null;
+  /** Whether to show the subtitle on the welcome screen */
+  show_welcome_subtitle?: boolean;
+}
+
+/**
+ * Response from booth settings update
+ * @see PATCH /api/v1/booths/{booth_id}
+ */
+export interface UpdateBoothSettingsResponse {
+  id: string;
+  name: string;
+  owner_id: string;
+  address: string | null;
+  use_custom_logo: boolean;
+  /** Presigned URL for the effective logo */
+  logo_url: string | null;
+  show_logo_on_prints: boolean;
+  show_business_name: boolean;
+  show_logo: boolean;
+  welcome_subtitle: string | null;
+  show_welcome_subtitle: boolean;
+  status: 'online' | 'offline' | 'warning';
+  last_heartbeat: string | null;
+  last_sync: string | null;
+  created_at: string;
+  subscription: BoothSubscription | null;
+}
+

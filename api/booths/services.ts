@@ -1,5 +1,7 @@
 import { apiClient } from "../client";
+import type { LogoDeleteResponse, LogoUploadResponse } from "../users/types";
 import type {
+	BoothBusinessSettingsResponse,
 	BoothCredentialsResponse,
 	BoothDetailResponse,
 	BoothListResponse,
@@ -15,6 +17,8 @@ import type {
 	RestartRequest,
 	RestartSystemResponse,
 	SyncTemplatesResponse,
+	UpdateBoothSettingsRequest,
+	UpdateBoothSettingsResponse,
 	UpdatePricingRequest,
 	UpdatePricingResponse,
 } from "./types";
@@ -283,6 +287,98 @@ export async function syncBoothTemplates(
 		{
 			method: "POST",
 		},
+	);
+	return response;
+}
+
+// ============================================================================
+// BUSINESS SETTINGS SERVICES
+// ============================================================================
+
+/**
+ * Get booth business settings
+ * Returns account-level business name, effective logo, and per-booth settings.
+ * @param boothId - The booth ID to fetch settings for
+ * @returns Promise resolving to business settings
+ * @see GET /api/v1/booths/{booth_id}/business-settings
+ */
+export async function getBoothBusinessSettings(
+	boothId: string,
+): Promise<BoothBusinessSettingsResponse> {
+	const response = await apiClient<BoothBusinessSettingsResponse>(
+		`/api/v1/booths/${boothId}/business-settings`,
+		{ method: "GET" },
+	);
+	return response;
+}
+
+/**
+ * Update booth settings (address, logo toggles)
+ * @param boothId - The booth ID to update
+ * @param data - Settings update payload
+ * @returns Promise resolving to updated booth
+ * @see PATCH /api/v1/booths/{booth_id}
+ */
+export async function updateBoothSettings(
+	boothId: string,
+	data: UpdateBoothSettingsRequest,
+): Promise<UpdateBoothSettingsResponse> {
+	const response = await apiClient<UpdateBoothSettingsResponse>(
+		`/api/v1/booths/${boothId}`,
+		{
+			method: "PATCH",
+			body: JSON.stringify(data),
+		},
+	);
+	return response;
+}
+
+/**
+ * Upload a custom logo for a specific booth (multipart/form-data)
+ * Automatically sets use_custom_logo=true on the booth.
+ * @param boothId - The booth ID to upload logo for
+ * @param fileUri - Local file URI from image picker
+ * @param mimeType - MIME type (image/png or image/jpeg)
+ * @param filename - File name
+ * @returns Promise resolving to logo URL and S3 key
+ * @see PUT /api/v1/booths/{booth_id}/logo
+ */
+export async function uploadBoothLogo(
+	boothId: string,
+	fileUri: string,
+	mimeType: string,
+	filename: string,
+): Promise<LogoUploadResponse> {
+	const formData = new FormData();
+	formData.append("file", {
+		uri: fileUri,
+		type: mimeType,
+		name: filename,
+	} as any);
+
+	const response = await apiClient<LogoUploadResponse>(
+		`/api/v1/booths/${boothId}/logo`,
+		{
+			method: "PUT",
+			body: formData,
+		},
+	);
+	return response;
+}
+
+/**
+ * Remove custom booth logo
+ * The booth reverts to using the account logo.
+ * @param boothId - The booth ID to remove logo for
+ * @returns Promise resolving to confirmation message
+ * @see DELETE /api/v1/booths/{booth_id}/logo
+ */
+export async function deleteBoothLogo(
+	boothId: string,
+): Promise<LogoDeleteResponse> {
+	const response = await apiClient<LogoDeleteResponse>(
+		`/api/v1/booths/${boothId}/logo`,
+		{ method: "DELETE" },
 	);
 	return response;
 }

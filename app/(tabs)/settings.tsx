@@ -54,6 +54,7 @@ import { useBoothCredits } from "@/api/credits";
 import { useBoothSubscription, useCreateBoothCheckout } from "@/api/payments";
 import { queryKeys } from "@/api/utils/query-keys";
 import {
+  BusinessSettingsModal,
   ConnectionDetailsModal,
   DeleteBoothModal,
 } from "@/components/booths";
@@ -390,11 +391,15 @@ export default function SettingsScreen() {
 	// Pricing plans modal for selecting a subscription plan
 	const [showPricingModal, setShowPricingModal] = useState(false);
 
+	// State for Business Settings modal
+	const [showBusinessSettingsModal, setShowBusinessSettingsModal] = useState(false);
+
 	// User profile from stored auth data
 	const [userProfile, setUserProfile] = useState({
 		name: "",
 		email: "",
 		initials: "",
+		userId: "",
 	});
 
 	// Load user profile from storage on mount
@@ -408,6 +413,7 @@ export default function SettingsScreen() {
 					name: fullName || "User",
 					email: user.email,
 					initials: initials || "U",
+					userId: user.id,
 				});
 			}
 		};
@@ -702,7 +708,18 @@ export default function SettingsScreen() {
 					</View>
 				)}
 
-				{/* Subscription & Billing Section */}
+				{/* Business Branding - Always visible (account-level settings) */}
+				<View style={styles.section}>
+					<SectionHeader title="Business Branding" subtitle="Logo and business name" />
+					<SettingsItem
+						icon="building.2"
+						title="Business Settings"
+						subtitle="Manage logo and business name"
+						onPress={() => setShowBusinessSettingsModal(true)}
+					/>
+				</View>
+
+			{/* Subscription & Billing Section */}
 				{!isAllBoothsMode && (
 					<View style={styles.section}>
 						<SectionHeader title="Subscription & Billing" subtitle="Manage booth subscription" />
@@ -1042,6 +1059,14 @@ export default function SettingsScreen() {
 				visible={showSubscriptionModal}
 				onClose={() => setShowSubscriptionModal(false)}
 				boothId={effectiveBoothId}
+			/>
+
+			{/* Business Settings Modal */}
+			<BusinessSettingsModal
+				visible={showBusinessSettingsModal}
+				boothId={effectiveBoothId}
+				userId={userProfile.userId}
+				onClose={() => setShowBusinessSettingsModal(false)}
 			/>
 
 			{/* Pricing Plans Modal - only render when boothId is valid */}

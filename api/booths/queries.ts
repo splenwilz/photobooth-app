@@ -4,7 +4,9 @@ import {
 	cancelBoothRestart,
 	createBooth,
 	deleteBooth,
+	deleteBoothLogo,
 	generateBoothCode,
+	getBoothBusinessSettings,
 	getBoothCredentials,
 	getBoothDetail,
 	getBoothList,
@@ -15,8 +17,11 @@ import {
 	restartBoothSystem,
 	syncBoothTemplates,
 	updateBoothPricing,
+	updateBoothSettings,
+	uploadBoothLogo,
 } from "./services";
 import type {
+	BoothBusinessSettingsResponse,
 	BoothCredentialsResponse,
 	BoothDetailResponse,
 	BoothListResponse,
@@ -26,6 +31,7 @@ import type {
 	DashboardOverviewResponse,
 	GenerateCodeResponse,
 	RestartRequest,
+	UpdateBoothSettingsRequest,
 	UpdatePricingRequest,
 } from "./types";
 
@@ -137,7 +143,7 @@ export function useBoothDetail(boothId: string | null) {
  */
 export function useBoothOverview() {
 	return useQuery<BoothOverviewResponse>({
-		queryKey: queryKeys.booths.all(),
+		queryKey: queryKeys.booths.overview(),
 		queryFn: getBoothOverview,
 		staleTime: 1 * 60 * 1000, // 1 minute - shows real-time status
 	});
@@ -443,5 +449,108 @@ export function useSyncBoothTemplates() {
 	return useMutation({
 		mutationFn: ({ boothId }: { boothId: string }) =>
 			syncBoothTemplates(boothId),
+	});
+}
+
+// ============================================================================
+// BUSINESS SETTINGS HOOKS
+// ============================================================================
+
+/**
+ * Hook to fetch booth business settings
+ * Returns business name, effective logo, custom logo toggle, print settings, address.
+ *
+ * @param boothId - The booth ID to fetch settings for (null to disable)
+ * @returns React Query result with business settings
+ * @see GET /api/v1/booths/{booth_id}/business-settings
+ */
+export function useBoothBusinessSettings(boothId: string | null) {
+	return useQuery<BoothBusinessSettingsResponse>({
+		queryKey: boothId
+			? queryKeys.booths.businessSettings(boothId)
+			: ["booths", "businessSettings", null],
+		queryFn: () => getBoothBusinessSettings(boothId!),
+		enabled: !!boothId,
+		staleTime: 5 * 60 * 1000, // 5 minutes
+	});
+}
+
+/**
+ * Hook to update booth settings (address, use_custom_logo, show_logo_on_prints)
+ *
+ * @returns React Query mutation for booth settings update
+ * @see PATCH /api/v1/booths/{booth_id}
+ */
+export function useUpdateBoothSettings() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			boothId,
+			...data
+		}: { boothId: string } & UpdateBoothSettingsRequest) =>
+			updateBoothSettings(boothId, data),
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.businessSettings(variables.boothId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.detail(variables.boothId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.list(),
+			});
+		},
+	});
+}
+
+/**
+ * Hook to upload a custom booth logo
+ * The backend automatically sets use_custom_logo=true.
+ *
+ * @returns React Query mutation for booth logo upload
+ * @see PUT /api/v1/booths/{booth_id}/logo
+ */
+export function useUploadBoothLogo() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			boothId,
+			fileUri,
+			mimeType,
+			filename,
+		}: {
+			boothId: string;
+			fileUri: string;
+			mimeType: string;
+			filename: string;
+		}) => uploadBoothLogo(boothId, fileUri, mimeType, filename),
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.businessSettings(variables.boothId),
+			});
+		},
+	});
+}
+
+/**
+ * Hook to delete custom booth logo
+ * The booth reverts to using the account logo.
+ *
+ * @returns React Query mutation for booth logo deletion
+ * @see DELETE /api/v1/booths/{booth_id}/logo
+ */
+export function useDeleteBoothLogo() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ boothId }: { boothId: string }) =>
+			deleteBoothLogo(boothId),
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.businessSettings(variables.boothId),
+			});
+		},
 	});
 }
