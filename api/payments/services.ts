@@ -189,6 +189,7 @@ export async function getBoothSubscriptions(): Promise<BoothSubscriptionsListRes
 export async function getBoothSubscription(
 	boothId: string,
 ): Promise<BoothSubscriptionItem> {
+	if (!boothId) throw new Error("Booth ID is required for getBoothSubscription");
 	const response = await apiClient<BoothSubscriptionItem>(
 		`/api/v1/booths/${boothId}/subscription`,
 		{ method: "GET" },

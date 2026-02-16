@@ -289,8 +289,10 @@ export default function CreditsHistoryScreen() {
 		apiParams,
 	]);
 
-	// Handle refresh
+	// Handle refresh - skip if no booth selected to avoid /booths/null/ API calls
 	const handleRefresh = useCallback(async () => {
+		if (!effectiveBoothId) return;
+
 		setAllTransactions([]);
 		setTotalCount(0);
 		setReachedEnd(false);
@@ -304,7 +306,7 @@ export default function CreditsHistoryScreen() {
 			setAllTransactions(historyResult.data.transactions);
 			setTotalCount(historyResult.data.total);
 		}
-	}, [refetchHistory, refetchCredits]);
+	}, [effectiveBoothId, refetchHistory, refetchCredits]);
 
 	// Handle filter apply
 	const handleApplyFilters = useCallback((newFilters: FilterState) => {

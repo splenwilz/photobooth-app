@@ -65,6 +65,7 @@ export async function getBoothList(): Promise<BoothListResponse> {
  * @see GET /api/v1/booths/{booth_id}/overview
  */
 export async function getBoothDetail(boothId: string): Promise<BoothDetailResponse> {
+	if (!boothId) throw new Error("Booth ID is required for getBoothDetail");
 	const response = await apiClient<BoothDetailResponse>(
 		`/api/v1/booths/${boothId}/overview`,
 		{
@@ -110,6 +111,7 @@ export async function getDashboardOverview(): Promise<DashboardOverviewResponse>
 export async function getBoothPricing(
 	boothId: string,
 ): Promise<BoothPricingResponse> {
+	if (!boothId) throw new Error("Booth ID is required for getBoothPricing");
 	const response = await apiClient<BoothPricingResponse>(
 		`/api/v1/booths/${boothId}/pricing`,
 		{
