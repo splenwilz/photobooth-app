@@ -55,7 +55,7 @@ export async function addBoothCredits(
 	boothId: string,
 	data: AddCreditsRequest,
 ): Promise<AddCreditsResponse> {
-	// apiClient is a fetch-like function, not axios
+	if (!boothId) throw new Error("Booth ID is required for addBoothCredits");
 	const response = await apiClient<AddCreditsResponse>(
 		`/api/v1/booths/${boothId}/credits`,
 		{
@@ -117,6 +117,7 @@ export async function deleteCreditsHistory(
 	boothId: string,
 	params?: DeleteCreditsHistoryParams,
 ): Promise<DeleteCreditsHistoryResponse> {
+	if (!boothId) throw new Error("Booth ID is required for deleteCreditsHistory");
 	// Build query string for filters
 	const queryParams = new URLSearchParams();
 	if (params?.transaction_id) queryParams.append("transaction_id", params.transaction_id);
