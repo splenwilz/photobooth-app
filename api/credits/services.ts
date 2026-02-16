@@ -32,7 +32,7 @@ import type {
 export async function getBoothCredits(
 	boothId: string,
 ): Promise<BoothCreditsResponse> {
-	// apiClient is a fetch-like function, not axios
+	if (!boothId) throw new Error("Booth ID is required for getBoothCredits");
 	const response = await apiClient<BoothCreditsResponse>(
 		`/api/v1/booths/${boothId}/credits`,
 		{ method: "GET" },
@@ -81,6 +81,7 @@ export async function getCreditsHistory(
 	boothId: string,
 	params?: CreditsHistoryParams,
 ): Promise<CreditsHistoryResponse> {
+	if (!boothId) throw new Error("Booth ID is required for getCreditsHistory");
 	// Build query string for pagination and filters
 	const queryParams = new URLSearchParams();
 	if (params?.limit !== undefined) queryParams.append("limit", params.limit.toString());

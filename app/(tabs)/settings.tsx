@@ -358,20 +358,25 @@ export default function SettingsScreen() {
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
 	// Pull-to-refresh handler
+	// Only refetch booth-specific queries when a booth is selected,
+	// since refetch() bypasses TanStack Query's enabled flag
 	const onRefresh = useCallback(async () => {
 		setIsRefreshing(true);
 		try {
-			await Promise.all([
-				refetchOverview(),
-				refetchDetail(),
-				refetchCredits(),
-				refetchPricing(),
-				refetchSubscription(),
-			]);
+			const promises: Promise<unknown>[] = [refetchOverview()];
+			if (effectiveBoothId) {
+				promises.push(
+					refetchDetail(),
+					refetchCredits(),
+					refetchPricing(),
+					refetchSubscription(),
+				);
+			}
+			await Promise.all(promises);
 		} finally {
 			setIsRefreshing(false);
 		}
-	}, [refetchOverview, refetchDetail, refetchCredits, refetchPricing, refetchSubscription]);
+	}, [effectiveBoothId, refetchOverview, refetchDetail, refetchCredits, refetchPricing, refetchSubscription]);
 
 	// State for Add Credits modal
 	const [showAddCreditsModal, setShowAddCreditsModal] = useState(false);
