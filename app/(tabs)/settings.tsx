@@ -57,6 +57,7 @@ import {
   BusinessSettingsModal,
   ConnectionDetailsModal,
   DeleteBoothModal,
+  EmergencyPasswordModal,
 } from "@/components/booths";
 import {
   SubscriptionDetailsModal,
@@ -398,6 +399,9 @@ export default function SettingsScreen() {
 
 	// State for Business Settings modal
 	const [showBusinessSettingsModal, setShowBusinessSettingsModal] = useState(false);
+
+	// State for Emergency Password modal
+	const [showEmergencyPasswordModal, setShowEmergencyPasswordModal] = useState(false);
 
 	// User profile from stored auth data
 	const [userProfile, setUserProfile] = useState({
@@ -892,6 +896,13 @@ export default function SettingsScreen() {
 					/>
 
 						<SettingsItem
+							icon="lock.shield"
+							title="Emergency Password"
+							subtitle="Generate a one-time emergency access code"
+							onPress={() => setShowEmergencyPasswordModal(true)}
+						/>
+
+						<SettingsItem
 							icon="arrow.clockwise"
 							title="Restart Booth App"
 							subtitle={
@@ -1072,6 +1083,14 @@ export default function SettingsScreen() {
 				boothId={effectiveBoothId}
 				userId={userProfile.userId}
 				onClose={() => setShowBusinessSettingsModal(false)}
+			/>
+
+			{/* Emergency Password Modal */}
+			<EmergencyPasswordModal
+				visible={showEmergencyPasswordModal}
+				boothId={effectiveBoothId}
+				boothName={boothName}
+				onClose={() => setShowEmergencyPasswordModal(false)}
 			/>
 
 			{/* Pricing Plans Modal - only render when boothId is valid */}
