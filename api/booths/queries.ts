@@ -13,6 +13,7 @@ import {
 	getBoothOverview,
 	getBoothPricing,
 	getDashboardOverview,
+	requestEmergencyPassword,
 	restartBoothApp,
 	restartBoothSystem,
 	syncBoothTemplates,
@@ -29,6 +30,7 @@ import type {
 	BoothPricingResponse,
 	CreateBoothRequest,
 	DashboardOverviewResponse,
+	EmergencyPasswordRequest,
 	GenerateCodeResponse,
 	RestartRequest,
 	UpdateBoothSettingsRequest,
@@ -552,5 +554,45 @@ export function useDeleteBoothLogo() {
 				queryKey: queryKeys.booths.businessSettings(variables.boothId),
 			});
 		},
+	});
+}
+
+// ============================================================================
+// EMERGENCY PASSWORD HOOKS
+// ============================================================================
+
+/**
+ * Hook to request a self-service emergency password for a booth
+ * The password is emailed to the booth owner and is NOT included in the response.
+ * Maximum 3 active emergency passwords per booth at any time.
+ *
+ * Usage:
+ * ```tsx
+ * const { mutate: requestPassword, isPending } = useRequestEmergencyPassword();
+ *
+ * requestPassword({
+ *   boothId: 'booth-123',
+ *   reason: 'Locked out of booth at event venue',
+ *   validity_minutes: 15,
+ * }, {
+ *   onSuccess: (data) => {
+ *     Alert.alert('Success', `Password sent to ${data.emailed_to}`);
+ *   },
+ *   onError: (error) => {
+ *     // Handle 429 (too many active passwords), 403 (not owner), etc.
+ *   },
+ * });
+ * ```
+ *
+ * @returns React Query mutation for emergency password request
+ * @see POST /api/v1/booths/{booth_id}/emergency-password
+ */
+export function useRequestEmergencyPassword() {
+	return useMutation({
+		mutationFn: ({
+			boothId,
+			...data
+		}: { boothId: string } & EmergencyPasswordRequest) =>
+			requestEmergencyPassword(boothId, data),
 	});
 }

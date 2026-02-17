@@ -12,6 +12,8 @@ import type {
 	CreateBoothResponse,
 	DashboardOverviewResponse,
 	DeleteBoothResponse,
+	EmergencyPasswordRequest,
+	EmergencyPasswordResponse,
 	GenerateCodeResponse,
 	RestartAppResponse,
 	RestartRequest,
@@ -381,6 +383,35 @@ export async function deleteBoothLogo(
 	const response = await apiClient<LogoDeleteResponse>(
 		`/api/v1/booths/${boothId}/logo`,
 		{ method: "DELETE" },
+	);
+	return response;
+}
+
+// ============================================================================
+// EMERGENCY PASSWORD SERVICES
+// ============================================================================
+
+/**
+ * Request a self-service emergency password for a booth
+ * The password is emailed to the booth owner's registered email and is NOT included in the response.
+ * Maximum 3 active emergency passwords per booth at any time.
+ *
+ * @param boothId - The booth ID to generate emergency password for
+ * @param data - Request with reason and optional validity duration
+ * @returns Promise resolving to confirmation with masked email and expiry info
+ * @see POST /api/v1/booths/{booth_id}/emergency-password
+ */
+export async function requestEmergencyPassword(
+	boothId: string,
+	data: EmergencyPasswordRequest,
+): Promise<EmergencyPasswordResponse> {
+	if (!boothId) throw new Error("Booth ID is required for requestEmergencyPassword");
+	const response = await apiClient<EmergencyPasswordResponse>(
+		`/api/v1/booths/${boothId}/emergency-password`,
+		{
+			method: "POST",
+			body: JSON.stringify(data),
+		},
 	);
 	return response;
 }

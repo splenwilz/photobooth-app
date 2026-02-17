@@ -760,3 +760,36 @@ export interface UpdateBoothSettingsResponse {
   subscription: BoothSubscription | null;
 }
 
+// ============================================================================
+// EMERGENCY PASSWORD TYPES
+// ============================================================================
+
+/**
+ * Request body for generating a self-service emergency password
+ * @see POST /api/v1/booths/{booth_id}/emergency-password
+ */
+export interface EmergencyPasswordRequest {
+  /** Password validity in minutes (5-30, default: 15) */
+  validity_minutes?: number;
+  /** Reason for emergency access (10-500 chars) */
+  reason: string;
+}
+
+/**
+ * Response from emergency password generation endpoint
+ * Note: The actual password is emailed and never returned in the response
+ * @see POST /api/v1/booths/{booth_id}/emergency-password
+ */
+export interface EmergencyPasswordResponse {
+  message: string;
+  booth_id: string;
+  booth_name: string;
+  /** ISO timestamp when password expires */
+  expires_at: string;
+  validity_minutes: number;
+  /** Partially masked email for confirmation (e.g., "jo***@example.com") */
+  emailed_to: string;
+  /** ISO timestamp when password was issued */
+  issued_at: string;
+}
+
