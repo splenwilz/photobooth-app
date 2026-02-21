@@ -80,9 +80,8 @@ export function BusinessSettingsModal({
 
 	// ── Queries ──────────────────────────────────────────────────────────
 	const { data: userProfile } = useUserProfile(visible ? userId : null);
-	const { data: boothSettings } = useBoothBusinessSettings(
-		visible ? boothId : null,
-	);
+	const { data: boothSettings, isFetching: isBoothSettingsFetching } =
+		useBoothBusinessSettings(visible ? boothId : null);
 
 	// ── Mutations ────────────────────────────────────────────────────────
 	const updateBusinessNameMutation = useUpdateBusinessName();
@@ -100,15 +99,16 @@ export function BusinessSettingsModal({
 	const [showLogo, setShowLogo] = useState(true);
 	const [welcomeSubtitle, setWelcomeSubtitle] = useState("");
 	const [showWelcomeSubtitle, setShowWelcomeSubtitle] = useState(true);
+	const [cloudSyncEnabled, setCloudSyncEnabled] = useState(true);
+	const [useCustomLogo, setUseCustomLogo] = useState(false);
 	const [logoTab, setLogoTab] = useState<"account" | "booth">("account");
 	const [keyboardHeight, setKeyboardHeight] = useState(0);
 
 	// ── Derived values ───────────────────────────────────────────────────
 	const accountLogoUrl = userProfile?.logo_url ?? null;
 	const boothCustomLogoUrl = boothSettings?.custom_logo_url ?? null;
-	const useCustomLogo = boothSettings?.use_custom_logo ?? false;
 
-	// ── Populate form on modal open (once data is available) ─────────────
+	// ── Populate form on modal open (once fresh data is available) ───────
 	const hasPopulated = useRef(false);
 	useEffect(() => {
 		if (!visible) {
@@ -116,6 +116,7 @@ export function BusinessSettingsModal({
 			return;
 		}
 		if (hasPopulated.current) return;
+		if (isBoothSettingsFetching) return; // Wait for fresh data, not stale cache
 
 		// Wait for data before populating
 		const hasUserData = !!userProfile;
@@ -129,9 +130,12 @@ export function BusinessSettingsModal({
 		setShowLogo(boothSettings?.show_logo ?? true);
 		setWelcomeSubtitle(boothSettings?.welcome_subtitle ?? "");
 		setShowWelcomeSubtitle(boothSettings?.show_welcome_subtitle ?? true);
-		setLogoTab(useCustomLogo ? "booth" : "account");
+		setCloudSyncEnabled(boothSettings?.cloud_sync_enabled ?? true);
+		const customLogo = boothSettings?.use_custom_logo ?? false;
+		setUseCustomLogo(customLogo);
+		setLogoTab(customLogo ? "booth" : "account");
 		hasPopulated.current = true;
-	}, [visible, userProfile, boothSettings, boothId, useCustomLogo]);
+	}, [visible, userProfile, boothSettings, boothId, isBoothSettingsFetching]);
 
 	// ── Keyboard handling ────────────────────────────────────────────────
 	useEffect(() => {
@@ -171,6 +175,9 @@ export function BusinessSettingsModal({
 	const hasShowWelcomeSubtitleChange =
 		boothId != null &&
 		showWelcomeSubtitle !== (boothSettings?.show_welcome_subtitle ?? true);
+	const hasCloudSyncEnabledChange =
+		boothId != null &&
+		cloudSyncEnabled !== (boothSettings?.cloud_sync_enabled ?? true);
 
 	const isProcessing =
 		updateBusinessNameMutation.isPending ||
@@ -186,7 +193,7 @@ export function BusinessSettingsModal({
 	};
 
 	const hasBoothSettingsChange =
-		hasAddressChange || hasShowLogoOnPrintsChange || hasShowBusinessNameChange || hasShowLogoChange || hasWelcomeSubtitleChange || hasShowWelcomeSubtitleChange;
+		hasAddressChange || hasShowLogoOnPrintsChange || hasShowBusinessNameChange || hasShowLogoChange || hasWelcomeSubtitleChange || hasShowWelcomeSubtitleChange || hasCloudSyncEnabledChange;
 
 	const hasAnyChange = hasBusinessNameChange || hasBoothSettingsChange;
 
@@ -239,6 +246,9 @@ export function BusinessSettingsModal({
 							: {}),
 						...(hasShowWelcomeSubtitleChange
 							? { show_welcome_subtitle: showWelcomeSubtitle }
+							: {}),
+						...(hasCloudSyncEnabledChange
+							? { cloud_sync_enabled: cloudSyncEnabled }
 							: {}),
 					})
 					.then(() => {})
@@ -408,14 +418,19 @@ export function BusinessSettingsModal({
 	/** Toggle use_custom_logo on the booth */
 	const handleToggleCustomLogo = (value: boolean) => {
 		if (!boothId) return;
+		setUseCustomLogo(value);
+		setLogoTab(value ? "booth" : "account");
 		updateBoothSettingsMutation.mutate(
 			{ boothId, use_custom_logo: value },
 			{
-				onError: (error) =>
+				onError: (error) => {
+					setUseCustomLogo(!value);
+					setLogoTab(!value ? "booth" : "account");
 					Alert.alert(
 						"Error",
 						error.message || "Failed to update logo setting.",
-					),
+					);
+				},
 			},
 		);
 	};
@@ -599,7 +614,6 @@ export function BusinessSettingsModal({
 										onValueChange={handleToggleCustomLogo}
 										trackColor={{ false: borderColor, true: BRAND_COLOR }}
 										thumbColor="white"
-										disabled={updateBoothSettingsMutation.isPending}
 									/>
 								</View>
 
@@ -1016,11 +1030,59 @@ export function BusinessSettingsModal({
 									/>
 								</View>
 
+								{/* Cloud Sync */}
+								<View
+									style={[
+										styles.toggleContainer,
+										{ backgroundColor: cardBg, borderColor },
+									]}
+								>
+									<View style={styles.toggleContent}>
+										<View
+											style={[
+												styles.toggleIconContainer,
+												{
+													backgroundColor: withAlpha(BRAND_COLOR, 0.15),
+												},
+											]}
+										>
+											<IconSymbol
+												name="cloud"
+												size={20}
+												color={BRAND_COLOR}
+											/>
+										</View>
+										<View style={styles.toggleTextContainer}>
+											<ThemedText
+												type="defaultSemiBold"
+												style={styles.toggleTitle}
+											>
+												Cloud Sync
+											</ThemedText>
+											<ThemedText
+												style={[
+													styles.toggleSubtitle,
+													{ color: textSecondary },
+												]}
+											>
+												Accept cloud-managed business settings
+											</ThemedText>
+										</View>
+									</View>
+									<Switch
+										value={cloudSyncEnabled}
+										onValueChange={setCloudSyncEnabled}
+										trackColor={{ false: borderColor, true: BRAND_COLOR }}
+										thumbColor="white"
+										disabled={updateBoothSettingsMutation.isPending}
+									/>
+								</View>
+
 								</>
 						)}
 
 						{/* Unified save button */}
-						{hasAnyChange && (
+						{hasPopulated.current && hasAnyChange && (
 							<TouchableOpacity
 								style={[
 									styles.saveFieldButton,
