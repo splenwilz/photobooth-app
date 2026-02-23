@@ -711,6 +711,8 @@ export interface BoothBusinessSettingsResponse {
   welcome_subtitle: string | null;
   /** Whether to show the subtitle on the welcome screen */
   show_welcome_subtitle: boolean;
+  /** Whether the booth accepts cloud-managed business settings */
+  cloud_sync_enabled: boolean;
 }
 
 /**
@@ -734,6 +736,8 @@ export interface UpdateBoothSettingsRequest {
   welcome_subtitle?: string | null;
   /** Whether to show the subtitle on the welcome screen */
   show_welcome_subtitle?: boolean;
+  /** Whether the booth accepts cloud-managed business settings */
+  cloud_sync_enabled?: boolean;
 }
 
 /**

@@ -473,7 +473,7 @@ export function useBoothBusinessSettings(boothId: string | null) {
 			: ["booths", "businessSettings", null],
 		queryFn: () => getBoothBusinessSettings(boothId!),
 		enabled: !!boothId,
-		staleTime: 5 * 60 * 1000, // 5 minutes
+		staleTime: 0,
 	});
 }
 
@@ -492,7 +492,25 @@ export function useUpdateBoothSettings() {
 			...data
 		}: { boothId: string } & UpdateBoothSettingsRequest) =>
 			updateBoothSettings(boothId, data),
-		onSuccess: (_, variables) => {
+		onMutate: async (variables) => {
+			const queryKey = queryKeys.booths.businessSettings(variables.boothId);
+			await queryClient.cancelQueries({ queryKey });
+			const previous = queryClient.getQueryData<BoothBusinessSettingsResponse>(queryKey);
+			if (previous) {
+				const { boothId: _, ...updates } = variables;
+				queryClient.setQueryData<BoothBusinessSettingsResponse>(queryKey, {
+					...previous,
+					...updates,
+				});
+			}
+			return { previous, queryKey };
+		},
+		onError: (_error, _variables, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData(context.queryKey, context.previous);
+			}
+		},
+		onSettled: (_, __, variables) => {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.booths.businessSettings(variables.boothId),
 			});
