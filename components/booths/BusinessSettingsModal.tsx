@@ -614,6 +614,7 @@ export function BusinessSettingsModal({
 										onValueChange={handleToggleCustomLogo}
 										trackColor={{ false: borderColor, true: BRAND_COLOR }}
 										thumbColor="white"
+										disabled={updateBoothSettingsMutation.isPending}
 									/>
 								</View>
 
