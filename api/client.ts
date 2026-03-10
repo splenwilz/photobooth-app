@@ -446,40 +446,51 @@ export async function apiClient<T>(
       headers,
     };
 
-    try {
-      // Add timeout to prevent fetch from hanging indefinitely
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    // Track whether our timeout triggered the abort (vs caller cancellation)
+    let timedOut = false;
 
-      // If the caller passed an AbortSignal (e.g. React Query cancellation),
-      // forward its abort to our local controller so both can cancel the request.
-      const callerSignal = fetchOptions.signal;
-      if (callerSignal) {
-        if (callerSignal.aborted) {
-          controller.abort();
-        } else {
-          callerSignal.addEventListener("abort", () => controller.abort(), { once: true });
-        }
+    // Add timeout to prevent fetch from hanging indefinitely
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 30000); // 30s timeout
+
+    // If the caller passed an AbortSignal (e.g. React Query cancellation),
+    // forward its abort to our local controller so both can cancel the request.
+    const callerSignal = fetchOptions.signal;
+    const onCallerAbort = callerSignal
+      ? () => controller.abort()
+      : undefined;
+    if (callerSignal) {
+      if (callerSignal.aborted) {
+        controller.abort();
+      } else {
+        callerSignal.addEventListener("abort", onCallerAbort!, { once: true });
       }
+    }
 
+    try {
       const response = await fetch(targetUrl, {
         ...fetchOptions,
         signal: controller.signal,
       });
-      clearTimeout(timeoutId);
       return response;
     } catch (fetchError) {
-      const isTimeout = fetchError instanceof Error && fetchError.name === "AbortError";
-
       throw new ApiError(
         0,
-        isTimeout
+        timedOut
           ? "Request timed out. Please check your connection."
           : fetchError instanceof Error
             ? `Network error: ${fetchError.message}`
             : "Network error: Failed to connect to server",
         fetchError,
       );
+    } finally {
+      clearTimeout(timeoutId);
+      if (callerSignal && onCallerAbort) {
+        callerSignal.removeEventListener("abort", onCallerAbort);
+      }
     }
   }
 
