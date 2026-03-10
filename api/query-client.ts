@@ -1,15 +1,17 @@
 import { QueryCache, QueryClient } from '@tanstack/react-query';
 
+/** Duck-typed guard to detect session-expired errors without importing ApiError (avoids circular deps). */
+function isSessionExpiredError(error: unknown): error is { isSessionExpired: boolean } {
+    return error != null && typeof error === 'object' && 'isSessionExpired' in error && (error as { isSessionExpired: boolean }).isSessionExpired;
+}
+
 /**
  * Handle session-expired errors globally as a fallback.
  * If the API client's handleSessionExpiration() fails to redirect,
  * this ensures the user still gets sent to the login screen.
- *
- * Uses duck typing to check for isSessionExpired to avoid circular imports
- * (client.ts imports queryClient from this file).
  */
 function handleGlobalQueryError(error: Error) {
-    if (error != null && typeof error === 'object' && 'isSessionExpired' in error && (error as { isSessionExpired: boolean }).isSessionExpired) {
+    if (isSessionExpiredError(error)) {
         import('expo-router').then(({ router }) => {
             router.replace('/auth/signin');
         }).catch(() => {
@@ -34,7 +36,7 @@ export const queryClient = new QueryClient({
         queries: {
             // Don't retry session-expired errors, retry others once
             retry: (failureCount, error) => {
-                if (error != null && typeof error === 'object' && 'isSessionExpired' in error && (error as { isSessionExpired: boolean }).isSessionExpired) return false;
+                if (isSessionExpiredError(error)) return false;
                 return failureCount < 1;
             },
             // Data considered fresh for 5 minutes
