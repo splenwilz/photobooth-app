@@ -1,21 +1,44 @@
-import { QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
+
+/** Duck-typed guard to detect session-expired errors without importing ApiError (avoids circular deps). */
+function isSessionExpiredError(error: unknown): error is { isSessionExpired: boolean } {
+    return error != null && typeof error === 'object' && 'isSessionExpired' in error && (error as { isSessionExpired: boolean }).isSessionExpired;
+}
+
+/**
+ * Handle session-expired errors globally as a fallback.
+ * If the API client's handleSessionExpiration() fails to redirect,
+ * this ensures the user still gets sent to the login screen.
+ */
+function handleGlobalQueryError(error: Error) {
+    if (isSessionExpiredError(error)) {
+        import('expo-router').then(({ router }) => {
+            router.replace('/auth/signin');
+        }).catch(() => {
+            // Last resort: nothing we can do, error state will show in the UI
+        });
+    }
+}
 
 /**
  * QueryClient configuration with sensible defaults for React Native
- * 
+ *
  * Default options:
- * - retry: 1 (retry failed requests once)
+ * - retry: Don't retry session-expired errors (no point retrying with invalid tokens)
  * - staleTime: 5 minutes (data considered fresh for 5 minutes)
  * - gcTime: 10 minutes (cached data kept for 10 minutes after unused)
- * 
+ *
  * @see https://tanstack.com/query/latest/docs/react/guides/important-defaults
  * @see https://tanstack.com/query/latest/docs/react/reference/QueryClient
  */
 export const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            // Retry failed requests once before giving up
-            retry: 1,
+            // Don't retry session-expired errors, retry others once
+            retry: (failureCount, error) => {
+                if (isSessionExpiredError(error)) return false;
+                return failureCount < 1;
+            },
             // Data considered fresh for 5 minutes
             staleTime: 5 * 60 * 1000,
             // Cached data kept for 10 minutes after unused
@@ -25,9 +48,17 @@ export const queryClient = new QueryClient({
             refetchOnReconnect: true,
         },
         mutations: {
-            // Retry failed mutations once
-            retry: 1,
+            // Don't retry session-expired errors, retry others once
+            retry: (failureCount, error) => {
+                if (isSessionExpiredError(error)) return false;
+                return failureCount < 1;
+            },
         },
     },
+    queryCache: new QueryCache({
+        onError: handleGlobalQueryError,
+    }),
+    mutationCache: new MutationCache({
+        onError: handleGlobalQueryError,
+    }),
 });
-

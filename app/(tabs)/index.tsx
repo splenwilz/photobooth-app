@@ -15,7 +15,7 @@
 
 import { useIsFocused } from "@react-navigation/native";
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   RefreshControl,
   ScrollView,
@@ -122,6 +122,38 @@ export default function DashboardScreen() {
 		}
 	}, [isHydrated, selectedBoothId, setSelectedBoothId, hasBoothSelected, isLoadingDetail, boothDetail]);
 
+	// Loading timeout - show friendly message if data takes too long (e.g. server unreachable)
+	const [isLoadingTimedOut, setIsLoadingTimedOut] = useState(false);
+	const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	useEffect(() => {
+		const isStillLoading = isLoadingOverview || (hasBoothSelected && isLoadingDetail);
+
+		if (isStillLoading && !hasData) {
+			// Start a 15-second timer when loading begins
+			if (!loadingTimerRef.current) {
+				loadingTimerRef.current = setTimeout(() => {
+					setIsLoadingTimedOut(true);
+					loadingTimerRef.current = null;
+				}, 15000);
+			}
+		} else {
+			// Data arrived or not loading — clear the timer
+			if (loadingTimerRef.current) {
+				clearTimeout(loadingTimerRef.current);
+				loadingTimerRef.current = null;
+			}
+			setIsLoadingTimedOut(false);
+		}
+
+		return () => {
+			if (loadingTimerRef.current) {
+				clearTimeout(loadingTimerRef.current);
+				loadingTimerRef.current = null;
+			}
+		};
+	}, [isLoadingOverview, isLoadingDetail, hasBoothSelected, hasData]);
+
 	// Fetch alerts for notification badge - uses same API as other screens
 	// @see GET /api/v1/analytics/alerts
 	const { data: alertsData } = useAlerts();
@@ -197,6 +229,30 @@ export default function DashboardScreen() {
 
 	// Show skeleton while loading OR while data hasn't arrived yet
 	if ((isInitialLoading || isInvalidBoothSelection || isWaitingForDashboardData || isWaitingForBoothData) && !activeError) {
+		// If loading takes too long, show a friendly message instead of skeleton forever
+		if (isLoadingTimedOut) {
+			return (
+				<SafeAreaView
+					style={[styles.container, { backgroundColor }]}
+					edges={["top"]}
+				>
+					<CustomHeader title="Dashboard" />
+					<ErrorState
+						title="Taking longer than expected"
+						message="We're having trouble reaching the server. Please check your internet connection and try again."
+						onRetry={() => {
+							setIsLoadingTimedOut(false);
+							if (isAllMode) {
+								refetchOverview();
+							} else {
+								refetchDetail();
+							}
+						}}
+					/>
+				</SafeAreaView>
+			);
+		}
+
 		return (
 			<SafeAreaView
 				style={[styles.container, { backgroundColor }]}

@@ -14,7 +14,7 @@
  * @see https://docs.expo.dev/router/introduction/ - Expo Router docs
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -64,6 +64,11 @@ export default function SignInScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textSecondary = useThemeColor({}, 'textSecondary');
   const borderColor = useThemeColor({}, 'border');
+
+  // Clear stale query cache on mount (e.g. after session expiration redirect)
+  useEffect(() => {
+    clearQueryCache();
+  }, []);
 
   // Form state
   const [formData, setFormData] = useState<FormData>({
