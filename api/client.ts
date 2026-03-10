@@ -301,8 +301,10 @@ async function handleSessionExpiration(): Promise<void> {
   isRedirectingToLogin = true;
 
   try {
-    // Clear query cache to prevent stale data
-    clearQueryCache();
+    // NOTE: Do NOT clear query cache here. Clearing the cache before errors
+    // propagate causes useQuery hooks to re-enter loading state (skeleton),
+    // and the errors from in-flight requests are lost. The cache is cleared
+    // on the signin page instead, which prevents stale data from a previous session.
 
     // Dynamically import router to avoid React context issues
     const { router } = await import("expo-router");
@@ -391,7 +393,6 @@ export async function apiClient<T>(
   async function makeRequest(isRetry: boolean = false): Promise<Response> {
     // Get access token from secure storage
     const accessToken = await getAccessToken();
-    // console.log('[API] Access Token:', accessToken)
 
     // If no token and this is not a retry, check if we should redirect to login
     // Skip for public endpoints (like signin, signup, refresh-token)
@@ -446,19 +447,26 @@ export async function apiClient<T>(
     };
 
     try {
-      return await fetch(targetUrl, fetchOptions);
-    } catch (fetchError) {
-      console.error("[API] Network Error:", {
-        url: targetUrl,
-        error:
-          fetchError instanceof Error ? fetchError.message : String(fetchError),
+      // Add timeout to prevent fetch from hanging indefinitely
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+      const response = await fetch(targetUrl, {
+        ...fetchOptions,
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (fetchError) {
+      const isTimeout = fetchError instanceof Error && fetchError.name === "AbortError";
 
       throw new ApiError(
         0,
-        fetchError instanceof Error
-          ? `Network error: ${fetchError.message}`
-          : "Network error: Failed to connect to server",
+        isTimeout
+          ? "Request timed out. Please check your connection."
+          : fetchError instanceof Error
+            ? `Network error: ${fetchError.message}`
+            : "Network error: Failed to connect to server",
         fetchError,
       );
     }
