@@ -1,4 +1,4 @@
-import { QueryCache, QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query';
 
 /** Duck-typed guard to detect session-expired errors without importing ApiError (avoids circular deps). */
 function isSessionExpiredError(error: unknown): error is { isSessionExpired: boolean } {
@@ -48,11 +48,17 @@ export const queryClient = new QueryClient({
             refetchOnReconnect: true,
         },
         mutations: {
-            // Retry failed mutations once
-            retry: 1,
+            // Don't retry session-expired errors, retry others once
+            retry: (failureCount, error) => {
+                if (isSessionExpiredError(error)) return false;
+                return failureCount < 1;
+            },
         },
     },
     queryCache: new QueryCache({
+        onError: handleGlobalQueryError,
+    }),
+    mutationCache: new MutationCache({
         onError: handleGlobalQueryError,
     }),
 });
