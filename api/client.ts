@@ -451,6 +451,17 @@ export async function apiClient<T>(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
+      // If the caller passed an AbortSignal (e.g. React Query cancellation),
+      // forward its abort to our local controller so both can cancel the request.
+      const callerSignal = fetchOptions.signal;
+      if (callerSignal) {
+        if (callerSignal.aborted) {
+          controller.abort();
+        } else {
+          callerSignal.addEventListener("abort", () => controller.abort(), { once: true });
+        }
+      }
+
       const response = await fetch(targetUrl, {
         ...fetchOptions,
         signal: controller.signal,

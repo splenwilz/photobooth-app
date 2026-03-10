@@ -9,7 +9,7 @@ import { QueryCache, QueryClient } from '@tanstack/react-query';
  * (client.ts imports queryClient from this file).
  */
 function handleGlobalQueryError(error: Error) {
-    if ('isSessionExpired' in error && (error as { isSessionExpired: boolean }).isSessionExpired) {
+    if (error != null && typeof error === 'object' && 'isSessionExpired' in error && (error as { isSessionExpired: boolean }).isSessionExpired) {
         import('expo-router').then(({ router }) => {
             router.replace('/auth/signin');
         }).catch(() => {
@@ -34,7 +34,7 @@ export const queryClient = new QueryClient({
         queries: {
             // Don't retry session-expired errors, retry others once
             retry: (failureCount, error) => {
-                if ('isSessionExpired' in error && (error as { isSessionExpired: boolean }).isSessionExpired) return false;
+                if (error != null && typeof error === 'object' && 'isSessionExpired' in error && (error as { isSessionExpired: boolean }).isSessionExpired) return false;
                 return failureCount < 1;
             },
             // Data considered fresh for 5 minutes

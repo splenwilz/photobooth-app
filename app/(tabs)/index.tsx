@@ -134,6 +134,7 @@ export default function DashboardScreen() {
 			if (!loadingTimerRef.current) {
 				loadingTimerRef.current = setTimeout(() => {
 					setIsLoadingTimedOut(true);
+					loadingTimerRef.current = null;
 				}, 15000);
 			}
 		} else {
