@@ -254,6 +254,9 @@ export function DownloadLogsModal({
 										<TouchableOpacity
 											key={option.value}
 											testID={`chip-${option.value}`}
+											accessibilityRole="button"
+											accessibilityState={{ selected: isSelected, disabled: isProcessing }}
+											accessibilityLabel={`${option.label}, ${isSelected ? "selected" : "not selected"}`}
 											style={[
 												styles.chip,
 												{
@@ -300,6 +303,9 @@ export function DownloadLogsModal({
 										<TouchableOpacity
 											key={option.value}
 											testID={`hours-${option.value}`}
+											accessibilityRole="button"
+											accessibilityState={{ selected: isSelected, disabled: isProcessing }}
+											accessibilityLabel={`${option.label}, ${isSelected ? "selected" : "not selected"}`}
 											style={[
 												styles.hoursChip,
 												{
