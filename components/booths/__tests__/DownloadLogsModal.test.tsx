@@ -65,8 +65,9 @@ describe("DownloadLogsModal", () => {
 			/>,
 		);
 
-		expect(getByTestId("chip-application")).toBeTruthy();
-		expect(getByTestId("chip-errors")).toBeTruthy();
+		expect(getByTestId("chip-application").props.accessibilityState.selected).toBe(true);
+		expect(getByTestId("chip-errors").props.accessibilityState.selected).toBe(true);
+		expect(getByTestId("chip-hardware").props.accessibilityState.selected).toBe(false);
 	});
 
 	it("toggles log type selection on chip press and includes it in submit", async () => {
