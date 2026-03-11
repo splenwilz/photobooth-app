@@ -797,3 +797,47 @@ export interface EmergencyPasswordResponse {
   issued_at: string;
 }
 
+// ============================================================================
+// DOWNLOAD LOGS TYPES
+// ============================================================================
+
+/**
+ * Valid log types for download-logs request
+ * @see POST /api/v1/booths/{booth_id}/download-logs
+ */
+export type LogType =
+  | "application"
+  | "application-debug"
+  | "errors"
+  | "hardware"
+  | "transactions"
+  | "performance";
+
+/**
+ * Request body for downloading booth logs
+ * All fields are optional with sensible defaults.
+ * @see POST /api/v1/booths/{booth_id}/download-logs
+ */
+export interface DownloadLogsRequest {
+  /** Types of logs to include (default: ["application", "errors"]) */
+  log_types?: LogType[];
+  /** Number of hours of logs to collect (1-720, default: 24) */
+  hours?: number;
+}
+
+/**
+ * Response from download-logs endpoint
+ * Contains a presigned S3 URL for the log zip file.
+ * @see POST /api/v1/booths/{booth_id}/download-logs
+ */
+export interface DownloadLogsResponse {
+  /** Presigned S3 download URL for the log zip file */
+  download_url: string;
+  /** Size of the zip file in bytes */
+  file_size: number;
+  /** Booth ID the logs belong to */
+  booth_id: string;
+  /** Human-readable message (e.g., "Log files ready (245,760 bytes)") */
+  message: string;
+}
+

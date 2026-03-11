@@ -12,6 +12,8 @@ import type {
 	CreateBoothResponse,
 	DashboardOverviewResponse,
 	DeleteBoothResponse,
+	DownloadLogsRequest,
+	DownloadLogsResponse,
 	EmergencyPasswordRequest,
 	EmergencyPasswordResponse,
 	GenerateCodeResponse,
@@ -411,6 +413,37 @@ export async function requestEmergencyPassword(
 		{
 			method: "POST",
 			body: JSON.stringify(data),
+		},
+	);
+	return response;
+}
+
+// ============================================================================
+// DOWNLOAD LOGS SERVICES
+// ============================================================================
+
+/**
+ * Download logs from a booth
+ * This is a long-running request (5-120 seconds). The API sends a DOWNLOAD_LOGS
+ * command to the booth via WebSocket, waits for the booth to collect/zip/upload
+ * logs to S3, then returns a presigned download URL.
+ *
+ * @param boothId - The booth ID to download logs from
+ * @param data - Optional request body with log types and time range
+ * @returns Promise resolving to a presigned S3 download URL
+ * @see POST /api/v1/booths/{booth_id}/download-logs
+ */
+export async function downloadBoothLogs(
+	boothId: string,
+	data?: DownloadLogsRequest,
+): Promise<DownloadLogsResponse> {
+	if (!boothId) throw new Error("Booth ID is required for downloadBoothLogs");
+	const response = await apiClient<DownloadLogsResponse>(
+		`/api/v1/booths/${boothId}/download-logs`,
+		{
+			method: "POST",
+			body: JSON.stringify(data ?? {}),
+			timeout: 130000, // 130s timeout (booth can take up to 120s)
 		},
 	);
 	return response;
