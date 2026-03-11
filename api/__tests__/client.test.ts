@@ -54,7 +54,7 @@ describe("apiClient timeout", () => {
 		await apiClient("/test", {
 			method: "GET",
 			timeout: 130000,
-		} as any);
+		});
 
 		// Verify the custom timeout value was used
 		const timeoutCalls = setTimeoutSpy.mock.calls.filter(
@@ -67,7 +67,7 @@ describe("apiClient timeout", () => {
 		await apiClient("/test", {
 			method: "GET",
 			timeout: 130000,
-		} as any);
+		});
 
 		// Should NOT have a 30s timeout call
 		const defaultTimeoutCalls = setTimeoutSpy.mock.calls.filter(

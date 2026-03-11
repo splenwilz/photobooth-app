@@ -69,7 +69,14 @@ describe("DownloadLogsModal", () => {
 		expect(getByTestId("chip-errors")).toBeTruthy();
 	});
 
-	it("toggles log type selection on chip press", () => {
+	it("toggles log type selection on chip press and includes it in submit", async () => {
+		mockDownloadBoothLogs.mockResolvedValue({
+			download_url: "https://s3.example.com/logs.zip",
+			file_size: 1024,
+			booth_id: "booth-123",
+			message: "Log files ready",
+		});
+
 		const { getByTestId } = renderWithProviders(
 			<DownloadLogsModal
 				visible
@@ -80,7 +87,14 @@ describe("DownloadLogsModal", () => {
 		);
 
 		fireEvent.press(getByTestId("chip-hardware"));
-		// hardware should now be selected
+		fireEvent.press(getByTestId("submit-button"));
+
+		await waitFor(() => {
+			expect(mockDownloadBoothLogs).toHaveBeenCalledWith("booth-123", {
+				log_types: ["application", "errors", "hardware"],
+				hours: 24,
+			});
+		});
 	});
 
 	it("calls downloadBoothLogs on submit and shows success alert", async () => {

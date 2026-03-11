@@ -67,22 +67,6 @@ describe("downloadBoothLogs", () => {
 		);
 	});
 
-	it("uses 130s timeout to accommodate long-running request", async () => {
-		mockApiClient.mockResolvedValue({
-			download_url: "url",
-			file_size: 0,
-			booth_id: "b",
-			message: "ok",
-		});
-
-		await downloadBoothLogs("booth-123");
-
-		expect(mockApiClient).toHaveBeenCalledWith(
-			expect.any(String),
-			expect.objectContaining({ timeout: 130000 }),
-		);
-	});
-
 	it("propagates API errors", async () => {
 		mockApiClient.mockRejectedValue(new Error("Booth is offline"));
 

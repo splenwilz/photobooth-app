@@ -92,7 +92,9 @@ export function DownloadLogsModal({
 	const [selectedLogTypes, setSelectedLogTypes] =
 		useState<LogType[]>(DEFAULT_LOG_TYPES);
 	const [selectedHours, setSelectedHours] = useState(DEFAULT_HOURS);
-	const [isProcessing, setIsProcessing] = useState(false);
+
+	// Use mutation's pending state instead of local state
+	const isProcessing = downloadLogsMutation.isPending;
 
 	// Validation
 	const isValid = selectedLogTypes.length > 0 && !!boothId;
@@ -108,8 +110,6 @@ export function DownloadLogsModal({
 	const handleSubmit = async () => {
 		if (!isValid || !boothId) return;
 
-		setIsProcessing(true);
-
 		try {
 			const data = await downloadLogsMutation.mutateAsync({
 				boothId,
@@ -117,7 +117,6 @@ export function DownloadLogsModal({
 				hours: selectedHours,
 			});
 
-			setIsProcessing(false);
 			handleClose();
 
 			// Format file size for display
@@ -139,7 +138,6 @@ export function DownloadLogsModal({
 				],
 			);
 		} catch (error: any) {
-			setIsProcessing(false);
 			const message = error?.message || "Failed to download logs.";
 			Alert.alert("Download Failed", message, [{ text: "OK" }]);
 		}
