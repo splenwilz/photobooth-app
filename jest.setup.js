@@ -5,10 +5,12 @@ jest.mock("expo-secure-store", () => ({
   deleteItemAsync: jest.fn(),
 }));
 
-// Mock expo-router
+// Mock expo-router with stable references
+const mockReplace = jest.fn();
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
-  router: { replace: jest.fn(), push: jest.fn() },
-  useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
+  router: { replace: mockReplace, push: mockPush },
+  useRouter: () => ({ replace: mockReplace, push: mockPush }),
 }));
 
 // Mock expo-linking

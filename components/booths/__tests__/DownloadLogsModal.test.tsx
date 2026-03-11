@@ -20,7 +20,7 @@ jest.mock("react-native-safe-area-context", () => ({
 	SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-jest.spyOn(Alert, "alert");
+jest.spyOn(Alert, "alert").mockImplementation(() => {});
 
 const mockDownloadBoothLogs = downloadBoothLogs as jest.MockedFunction<
 	typeof downloadBoothLogs
