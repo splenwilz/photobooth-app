@@ -21,7 +21,7 @@ import {
 	Platform,
 	Alert,
 	type TextInput as TextInputType,
-	Dimensions,
+	useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
@@ -58,8 +58,6 @@ const VALIDITY_OPTIONS = [
 const MIN_REASON_LENGTH = 10;
 const MAX_REASON_LENGTH = 500;
 
-const SCREEN_HEIGHT = Dimensions.get("window").height;
-
 /**
  * EmergencyPasswordModal - Bottom sheet for requesting emergency password
  */
@@ -78,8 +76,9 @@ export function EmergencyPasswordModal({
 	// API mutation
 	const emergencyPasswordMutation = useRequestEmergencyPassword();
 
-	// Safe area insets
+	// Safe area insets and dimensions
 	const insets = useSafeAreaInsets();
+	const { height: screenHeight } = useWindowDimensions();
 
 	// Refs
 	const scrollViewRef = useRef<ScrollView>(null);
@@ -185,13 +184,13 @@ export function EmergencyPasswordModal({
 						{
 							backgroundColor,
 							paddingBottom: bottomPadding,
-							maxHeight: SCREEN_HEIGHT * 0.85,
+							maxHeight: screenHeight * 0.85,
 						},
 					]}
 				>
 					{/* Header */}
 					<View style={styles.header}>
-						<View style={styles.handle} />
+						<View style={[styles.handle, { backgroundColor: borderColor }]} />
 						<View style={styles.headerRow}>
 							<ThemedText type="subtitle">Emergency Password</ThemedText>
 							<TouchableOpacity
@@ -416,7 +415,6 @@ const styles = StyleSheet.create({
 	handle: {
 		width: 40,
 		height: 4,
-		backgroundColor: "#ccc",
 		borderRadius: 2,
 		marginBottom: Spacing.md,
 	},

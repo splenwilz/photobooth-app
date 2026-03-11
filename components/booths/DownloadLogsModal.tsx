@@ -18,7 +18,7 @@ import {
 	ActivityIndicator,
 	ScrollView,
 	Alert,
-	Dimensions,
+	useWindowDimensions,
 } from "react-native";
 import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -68,8 +68,6 @@ const HOURS_OPTIONS = [
 const DEFAULT_LOG_TYPES: LogType[] = ["application", "errors"];
 const DEFAULT_HOURS = 24;
 
-const SCREEN_HEIGHT = Dimensions.get("window").height;
-
 export function DownloadLogsModal({
 	visible,
 	boothId,
@@ -85,8 +83,9 @@ export function DownloadLogsModal({
 	// API mutation
 	const downloadLogsMutation = useDownloadBoothLogs();
 
-	// Safe area insets
+	// Safe area insets and dimensions
 	const insets = useSafeAreaInsets();
+	const { height: screenHeight } = useWindowDimensions();
 
 	// Form state
 	const [selectedLogTypes, setSelectedLogTypes] =
@@ -133,7 +132,13 @@ export function DownloadLogsModal({
 					{ text: "Cancel", style: "cancel" },
 					{
 						text: "Download",
-						onPress: () => Linking.openURL(data.download_url),
+						onPress: async () => {
+							try {
+								await Linking.openURL(data.download_url);
+							} catch {
+								Alert.alert("Error", "Could not open download link.");
+							}
+						},
 					},
 				],
 			);
@@ -176,13 +181,13 @@ export function DownloadLogsModal({
 						{
 							backgroundColor,
 							paddingBottom: bottomPadding,
-							maxHeight: SCREEN_HEIGHT * 0.85,
+							maxHeight: screenHeight * 0.85,
 						},
 					]}
 				>
 					{/* Header */}
 					<View style={styles.header}>
-						<View style={styles.handle} />
+						<View style={[styles.handle, { backgroundColor: borderColor }]} />
 						<View style={styles.headerRow}>
 							<ThemedText type="subtitle">Download Logs</ThemedText>
 							<TouchableOpacity
@@ -382,7 +387,6 @@ const styles = StyleSheet.create({
 	handle: {
 		width: 40,
 		height: 4,
-		backgroundColor: "#ccc",
 		borderRadius: 2,
 		marginBottom: Spacing.md,
 	},

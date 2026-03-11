@@ -17,7 +17,6 @@ import React, { useEffect, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
-	Dimensions,
 	Keyboard,
 	Modal,
 	Platform,
@@ -27,6 +26,7 @@ import {
 	TextInput,
 	TouchableOpacity,
 	View,
+	useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -56,8 +56,6 @@ import { useThemeColor } from "@/hooks/use-theme-color";
 
 const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg"];
-const SCREEN_HEIGHT = Dimensions.get("window").height;
-
 interface BusinessSettingsModalProps {
 	visible: boolean;
 	boothId: string | null;
@@ -77,6 +75,7 @@ export function BusinessSettingsModal({
 	const textSecondary = useThemeColor({}, "textSecondary");
 	const textColor = useThemeColor({}, "text");
 	const insets = useSafeAreaInsets();
+	const { height: screenHeight } = useWindowDimensions();
 
 	// ── Queries ──────────────────────────────────────────────────────────
 	const { data: userProfile } = useUserProfile(visible ? userId : null);
@@ -548,13 +547,13 @@ export function BusinessSettingsModal({
 						{
 							backgroundColor,
 							paddingBottom: bottomPadding,
-							maxHeight: SCREEN_HEIGHT * 0.9,
+							maxHeight: screenHeight * 0.9,
 						},
 					]}
 				>
 					{/* Header */}
 					<View style={styles.header}>
-						<View style={styles.handle} />
+						<View style={[styles.handle, { backgroundColor: borderColor }]} />
 						<View style={styles.headerRow}>
 							<ThemedText type="subtitle">Business Settings</ThemedText>
 							<TouchableOpacity
@@ -1128,7 +1127,6 @@ const styles = StyleSheet.create({
 	handle: {
 		width: 40,
 		height: 4,
-		backgroundColor: "#ccc",
 		borderRadius: 2,
 		marginBottom: Spacing.md,
 	},
