@@ -57,6 +57,7 @@ import {
   BusinessSettingsModal,
   ConnectionDetailsModal,
   DeleteBoothModal,
+  DownloadLogsModal,
   EmergencyPasswordModal,
 } from "@/components/booths";
 import {
@@ -402,6 +403,9 @@ export default function SettingsScreen() {
 
 	// State for Emergency Password modal
 	const [showEmergencyPasswordModal, setShowEmergencyPasswordModal] = useState(false);
+
+	// State for Download Logs modal
+	const [showDownloadLogsModal, setShowDownloadLogsModal] = useState(false);
 
 	// User profile from stored auth data
 	const [userProfile, setUserProfile] = useState({
@@ -903,6 +907,13 @@ export default function SettingsScreen() {
 						/>
 
 						<SettingsItem
+							icon="doc.text.below.ecg"
+							title="Download Logs"
+							subtitle="Download diagnostic logs from booth"
+							onPress={() => setShowDownloadLogsModal(true)}
+						/>
+
+						<SettingsItem
 							icon="arrow.clockwise"
 							title="Restart Booth App"
 							subtitle={
@@ -1091,6 +1102,14 @@ export default function SettingsScreen() {
 				boothId={effectiveBoothId}
 				boothName={boothName}
 				onClose={() => setShowEmergencyPasswordModal(false)}
+			/>
+
+			{/* Download Logs Modal */}
+			<DownloadLogsModal
+				visible={showDownloadLogsModal}
+				boothId={effectiveBoothId}
+				boothName={boothName}
+				onClose={() => setShowDownloadLogsModal(false)}
 			/>
 
 			{/* Pricing Plans Modal - only render when boothId is valid */}

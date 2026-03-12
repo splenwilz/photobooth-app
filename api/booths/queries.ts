@@ -5,6 +5,7 @@ import {
 	createBooth,
 	deleteBooth,
 	deleteBoothLogo,
+	downloadBoothLogs,
 	generateBoothCode,
 	getBoothBusinessSettings,
 	getBoothCredentials,
@@ -30,6 +31,7 @@ import type {
 	BoothPricingResponse,
 	CreateBoothRequest,
 	DashboardOverviewResponse,
+	DownloadLogsRequest,
 	EmergencyPasswordRequest,
 	GenerateCodeResponse,
 	RestartRequest,
@@ -612,5 +614,27 @@ export function useRequestEmergencyPassword() {
 			...data
 		}: { boothId: string } & EmergencyPasswordRequest) =>
 			requestEmergencyPassword(boothId, data),
+	});
+}
+
+// ============================================================================
+// DOWNLOAD LOGS HOOKS
+// ============================================================================
+
+/**
+ * Hook to download logs from a booth
+ * Triggers a long-running API call (5-120 seconds) that collects logs from the booth,
+ * zips them, uploads to S3, and returns a presigned download URL.
+ *
+ * @returns React Query mutation for log download
+ * @see POST /api/v1/booths/{booth_id}/download-logs
+ */
+export function useDownloadBoothLogs() {
+	return useMutation({
+		mutationFn: ({
+			boothId,
+			...data
+		}: { boothId: string } & DownloadLogsRequest) =>
+			downloadBoothLogs(boothId, data),
 	});
 }

@@ -1,28 +1,26 @@
 /**
- * EmergencyPasswordModal Component
+ * DownloadLogsModal Component
  *
- * Bottom sheet modal for booth owners to request a self-service emergency password.
- * The password is emailed to the owner's registered email and is NOT shown in the app.
+ * Bottom sheet modal for downloading diagnostic logs from a booth.
+ * The API sends a DOWNLOAD_LOGS command to the booth, waits for it to
+ * collect/zip/upload logs to S3, then returns a presigned download URL.
  *
  * @see app/(tabs)/settings.tsx - Used in Settings screen
- * @see POST /api/v1/booths/{booth_id}/emergency-password - API endpoint
+ * @see POST /api/v1/booths/{booth_id}/download-logs - API endpoint
  */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import {
 	Modal,
 	StyleSheet,
 	TouchableOpacity,
 	View,
 	ActivityIndicator,
-	TextInput,
 	ScrollView,
-	Keyboard,
-	Platform,
 	Alert,
-	type TextInput as TextInputType,
 	useWindowDimensions,
 } from "react-native";
+import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -30,16 +28,16 @@ import {
 	BorderRadius,
 	BRAND_COLOR,
 	Spacing,
-	StatusColors,
 	withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import { useRequestEmergencyPassword } from "@/api/booths";
+import { useDownloadBoothLogs } from "@/api/booths";
+import type { LogType } from "@/api/booths/types";
 
-interface EmergencyPasswordModalProps {
+interface DownloadLogsModalProps {
 	/** Whether the modal is visible */
 	visible: boolean;
-	/** Booth ID to generate emergency password for (required for API) */
+	/** Booth ID to download logs from (required for API) */
 	boothId: string | null;
 	/** Booth name for display */
 	boothName: string;
@@ -47,26 +45,35 @@ interface EmergencyPasswordModalProps {
 	onClose: () => void;
 }
 
-/** Available validity durations in minutes */
-const VALIDITY_OPTIONS = [
-	{ value: 5, label: "5 min" },
-	{ value: 10, label: "10 min" },
-	{ value: 15, label: "15 min" },
-	{ value: 30, label: "30 min" },
+/** Available log types with display labels */
+const LOG_TYPE_OPTIONS: { value: LogType; label: string }[] = [
+	{ value: "application", label: "Application" },
+	{ value: "errors", label: "Errors" },
+	{ value: "hardware", label: "Hardware" },
+	{ value: "transactions", label: "Transactions" },
+	{ value: "performance", label: "Performance" },
+	{ value: "application-debug", label: "Debug" },
 ];
 
-const MIN_REASON_LENGTH = 10;
-const MAX_REASON_LENGTH = 500;
+/** Available time range options */
+const HOURS_OPTIONS = [
+	{ value: 1, label: "1h" },
+	{ value: 6, label: "6h" },
+	{ value: 24, label: "24h" },
+	{ value: 48, label: "48h" },
+	{ value: 168, label: "7d" },
+	{ value: 720, label: "30d" },
+];
 
-/**
- * EmergencyPasswordModal - Bottom sheet for requesting emergency password
- */
-export function EmergencyPasswordModal({
+const DEFAULT_LOG_TYPES: LogType[] = ["application", "errors"];
+const DEFAULT_HOURS = 24;
+
+export function DownloadLogsModal({
 	visible,
 	boothId,
 	boothName,
 	onClose,
-}: EmergencyPasswordModalProps) {
+}: DownloadLogsModalProps) {
 	const backgroundColor = useThemeColor({}, "background");
 	const cardBg = useThemeColor({}, "card");
 	const borderColor = useThemeColor({}, "border");
@@ -74,93 +81,82 @@ export function EmergencyPasswordModal({
 	const textColor = useThemeColor({}, "text");
 
 	// API mutation
-	const emergencyPasswordMutation = useRequestEmergencyPassword();
+	const downloadLogsMutation = useDownloadBoothLogs();
 
 	// Safe area insets and dimensions
 	const insets = useSafeAreaInsets();
 	const { height: screenHeight } = useWindowDimensions();
 
-	// Refs
-	const scrollViewRef = useRef<ScrollView>(null);
-	const reasonInputRef = useRef<TextInputType>(null);
-
 	// Form state
-	const [reason, setReason] = useState("");
-	const [selectedValidity, setSelectedValidity] = useState(15);
-	const [isProcessing, setIsProcessing] = useState(false);
-	const [keyboardHeight, setKeyboardHeight] = useState(0);
+	const [selectedLogTypes, setSelectedLogTypes] =
+		useState<LogType[]>(DEFAULT_LOG_TYPES);
+	const [selectedHours, setSelectedHours] = useState(DEFAULT_HOURS);
 
-	// Listen for keyboard show/hide
-	useEffect(() => {
-		const keyboardWillShow = Keyboard.addListener(
-			Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-			(e) => {
-				setKeyboardHeight(e.endCoordinates.height);
-				setTimeout(() => {
-					scrollViewRef.current?.scrollToEnd({ animated: true });
-				}, 100);
-			},
-		);
-		const keyboardWillHide = Keyboard.addListener(
-			Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-			() => {
-				setKeyboardHeight(0);
-			},
-		);
-
-		return () => {
-			keyboardWillShow.remove();
-			keyboardWillHide.remove();
-		};
-	}, []);
+	// Use mutation's pending state instead of local state
+	const isProcessing = downloadLogsMutation.isPending;
 
 	// Validation
-	const isReasonValid = reason.trim().length >= MIN_REASON_LENGTH;
-	const isValid = isReasonValid && !!boothId;
+	const isValid = selectedLogTypes.length > 0 && !!boothId;
+
+	const toggleLogType = (logType: LogType) => {
+		setSelectedLogTypes((prev) =>
+			prev.includes(logType)
+				? prev.filter((t) => t !== logType)
+				: [...prev, logType],
+		);
+	};
 
 	const handleSubmit = async () => {
 		if (!isValid || !boothId) return;
 
-		Keyboard.dismiss();
-		setIsProcessing(true);
-
 		try {
-			const data = await emergencyPasswordMutation.mutateAsync({
+			const data = await downloadLogsMutation.mutateAsync({
 				boothId,
-				reason: reason.trim(),
-				validity_minutes: selectedValidity,
+				log_types: selectedLogTypes,
+				hours: selectedHours,
 			});
 
-			setIsProcessing(false);
 			handleClose();
 
+			// Format file size for display
+			const fileSizeKB = Math.round(data.file_size / 1024);
+			const fileSizeDisplay =
+				fileSizeKB > 1024
+					? `${(fileSizeKB / 1024).toFixed(1)} MB`
+					: `${fileSizeKB} KB`;
+
 			Alert.alert(
-				"Password Sent",
-				`An emergency password has been sent to ${data.emailed_to}. It expires in ${data.validity_minutes} minutes.`,
-				[{ text: "OK" }],
+				"Logs Ready",
+				`Log file ready (${fileSizeDisplay}). Open in browser to download?`,
+				[
+					{ text: "Cancel", style: "cancel" },
+					{
+						text: "Download",
+						onPress: async () => {
+							try {
+								await Linking.openURL(data.download_url);
+							} catch {
+								Alert.alert("Error", "Could not open download link.");
+							}
+						},
+					},
+				],
 			);
 		} catch (error: any) {
-			setIsProcessing(false);
-
-			// Handle specific error cases
-			const message =
-				error?.message || "Failed to generate emergency password.";
-			Alert.alert("Request Failed", message, [{ text: "OK" }]);
+			const message = error?.message || "Failed to download logs.";
+			Alert.alert("Download Failed", message, [{ text: "OK" }]);
 		}
 	};
 
 	const handleClose = () => {
 		if (!isProcessing) {
-			Keyboard.dismiss();
 			onClose();
-			setReason("");
-			setSelectedValidity(15);
+			setSelectedLogTypes(DEFAULT_LOG_TYPES);
+			setSelectedHours(DEFAULT_HOURS);
 		}
 	};
 
-	// Calculate bottom padding based on keyboard
-	const bottomPadding =
-		keyboardHeight > 0 ? keyboardHeight : Math.max(insets.bottom, Spacing.lg);
+	const bottomPadding = Math.max(insets.bottom, Spacing.lg);
 
 	return (
 		<Modal
@@ -172,6 +168,7 @@ export function EmergencyPasswordModal({
 			{/* Backdrop */}
 			<View style={styles.overlay}>
 				<TouchableOpacity
+					testID="backdrop"
 					style={styles.backdrop}
 					activeOpacity={1}
 					onPress={handleClose}
@@ -192,7 +189,7 @@ export function EmergencyPasswordModal({
 					<View style={styles.header}>
 						<View style={[styles.handle, { backgroundColor: borderColor }]} />
 						<View style={styles.headerRow}>
-							<ThemedText type="subtitle">Emergency Password</ThemedText>
+							<ThemedText type="subtitle">Download Logs</ThemedText>
 							<TouchableOpacity
 								onPress={handleClose}
 								disabled={isProcessing}
@@ -208,17 +205,15 @@ export function EmergencyPasswordModal({
 						<ThemedText
 							style={[styles.headerSubtitle, { color: textSecondary }]}
 						>
-							Generate a one-time password for {boothName}
+							Download diagnostic logs from {boothName}
 						</ThemedText>
 					</View>
 
 					{/* Scrollable Content */}
 					<ScrollView
-						ref={scrollViewRef}
 						style={styles.scrollContent}
 						contentContainerStyle={styles.scrollContentContainer}
 						showsVerticalScrollIndicator={false}
-						keyboardShouldPersistTaps="handled"
 						bounces={true}
 					>
 						{/* Info Card */}
@@ -232,87 +227,38 @@ export function EmergencyPasswordModal({
 							]}
 						>
 							<IconSymbol
-								name="envelope"
+								name="info.circle"
 								size={20}
 								color={BRAND_COLOR}
 							/>
 							<ThemedText
 								style={[styles.infoText, { color: textSecondary }]}
 							>
-								The password will be sent to your registered email address. It
-								will not be displayed in the app.
+								Logs will be collected from the booth, zipped, and uploaded.
+								This may take up to 2 minutes.
 							</ThemedText>
 						</View>
 
-						{/* Reason Input */}
+						{/* Log Types */}
 						<View style={styles.fieldGroup}>
 							<ThemedText
 								type="defaultSemiBold"
 								style={styles.fieldLabel}
 							>
-								Reason
+								Log Types
 							</ThemedText>
-							<View
-								style={[
-									styles.textAreaContainer,
-									{
-										backgroundColor: cardBg,
-										borderColor: reason.length > 0 && !isReasonValid
-											? StatusColors.error
-											: borderColor,
-									},
-								]}
-							>
-								<TextInput
-									ref={reasonInputRef}
-									style={[styles.textArea, { color: textColor }]}
-									value={reason}
-									onChangeText={setReason}
-									placeholder="Why do you need emergency access? (min 10 characters)"
-									placeholderTextColor={textSecondary}
-									multiline
-									numberOfLines={3}
-									maxLength={MAX_REASON_LENGTH}
-									editable={!isProcessing}
-									textAlignVertical="top"
-									onFocus={() => {
-										setTimeout(() => {
-											scrollViewRef.current?.scrollToEnd({ animated: true });
-										}, 100);
-									}}
-								/>
-							</View>
-							<ThemedText
-								style={[
-									styles.charCount,
-									{
-										color:
-											reason.length > 0 && reason.trim().length < MIN_REASON_LENGTH
-												? StatusColors.error
-												: textSecondary,
-									},
-								]}
-							>
-								{reason.trim().length}/{MAX_REASON_LENGTH}
-							</ThemedText>
-						</View>
-
-						{/* Validity Duration */}
-						<View style={styles.fieldGroup}>
-							<ThemedText
-								type="defaultSemiBold"
-								style={styles.fieldLabel}
-							>
-								Password Validity
-							</ThemedText>
-							<View style={styles.validityOptions}>
-								{VALIDITY_OPTIONS.map((option) => {
-									const isSelected = selectedValidity === option.value;
+							<View style={styles.chipGrid}>
+								{LOG_TYPE_OPTIONS.map((option) => {
+									const isSelected = selectedLogTypes.includes(option.value);
 									return (
 										<TouchableOpacity
 											key={option.value}
+											testID={`chip-${option.value}`}
+											accessibilityRole="button"
+											accessibilityState={{ selected: isSelected, disabled: isProcessing }}
+											accessibilityLabel={`${option.label}, ${isSelected ? "selected" : "not selected"}`}
 											style={[
-												styles.validityChip,
+												styles.chip,
 												{
 													backgroundColor: isSelected
 														? BRAND_COLOR
@@ -322,13 +268,13 @@ export function EmergencyPasswordModal({
 														: borderColor,
 												},
 											]}
-											onPress={() => setSelectedValidity(option.value)}
+											onPress={() => toggleLogType(option.value)}
 											disabled={isProcessing}
 											activeOpacity={0.7}
 										>
 											<ThemedText
 												style={[
-													styles.validityChipText,
+													styles.chipText,
 													{
 														color: isSelected ? "white" : textColor,
 													},
@@ -342,32 +288,59 @@ export function EmergencyPasswordModal({
 							</View>
 						</View>
 
-						{/* Warning */}
-						<View
-							style={[
-								styles.warningCard,
-								{
-									backgroundColor: withAlpha(StatusColors.warning, 0.1),
-									borderColor: StatusColors.warning,
-								},
-							]}
-						>
-							<IconSymbol
-								name="exclamationmark.triangle"
-								size={18}
-								color={StatusColors.warning}
-							/>
+						{/* Time Range */}
+						<View style={styles.fieldGroup}>
 							<ThemedText
-								style={[styles.warningText, { color: textSecondary }]}
+								type="defaultSemiBold"
+								style={styles.fieldLabel}
 							>
-								Maximum 3 active emergency passwords per booth. The password is
-								single-use and expires after {selectedValidity} minutes.
+								Time Range
 							</ThemedText>
+							<View style={styles.chipRow}>
+								{HOURS_OPTIONS.map((option) => {
+									const isSelected = selectedHours === option.value;
+									return (
+										<TouchableOpacity
+											key={option.value}
+											testID={`hours-${option.value}`}
+											accessibilityRole="button"
+											accessibilityState={{ selected: isSelected, disabled: isProcessing }}
+											accessibilityLabel={`${option.label}, ${isSelected ? "selected" : "not selected"}`}
+											style={[
+												styles.hoursChip,
+												{
+													backgroundColor: isSelected
+														? BRAND_COLOR
+														: cardBg,
+													borderColor: isSelected
+														? BRAND_COLOR
+														: borderColor,
+												},
+											]}
+											onPress={() => setSelectedHours(option.value)}
+											disabled={isProcessing}
+											activeOpacity={0.7}
+										>
+											<ThemedText
+												style={[
+													styles.chipText,
+													{
+														color: isSelected ? "white" : textColor,
+													},
+												]}
+											>
+												{option.label}
+											</ThemedText>
+										</TouchableOpacity>
+									);
+								})}
+							</View>
 						</View>
 
 						{/* Submit Button */}
 						<View style={styles.buttonContainer}>
 							<TouchableOpacity
+								testID="submit-button"
 								style={[
 									styles.submitButton,
 									{
@@ -380,10 +353,15 @@ export function EmergencyPasswordModal({
 								activeOpacity={0.8}
 							>
 								{isProcessing ? (
-									<ActivityIndicator color="white" />
+									<View style={styles.processingContainer}>
+										<ActivityIndicator color="white" />
+										<ThemedText style={styles.processingText}>
+											Collecting logs...
+										</ThemedText>
+									</View>
 								) : (
 									<ThemedText style={styles.submitButtonText}>
-										Send Emergency Password
+										Download Logs
 									</ThemedText>
 								)}
 							</TouchableOpacity>
@@ -457,27 +435,22 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		marginBottom: Spacing.sm,
 	},
-	textAreaContainer: {
-		borderRadius: BorderRadius.lg,
+	chipGrid: {
+		flexDirection: "row",
+		flexWrap: "wrap",
+		gap: Spacing.sm,
+	},
+	chip: {
+		paddingVertical: Spacing.sm,
+		paddingHorizontal: Spacing.md,
+		borderRadius: BorderRadius.md,
 		borderWidth: 1,
-		padding: Spacing.md,
-		minHeight: 90,
 	},
-	textArea: {
-		fontSize: 15,
-		lineHeight: 20,
-		minHeight: 60,
-	},
-	charCount: {
-		fontSize: 12,
-		textAlign: "right",
-		marginTop: Spacing.xs,
-	},
-	validityOptions: {
+	chipRow: {
 		flexDirection: "row",
 		gap: Spacing.sm,
 	},
-	validityChip: {
+	hoursChip: {
 		flex: 1,
 		paddingVertical: Spacing.sm + 2,
 		borderRadius: BorderRadius.md,
@@ -485,23 +458,10 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		justifyContent: "center",
 	},
-	validityChipText: {
+	chipText: {
 		fontSize: 14,
 		fontWeight: "600",
-	},
-	warningCard: {
-		flexDirection: "row",
-		alignItems: "flex-start",
-		padding: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 1,
-		gap: Spacing.sm,
-		marginBottom: Spacing.lg,
-	},
-	warningText: {
-		flex: 1,
-		fontSize: 13,
-		lineHeight: 18,
+		textAlign: "center",
 	},
 	buttonContainer: {
 		marginTop: Spacing.xs,
@@ -517,5 +477,15 @@ const styles = StyleSheet.create({
 		color: "white",
 		fontSize: 16,
 		fontWeight: "600",
+	},
+	processingContainer: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: Spacing.sm,
+	},
+	processingText: {
+		color: "white",
+		fontSize: 14,
+		fontWeight: "500",
 	},
 });

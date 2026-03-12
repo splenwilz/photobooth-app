@@ -380,13 +380,21 @@ async function triggerRefresh(): Promise<boolean> {
 }
 
 /**
+ * Extended options for apiClient with custom timeout support
+ */
+interface ApiClientOptions extends RequestInit {
+  /** Custom timeout in milliseconds (default: 30000) */
+  timeout?: number;
+}
+
+/**
  * API client with improved error handling
  * Parses error responses and throws user-friendly error messages
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
  */
 export async function apiClient<T>(
   url: string,
-  options?: RequestInit,
+  options?: ApiClientOptions,
 ): Promise<T> {
   const apiBaseUrl = getApiBaseUrl();
 
@@ -441,8 +449,11 @@ export async function apiClient<T>(
 
     const targetUrl = url.startsWith("http") ? url : `${apiBaseUrl}${url}`;
 
+    // Destructure custom timeout before spreading into fetchOptions
+    const { timeout: customTimeout, ...restOptions } = options ?? {};
+
     const fetchOptions: RequestInit = {
-      ...options,
+      ...restOptions,
       headers,
     };
 
@@ -454,7 +465,7 @@ export async function apiClient<T>(
     const timeoutId = setTimeout(() => {
       timedOut = true;
       controller.abort();
-    }, 30000); // 30s timeout
+    }, customTimeout ?? 30000);
 
     // If the caller passed an AbortSignal (e.g. React Query cancellation),
     // forward its abort to our local controller so both can cancel the request.

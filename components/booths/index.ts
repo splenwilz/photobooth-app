@@ -7,5 +7,6 @@
 export { BusinessSettingsModal } from "./BusinessSettingsModal";
 export { ConnectionDetailsModal } from "./ConnectionDetailsModal";
 export { DeleteBoothModal } from "./DeleteBoothModal";
+export { DownloadLogsModal } from "./DownloadLogsModal";
 export { EmergencyPasswordModal } from "./EmergencyPasswordModal";
 
