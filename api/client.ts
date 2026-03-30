@@ -380,14 +380,32 @@ async function triggerRefresh(): Promise<boolean> {
 }
 
 /**
- * Check whether a URL targets a public auth endpoint that does not require
- * (and should not attempt) token refresh on 401.
+ * Endpoints that can proceed without an access token.
+ * Includes /auth/refresh-token because it authenticates via refresh token.
  */
-function isPublicAuthEndpoint(url: string): boolean {
+function isNoAccessTokenPublicAuthEndpoint(url: string): boolean {
   return (
     url.includes("/auth/signin") ||
     url.includes("/auth/signup") ||
     url.includes("/auth/refresh-token") ||
+    url.includes("/auth/forgot-password") ||
+    url.includes("/auth/reset-password") ||
+    url.includes("/auth/verify-email") ||
+    url.includes("/auth/authorize") ||
+    url.includes("/auth/callback")
+  );
+}
+
+/**
+ * Endpoints where a 401 means invalid credentials, not session expiry.
+ * Excludes /auth/refresh-token — a 401 there means the refresh token is
+ * invalid, which IS session expiry and must set isSessionExpired: true
+ * so query-client.ts suppresses retries and triggers the global redirect.
+ */
+function isCredentialErrorPublicAuthEndpoint(url: string): boolean {
+  return (
+    url.includes("/auth/signin") ||
+    url.includes("/auth/signup") ||
     url.includes("/auth/forgot-password") ||
     url.includes("/auth/reset-password") ||
     url.includes("/auth/verify-email") ||
@@ -422,7 +440,7 @@ export async function apiClient<T>(
     // If no token and this is not a retry, check if we should redirect to login
     // Skip for public endpoints (like signin, signup, refresh-token)
     if (!accessToken && !isRetry) {
-      if (!isPublicAuthEndpoint(url)) {
+      if (!isNoAccessTokenPublicAuthEndpoint(url)) {
         // No token and not a public endpoint - session expired
         await handleSessionExpiration();
         throw new ApiError(
@@ -517,7 +535,7 @@ export async function apiClient<T>(
   if (res.status === 401) {
     // Skip token refresh for public auth endpoints — a 401 here means
     // invalid credentials, not an expired session.
-    if (!isPublicAuthEndpoint(url)) {
+    if (!isCredentialErrorPublicAuthEndpoint(url)) {
       // Attempt token refresh
       const refreshed = await triggerRefresh();
 
