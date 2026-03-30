@@ -1,7 +1,7 @@
 /**
  * Tab Navigation Layout
  * 
- * Main navigation structure for the PhotoBoothX app.
+ * Main navigation structure for the BoothIQ app.
  * Provides bottom tab navigation with 5 main sections:
  * 
  * 1. Dashboard - Live overview and hardware status

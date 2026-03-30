@@ -508,27 +508,45 @@ export async function apiClient<T>(
   let res = await makeRequest();
 
   if (res.status === 401) {
-    // Attempt token refresh
-    const refreshed = await triggerRefresh();
+    // Skip token refresh for public auth endpoints — a 401 here means
+    // invalid credentials, not an expired session.
+    const isPublicAuthEndpoint =
+      url.includes("/auth/signin") ||
+      url.includes("/auth/signup") ||
+      url.includes("/auth/refresh-token") ||
+      url.includes("/auth/forgot-password") ||
+      url.includes("/auth/reset-password") ||
+      url.includes("/auth/verify-email") ||
+      url.includes("/auth/authorize") ||
+      url.includes("/auth/callback");
 
-    if (refreshed) {
-      // Retry the original request with new token
-      res = await makeRequest(true);
+    if (!isPublicAuthEndpoint) {
+      // Attempt token refresh
+      const refreshed = await triggerRefresh();
 
-      // If still 401 after refresh, invalid credentials (not token expiry)
-      if (res.status === 401) {
+      if (refreshed) {
+        // Retry the original request with new token
+        res = await makeRequest(true);
+
+        // If still 401 after refresh, invalid credentials (not token expiry)
+        if (res.status === 401) {
+          const msg = await parseErrorResponse(res);
+          throw new ApiError(401, msg, undefined, false);
+        }
+      } else {
+        // Refresh failed - session expired
         const msg = await parseErrorResponse(res);
-        throw new ApiError(401, msg, undefined, false);
+        throw new ApiError(
+          401,
+          msg || "Session expired. Please sign in again.",
+          undefined,
+          true,
+        );
       }
     } else {
-      // Refresh failed - session expired
+      // Public auth endpoint — surface the error directly (e.g. wrong password)
       const msg = await parseErrorResponse(res);
-      throw new ApiError(
-        401,
-        msg || "Session expired. Please sign in again.",
-        undefined,
-        true,
-      );
+      throw new ApiError(401, msg, undefined, false);
     }
   }
 

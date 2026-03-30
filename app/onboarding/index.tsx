@@ -127,7 +127,7 @@ export default function OnboardingScreen() {
             <IconSymbol name="photo.stack" size={24} color={BRAND_COLOR} />
           </View>
           <ThemedText type="defaultSemiBold" style={styles.logoText}>
-            PhotoBoothX
+            BoothIQ
           </ThemedText>
         </View>
         

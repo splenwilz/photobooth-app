@@ -420,7 +420,7 @@ export default function SettingsScreen() {
 		const loadUserProfile = async () => {
 			const user = await getStoredUser();
 			if (user) {
-				const fullName = `${user.first_name} ${user.last_name}`.trim();
+				const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ");
 				const initials = `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase();
 				setUserProfile({
 					name: fullName || "User",

@@ -1,7 +1,7 @@
 /**
  * Terms of Service Screen
  *
- * Displays the Terms of Service for PhotoBoothX.
+ * Displays the Terms of Service for BoothIQ.
  * Professional legal document covering usage, liability, and user obligations.
  *
  * @see https://docs.expo.dev/router/introduction/ - Expo Router docs
@@ -16,8 +16,8 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const LAST_UPDATED = "December 30, 2025";
-const COMPANY_NAME = "PhotoBoothX Inc.";
-const APP_NAME = "PhotoBoothX";
+const COMPANY_NAME = "BoothIQ Inc.";
+const APP_NAME = "BoothIQ";
 
 interface SectionProps {
   title: string;
@@ -228,8 +228,8 @@ export default function TermsOfServiceScreen() {
           For questions about these Terms of Service, please contact us at:
           {"\n\n"}
           {COMPANY_NAME}
-          {"\n"}Email: legal@photoboothx.com
-          {"\n"}Support: support@photoboothx.com
+          {"\n"}Email: legal@boothiq.com
+          {"\n"}Support: support@boothiq.com
         </Section>
 
         {/* Footer */}
