@@ -20,15 +20,20 @@ import {
 } from "@react-navigation/native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
+import * as ExpoSplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "react-native-reanimated";
 
 import { queryClient } from "@/api/query-client";
+import { SplashScreen } from "@/components/splash-screen";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDeepLinks } from "@/hooks/use-deep-links";
 import { useBoothStore } from "@/stores/booth-store";
 import { useCartStore } from "@/stores/cart-store";
+
+// Keep the native splash visible while we load
+ExpoSplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
 	anchor: "(tabs)",
@@ -92,16 +97,36 @@ function RootLayoutNav() {
 export default function RootLayout() {
   const hydrateBooth = useBoothStore((state) => state.hydrate);
   const hydrateCart = useCartStore((state) => state.hydrate);
+  const [appReady, setAppReady] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
 
   // Hydrate stores from SecureStore on app start
   useEffect(() => {
-    hydrateBooth();
-    hydrateCart();
+    async function prepare() {
+      await hydrateBooth();
+      await hydrateCart();
+      setAppReady(true);
+    }
+    prepare();
   }, [hydrateBooth, hydrateCart]);
+
+  // Hide the native splash once our custom splash is rendered
+  useEffect(() => {
+    if (appReady) {
+      ExpoSplashScreen.hideAsync();
+    }
+  }, [appReady]);
+
+  const handleSplashFinish = useCallback(() => {
+    setSplashDone(true);
+  }, []);
+
+  if (!appReady) return null;
 
   return (
     <QueryClientProvider client={queryClient}>
       <RootLayoutNav />
+      {!splashDone && <SplashScreen onFinish={handleSplashFinish} />}
     </QueryClientProvider>
   );
 }
