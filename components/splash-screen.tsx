@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, Image, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { BRAND_COLOR, BRAND_COLOR_DARK } from "@/constants/theme";
 
 interface SplashScreenProps {
   onFinish: () => void;
@@ -30,7 +31,7 @@ export function SplashScreen({ onFinish, ready }: SplashScreenProps) {
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <LinearGradient
-        colors={["#069494", "#176161"]}
+        colors={[BRAND_COLOR, BRAND_COLOR_DARK]}
         locations={[0.0385, 1]}
         style={styles.gradient}
       >
