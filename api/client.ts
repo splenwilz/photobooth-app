@@ -380,6 +380,23 @@ async function triggerRefresh(): Promise<boolean> {
 }
 
 /**
+ * Check whether a URL targets a public auth endpoint that does not require
+ * (and should not attempt) token refresh on 401.
+ */
+function isPublicAuthEndpoint(url: string): boolean {
+  return (
+    url.includes("/auth/signin") ||
+    url.includes("/auth/signup") ||
+    url.includes("/auth/refresh-token") ||
+    url.includes("/auth/forgot-password") ||
+    url.includes("/auth/reset-password") ||
+    url.includes("/auth/verify-email") ||
+    url.includes("/auth/authorize") ||
+    url.includes("/auth/callback")
+  );
+}
+
+/**
  * Extended options for apiClient with custom timeout support
  */
 interface ApiClientOptions extends RequestInit {
@@ -405,17 +422,7 @@ export async function apiClient<T>(
     // If no token and this is not a retry, check if we should redirect to login
     // Skip for public endpoints (like signin, signup, refresh-token)
     if (!accessToken && !isRetry) {
-      const isPublicEndpoint =
-        url.includes("/auth/signin") ||
-        url.includes("/auth/signup") ||
-        url.includes("/auth/refresh-token") ||
-        url.includes("/auth/forgot-password") ||
-        url.includes("/auth/reset-password") ||
-        url.includes("/auth/verify-email") ||
-        url.includes("/auth/authorize") ||
-        url.includes("/auth/callback");
-
-      if (!isPublicEndpoint) {
+      if (!isPublicAuthEndpoint(url)) {
         // No token and not a public endpoint - session expired
         await handleSessionExpiration();
         throw new ApiError(
@@ -510,17 +517,7 @@ export async function apiClient<T>(
   if (res.status === 401) {
     // Skip token refresh for public auth endpoints — a 401 here means
     // invalid credentials, not an expired session.
-    const isPublicAuthEndpoint =
-      url.includes("/auth/signin") ||
-      url.includes("/auth/signup") ||
-      url.includes("/auth/refresh-token") ||
-      url.includes("/auth/forgot-password") ||
-      url.includes("/auth/reset-password") ||
-      url.includes("/auth/verify-email") ||
-      url.includes("/auth/authorize") ||
-      url.includes("/auth/callback");
-
-    if (!isPublicAuthEndpoint) {
+    if (!isPublicAuthEndpoint(url)) {
       // Attempt token refresh
       const refreshed = await triggerRefresh();
 
