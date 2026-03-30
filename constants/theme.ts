@@ -22,7 +22,7 @@ import { Platform } from 'react-native';
  * - Charts and data visualization
  * - Active/selected states
  */
-export const BRAND_COLOR = '#0891B2';
+export const BRAND_COLOR = '#069494';
 
 /**
  * Status Colors - ONLY for hardware/system status
@@ -45,8 +45,8 @@ export const StatusColors = {
  */
 export const ChartColors = {
   primary: BRAND_COLOR,              // 100% - Main data
-  secondary: '#0E7490',              // Slightly darker teal
-  tertiary: '#155E75',               // Even darker for depth
+  secondary: '#176161',              // Darker teal (splash gradient end)
+  tertiary: '#0F4F4F',               // Darkest teal for depth
   // For multi-series charts, use opacity:
   // withAlpha(BRAND_COLOR, 0.8), withAlpha(BRAND_COLOR, 0.6), etc.
 } as const;
