@@ -1,5 +1,5 @@
 /**
- * Demo Data for PhotoBoothX Mobile App
+ * Demo Data for BoothIQ Mobile App
  *
  * This file contains mock data for development and testing.
  * In production, this data would come from the API.

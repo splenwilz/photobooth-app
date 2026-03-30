@@ -1,4 +1,4 @@
-**PhotoBoothX Mobile** is a **remote management and monitoring app** for photobooth business owners and managers.
+**BoothIQ Mobile** is a **remote management and monitoring app** for photobooth business owners and managers.
 
 It allows an owner to:
 

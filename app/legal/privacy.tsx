@@ -1,7 +1,7 @@
 /**
  * Privacy Policy Screen
  *
- * Displays the Privacy Policy for PhotoBoothX.
+ * Displays the Privacy Policy for BoothIQ.
  * GDPR and CCPA compliant privacy document.
  *
  * @see https://docs.expo.dev/router/introduction/ - Expo Router docs
@@ -22,8 +22,8 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const LAST_UPDATED = "December 30, 2025";
-const COMPANY_NAME = "PhotoBoothX Inc.";
-const APP_NAME = "PhotoBoothX";
+const COMPANY_NAME = "BoothIQ Inc.";
+const APP_NAME = "BoothIQ";
 
 interface SectionProps {
   title: string;
@@ -228,7 +228,7 @@ export default function PrivacyPolicyScreen() {
           <ThemedText type="defaultSemiBold">Opt-Out:</ThemedText>
           {" "}Opt out of certain data processing activities.
           {"\n\n"}
-          To exercise these rights, contact us at privacy@photoboothx.com.
+          To exercise these rights, contact us at privacy@boothiq.com.
         </Section>
 
         <Section title="7. GDPR Compliance (EU Users)">
@@ -250,7 +250,7 @@ export default function PrivacyPolicyScreen() {
           {"\n"}• Right to opt-out of sale (we do not sell data)
           {"\n"}• Right to non-discrimination for exercising rights
           {"\n\n"}
-          To submit a verifiable consumer request, email privacy@photoboothx.com.
+          To submit a verifiable consumer request, email privacy@boothiq.com.
         </Section>
 
         <Section title="9. Third-Party Services">
@@ -304,8 +304,8 @@ export default function PrivacyPolicyScreen() {
           {"\n\n"}
           {COMPANY_NAME}
           {"\n"}Privacy Officer
-          {"\n"}Email: privacy@photoboothx.com
-          {"\n"}Support: support@photoboothx.com
+          {"\n"}Email: privacy@boothiq.com
+          {"\n"}Support: support@boothiq.com
           {"\n\n"}
           We aim to respond to all requests within 30 days.
         </Section>

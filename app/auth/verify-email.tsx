@@ -55,8 +55,8 @@ export default function VerifyEmailScreen() {
   }>();
   
   const email = typeof params.email === 'string' ? params.email : '';
-  const initialToken = typeof params.pending_authentication_token === 'string' 
-    ? params.pending_authentication_token 
+  const initialToken = typeof params.pending_authentication_token === 'string'
+    ? params.pending_authentication_token
     : '';
 
   // State

@@ -380,6 +380,41 @@ async function triggerRefresh(): Promise<boolean> {
 }
 
 /**
+ * Endpoints that can proceed without an access token.
+ * Includes /auth/refresh-token because it authenticates via refresh token.
+ */
+function isNoAccessTokenPublicAuthEndpoint(url: string): boolean {
+  return (
+    url.includes("/auth/signin") ||
+    url.includes("/auth/signup") ||
+    url.includes("/auth/refresh-token") ||
+    url.includes("/auth/forgot-password") ||
+    url.includes("/auth/reset-password") ||
+    url.includes("/auth/verify-email") ||
+    url.includes("/auth/authorize") ||
+    url.includes("/auth/callback")
+  );
+}
+
+/**
+ * Endpoints where a 401 means invalid credentials, not session expiry.
+ * Excludes /auth/refresh-token — a 401 there means the refresh token is
+ * invalid, which IS session expiry and must set isSessionExpired: true
+ * so query-client.ts suppresses retries and triggers the global redirect.
+ */
+function isCredentialErrorPublicAuthEndpoint(url: string): boolean {
+  return (
+    url.includes("/auth/signin") ||
+    url.includes("/auth/signup") ||
+    url.includes("/auth/forgot-password") ||
+    url.includes("/auth/reset-password") ||
+    url.includes("/auth/verify-email") ||
+    url.includes("/auth/authorize") ||
+    url.includes("/auth/callback")
+  );
+}
+
+/**
  * Extended options for apiClient with custom timeout support
  */
 interface ApiClientOptions extends RequestInit {
@@ -405,17 +440,7 @@ export async function apiClient<T>(
     // If no token and this is not a retry, check if we should redirect to login
     // Skip for public endpoints (like signin, signup, refresh-token)
     if (!accessToken && !isRetry) {
-      const isPublicEndpoint =
-        url.includes("/auth/signin") ||
-        url.includes("/auth/signup") ||
-        url.includes("/auth/refresh-token") ||
-        url.includes("/auth/forgot-password") ||
-        url.includes("/auth/reset-password") ||
-        url.includes("/auth/verify-email") ||
-        url.includes("/auth/authorize") ||
-        url.includes("/auth/callback");
-
-      if (!isPublicEndpoint) {
+      if (!isNoAccessTokenPublicAuthEndpoint(url)) {
         // No token and not a public endpoint - session expired
         await handleSessionExpiration();
         throw new ApiError(
@@ -508,27 +533,35 @@ export async function apiClient<T>(
   let res = await makeRequest();
 
   if (res.status === 401) {
-    // Attempt token refresh
-    const refreshed = await triggerRefresh();
+    // Skip token refresh for public auth endpoints — a 401 here means
+    // invalid credentials, not an expired session.
+    if (!isCredentialErrorPublicAuthEndpoint(url)) {
+      // Attempt token refresh
+      const refreshed = await triggerRefresh();
 
-    if (refreshed) {
-      // Retry the original request with new token
-      res = await makeRequest(true);
+      if (refreshed) {
+        // Retry the original request with new token
+        res = await makeRequest(true);
 
-      // If still 401 after refresh, invalid credentials (not token expiry)
-      if (res.status === 401) {
+        // If still 401 after refresh, invalid credentials (not token expiry)
+        if (res.status === 401) {
+          const msg = await parseErrorResponse(res);
+          throw new ApiError(401, msg, undefined, false);
+        }
+      } else {
+        // Refresh failed - session expired
         const msg = await parseErrorResponse(res);
-        throw new ApiError(401, msg, undefined, false);
+        throw new ApiError(
+          401,
+          msg || "Session expired. Please sign in again.",
+          undefined,
+          true,
+        );
       }
     } else {
-      // Refresh failed - session expired
+      // Public auth endpoint — surface the error directly (e.g. wrong password)
       const msg = await parseErrorResponse(res);
-      throw new ApiError(
-        401,
-        msg || "Session expired. Please sign in again.",
-        undefined,
-        true,
-      );
+      throw new ApiError(401, msg, undefined, false);
     }
   }
 

@@ -52,7 +52,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow PhotoBoothX to scan QR codes for booth activation."
+          "cameraPermission": "Allow BoothIQ to scan QR codes for booth activation."
         }
       ],
       "expo-font"

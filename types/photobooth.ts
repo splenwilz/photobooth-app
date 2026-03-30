@@ -1,5 +1,5 @@
 /**
- * TypeScript Types for PhotoBoothX Mobile App
+ * TypeScript Types for BoothIQ Mobile App
  * 
  * These types define the data structures used throughout the app.
  * They mirror the API contracts from the backend.

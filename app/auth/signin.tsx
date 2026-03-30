@@ -138,7 +138,7 @@ export default function SignInScreen() {
               pathname: '/auth/verify-email',
               params: {
                 email: response.email,
-                token: response.pending_authentication_token,
+                pending_authentication_token: response.pending_authentication_token,
               },
             });
             return;
@@ -203,7 +203,7 @@ export default function SignInScreen() {
               <IconSymbol name="photo.stack" size={40} color={BRAND_COLOR} />
             </View>
             <ThemedText type="title" style={styles.brandName}>
-              PhotoBoothX
+              BoothIQ
             </ThemedText>
           </View>
 

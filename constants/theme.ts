@@ -1,5 +1,5 @@
 /**
- * PhotoBoothX Theme Configuration
+ * BoothIQ Theme Configuration
  * Dark "Command Center" theme with cohesive brand identity
  * 
  * Design Philosophy:

@@ -1,7 +1,7 @@
 /**
  * Dashboard Screen (Home Tab)
  *
- * Core screen of the PhotoBoothX app - "Mission Control" for photobooths.
+ * Core screen of the BoothIQ app - "Mission Control" for photobooths.
  * Uses cohesive brand color (Cyan) with status colors only for hardware health.
  *
  * Features:
