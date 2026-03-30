@@ -4,15 +4,18 @@ import { LinearGradient } from "expo-linear-gradient";
 
 interface SplashScreenProps {
   onFinish: () => void;
+  ready: boolean;
 }
 
 const FADE_DURATION = 400;
 const HOLD_DURATION = 1500;
 
-export function SplashScreen({ onFinish }: SplashScreenProps) {
+export function SplashScreen({ onFinish, ready }: SplashScreenProps) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    if (!ready) return;
+
     const timeout = setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -22,7 +25,7 @@ export function SplashScreen({ onFinish }: SplashScreenProps) {
     }, HOLD_DURATION);
 
     return () => clearTimeout(timeout);
-  }, [fadeAnim, onFinish]);
+  }, [ready, fadeAnim, onFinish]);
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
@@ -58,7 +61,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logo: {
-    width: 160,
-    height: 160,
+    width: 200,
+    height: 200,
   },
 });

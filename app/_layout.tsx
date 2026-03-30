@@ -103,8 +103,7 @@ export default function RootLayout() {
   // Hydrate stores from SecureStore on app start
   useEffect(() => {
     async function prepare() {
-      await hydrateBooth();
-      await hydrateCart();
+      await Promise.all([hydrateBooth(), hydrateCart()]);
       setAppReady(true);
     }
     prepare();
@@ -121,12 +120,10 @@ export default function RootLayout() {
     setSplashDone(true);
   }, []);
 
-  if (!appReady) return null;
-
   return (
     <QueryClientProvider client={queryClient}>
-      <RootLayoutNav />
-      {!splashDone && <SplashScreen onFinish={handleSplashFinish} />}
+      {appReady && <RootLayoutNav />}
+      {!splashDone && <SplashScreen ready={appReady} onFinish={handleSplashFinish} />}
     </QueryClientProvider>
   );
 }
