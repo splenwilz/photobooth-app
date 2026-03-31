@@ -22,7 +22,10 @@ import { Platform } from 'react-native';
  * - Charts and data visualization
  * - Active/selected states
  */
-export const BRAND_COLOR = '#0891B2';
+export const BRAND_COLOR = '#069494';
+
+/** Darker brand teal used as the gradient end in the splash screen. */
+export const BRAND_COLOR_DARK = '#176161';
 
 /**
  * Status Colors - ONLY for hardware/system status
@@ -37,18 +40,6 @@ export const StatusColors = {
   error: '#FF5252',        // Red - critical/offline/failed
   info: '#2196F3',         // Blue - informational alerts
   neutral: '#9E9E9E',      // Gray - unknown/neutral state (fallback)
-} as const;
-
-/**
- * Chart Colors - Brand color with opacity variations
- * Creates visual distinction without introducing new hues
- */
-export const ChartColors = {
-  primary: BRAND_COLOR,              // 100% - Main data
-  secondary: '#0E7490',              // Slightly darker teal
-  tertiary: '#155E75',               // Even darker for depth
-  // For multi-series charts, use opacity:
-  // withAlpha(BRAND_COLOR, 0.8), withAlpha(BRAND_COLOR, 0.6), etc.
 } as const;
 
 /**
