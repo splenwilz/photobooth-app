@@ -18,6 +18,7 @@ import {
 	TouchableOpacity,
 	View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useBoothOverview } from "@/api/booths/queries";
 import { ThemedText } from "@/components/themed-text";
@@ -45,7 +46,7 @@ export function BoothPickerModal({ visible, onClose }: BoothPickerModalProps) {
 	const textColor = useThemeColor({}, "text");
 
 	const { selectedBoothId, setSelectedBoothId } = useBoothStore();
-	const { data: boothData } = useBoothOverview();
+	const { data: boothData } = useBoothOverview({ enabled: visible });
 
 	const [searchQuery, setSearchQuery] = useState("");
 
@@ -80,7 +81,7 @@ export function BoothPickerModal({ visible, onClose }: BoothPickerModalProps) {
 			presentationStyle="pageSheet"
 			onRequestClose={handleClose}
 		>
-			<View style={[styles.container, { backgroundColor }]}>
+			<SafeAreaView style={[styles.container, { backgroundColor }]}>
 				{/* Header */}
 				<View style={[styles.header, { borderBottomColor: borderColor }]}>
 					<ThemedText type="subtitle">Switch Booth</ThemedText>
@@ -127,6 +128,7 @@ export function BoothPickerModal({ visible, onClose }: BoothPickerModalProps) {
 					data={filteredBooths}
 					keyExtractor={(item) => item.booth_id}
 					contentContainerStyle={styles.listContent}
+					keyboardShouldPersistTaps="handled"
 					ListHeaderComponent={
 						// "All Booths" option — only show when not searching
 						!searchQuery ? (
@@ -253,7 +255,7 @@ export function BoothPickerModal({ visible, onClose }: BoothPickerModalProps) {
 						);
 					}}
 				/>
-			</View>
+			</SafeAreaView>
 		</Modal>
 	);
 }
