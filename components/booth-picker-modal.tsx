@@ -50,10 +50,10 @@ export function BoothPickerModal({ visible, onClose }: BoothPickerModalProps) {
 
 	const [searchQuery, setSearchQuery] = useState("");
 
-	const booths = boothData?.booths ?? [];
 	const summary = boothData?.summary;
 
 	const filteredBooths = useMemo(() => {
+		const booths = boothData?.booths ?? [];
 		if (!searchQuery) return booths;
 		const query = searchQuery.toLowerCase();
 		return booths.filter(
@@ -61,7 +61,7 @@ export function BoothPickerModal({ visible, onClose }: BoothPickerModalProps) {
 				booth.booth_name.toLowerCase().includes(query) ||
 				(booth.booth_address?.toLowerCase().includes(query) ?? false),
 		);
-	}, [booths, searchQuery]);
+	}, [boothData?.booths, searchQuery]);
 
 	const handleSelect = (boothId: string) => {
 		setSelectedBoothId(boothId);

@@ -16,7 +16,7 @@ import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { Spacing, BorderRadius, BRAND_COLOR, StatusColors, withAlpha } from '@/constants/theme';
+import { Spacing, BorderRadius, StatusColors } from '@/constants/theme';
 import { ALL_BOOTHS_ID, useBoothStore } from '@/stores/booth-store';
 import { useBoothDetail, useBoothOverview, useDashboardOverview } from '@/api/booths/queries';
 
