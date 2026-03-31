@@ -66,6 +66,7 @@ import {
   PricingPlansSelector,
 } from "@/components/subscription";
 import { AddCreditsModal } from "@/components/credits";
+import { BoothPickerModal } from "@/components/booth-picker-modal";
 import { CustomHeader } from "@/components/custom-header";
 import { EditProductModal } from "@/components/products";
 import { ThemedText } from "@/components/themed-text";
@@ -236,6 +237,9 @@ export default function SettingsScreen() {
 		if (!alertsData?.alerts) return 0;
 		return alertsData.alerts.filter((a) => !a.isRead).length;
 	}, [alertsData?.alerts]);
+
+	// Booth picker modal state
+	const [isPickerVisible, setIsPickerVisible] = React.useState(false);
 
 	// Navigation handlers
 	const handleNotificationPress = () => {
@@ -645,6 +649,8 @@ export default function SettingsScreen() {
 		>
 			<CustomHeader
 				title="Settings"
+				boothContext
+				onBoothPress={() => setIsPickerVisible(true)}
 				onNotificationPress={handleNotificationPress}
 				notificationCount={unreadAlerts}
 			/>
@@ -1129,6 +1135,11 @@ export default function SettingsScreen() {
 					</SafeAreaView>
 				</Modal>
 			)}
+
+			<BoothPickerModal
+				visible={isPickerVisible}
+				onClose={() => setIsPickerVisible(false)}
+			/>
 		</SafeAreaView>
 	);
 }

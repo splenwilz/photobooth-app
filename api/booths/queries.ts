@@ -145,11 +145,12 @@ export function useBoothDetail(boothId: string | null) {
  * @returns React Query result with booth overview data
  * @see GET /api/v1/booths/overview
  */
-export function useBoothOverview() {
+export function useBoothOverview(options?: { enabled?: boolean }) {
 	return useQuery<BoothOverviewResponse>({
 		queryKey: queryKeys.booths.overview(),
 		queryFn: getBoothOverview,
 		staleTime: 1 * 60 * 1000, // 1 minute - shows real-time status
+		enabled: options?.enabled ?? true,
 	});
 }
 
