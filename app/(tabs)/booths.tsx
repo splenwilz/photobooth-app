@@ -371,7 +371,7 @@ export default function BoothsScreen() {
 					</ScrollView>
 				</View>
 
-				{/* All Booths Card - Aggregate Mode */}
+				{/* All Booths Card */}
 				<TouchableOpacity
 					style={[
 						styles.allBoothsCard,
@@ -382,10 +382,7 @@ export default function BoothsScreen() {
 							borderWidth: selectedBoothId === ALL_BOOTHS_ID ? 2 : 1,
 						},
 					]}
-					onPress={() => {
-						setSelectedBoothId(ALL_BOOTHS_ID);
-						router.push("/(tabs)");
-					}}
+					onPress={() => setSelectedBoothId(ALL_BOOTHS_ID)}
 					activeOpacity={0.7}
 				>
 					<View style={styles.allBoothsLeft}>
@@ -413,16 +410,13 @@ export default function BoothsScreen() {
 							</ThemedText>
 						</View>
 					</View>
-					<View style={styles.allBoothsRight}>
-						{selectedBoothId === ALL_BOOTHS_ID && (
-							<View
-								style={[styles.selectedBadge, { backgroundColor: BRAND_COLOR }]}
-							>
-								<IconSymbol name="checkmark" size={12} color="#FFFFFF" />
-							</View>
-						)}
-						<IconSymbol name="chevron.right" size={16} color={textSecondary} />
-					</View>
+					{selectedBoothId === ALL_BOOTHS_ID && (
+						<View
+							style={[styles.selectedBadge, { backgroundColor: BRAND_COLOR }]}
+						>
+							<IconSymbol name="checkmark" size={12} color="#FFFFFF" />
+						</View>
+					)}
 				</TouchableOpacity>
 
 				{/* Booth List */}
@@ -439,9 +433,8 @@ export default function BoothsScreen() {
 							isSelected={selectedBoothId === booth.id}
 							subscriptionStatus={subscriptionMap.get(booth.id)}
 							onPress={() => {
-								// Set as active booth and navigate to dashboard
+								// Set as active booth (no navigation — user can switch screens via tabs)
 								setSelectedBoothId(booth.id);
-								router.push("/(tabs)");
 							}}
 						/>
 					))}
@@ -619,11 +612,6 @@ const styles = StyleSheet.create({
 	allBoothsSubtitle: {
 		fontSize: 13,
 		marginTop: 2,
-	},
-	allBoothsRight: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: Spacing.sm,
 	},
 	selectedBadge: {
 		width: 20,

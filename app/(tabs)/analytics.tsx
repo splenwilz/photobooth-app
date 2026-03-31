@@ -29,6 +29,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAlerts } from "@/api/alerts/queries";
 import { useBoothRevenue, useRevenueDashboard } from "@/api/analytics/queries";
 import type { RecentTransaction } from "@/api/analytics/types";
+import { BoothPickerModal } from "@/components/booth-picker-modal";
 import { CustomHeader } from "@/components/custom-header";
 import { AnalyticsSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
@@ -141,6 +142,9 @@ export default function AnalyticsScreen() {
 		isFocused &&
 		((isAllMode && isRefetchingAll) || (!isAllMode && isRefetchingBooth));
 
+	// Booth picker modal state
+	const [isPickerVisible, setIsPickerVisible] = useState(false);
+
 	// State for chart period toggle
 	const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("week");
 
@@ -178,10 +182,16 @@ export default function AnalyticsScreen() {
 			>
 				<CustomHeader
 					title="Analytics"
+					boothContext
+					onBoothPress={() => setIsPickerVisible(true)}
 					onNotificationPress={handleNotificationPress}
 					notificationCount={unreadAlerts}
 				/>
 				<AnalyticsSkeleton />
+				<BoothPickerModal
+					visible={isPickerVisible}
+					onClose={() => setIsPickerVisible(false)}
+				/>
 			</SafeAreaView>
 		);
 	}
@@ -195,6 +205,8 @@ export default function AnalyticsScreen() {
 			>
 				<CustomHeader
 					title="Analytics"
+					boothContext
+					onBoothPress={() => setIsPickerVisible(true)}
 					onNotificationPress={handleNotificationPress}
 					notificationCount={unreadAlerts}
 				/>
@@ -202,6 +214,10 @@ export default function AnalyticsScreen() {
 					title="Failed to load analytics"
 					message={error.message || "An unexpected error occurred"}
 					onRetry={() => refetch()}
+				/>
+				<BoothPickerModal
+					visible={isPickerVisible}
+					onClose={() => setIsPickerVisible(false)}
 				/>
 			</SafeAreaView>
 		);
@@ -225,6 +241,8 @@ export default function AnalyticsScreen() {
 		>
 			<CustomHeader
 				title="Analytics"
+				boothContext
+				onBoothPress={() => setIsPickerVisible(true)}
 				onNotificationPress={handleNotificationPress}
 				notificationCount={unreadAlerts}
 			/>
@@ -482,6 +500,11 @@ export default function AnalyticsScreen() {
 				{/* Bottom spacing */}
 				<View style={{ height: Spacing.xxl }} />
 			</ScrollView>
+
+			<BoothPickerModal
+				visible={isPickerVisible}
+				onClose={() => setIsPickerVisible(false)}
+			/>
 		</SafeAreaView>
 	);
 }

@@ -27,6 +27,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // API hooks
 import { useAlerts } from "@/api/alerts/queries";
 import { useBoothDetail, useDashboardOverview } from "@/api/booths/queries";
+import { BoothPickerModal } from "@/components/booth-picker-modal";
 import { CustomHeader } from "@/components/custom-header";
 // Dashboard section components - extracted for separation of concerns
 import {
@@ -47,7 +48,6 @@ import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 // Utilities - extracted for separation of concerns
 import {
   formatCurrency,
-  getBoothStatusColor,
   mapBoothAlertToAppAlert,
   mapDashboardAlertToAppAlert,
 } from "@/utils";
@@ -70,6 +70,7 @@ export default function DashboardScreen() {
 
 	// State
 	const [selectedPeriod, setSelectedPeriod] = useState<RevenuePeriod>("today");
+	const [isPickerVisible, setIsPickerVisible] = useState(false);
 
 	// Global booth selection from Zustand store
 	const { selectedBoothId, setSelectedBoothId, isHydrated } = useBoothStore();
@@ -192,10 +193,6 @@ export default function DashboardScreen() {
 		router.push("/(tabs)/alerts");
 	};
 
-	const handleBoothPress = () => {
-		router.push("/(tabs)/booths");
-	};
-
 	// Loading state - show skeleton during initial load
 	// Show loading when:
 	// - Store hasn't hydrated yet
@@ -217,11 +214,21 @@ export default function DashboardScreen() {
 				style={[styles.container, { backgroundColor }]}
 				edges={["top"]}
 			>
-				<CustomHeader title="Dashboard" />
+				<CustomHeader
+					title="Dashboard"
+					boothContext
+					onBoothPress={() => setIsPickerVisible(true)}
+					onNotificationPress={handleNotificationPress}
+					notificationCount={unreadAlerts}
+				/>
 				<ErrorState
 					title="Failed to load dashboard"
 					message={activeError.message || "An unexpected error occurred"}
 					onRetry={() => activeRefetch()}
+				/>
+				<BoothPickerModal
+					visible={isPickerVisible}
+					onClose={() => setIsPickerVisible(false)}
 				/>
 			</SafeAreaView>
 		);
@@ -236,7 +243,13 @@ export default function DashboardScreen() {
 					style={[styles.container, { backgroundColor }]}
 					edges={["top"]}
 				>
-					<CustomHeader title="Dashboard" />
+					<CustomHeader
+						title="Dashboard"
+						boothContext
+						onBoothPress={() => setIsPickerVisible(true)}
+						onNotificationPress={handleNotificationPress}
+						notificationCount={unreadAlerts}
+					/>
 					<ErrorState
 						title="Taking longer than expected"
 						message="We're having trouble reaching the server. Please check your internet connection and try again."
@@ -249,6 +262,10 @@ export default function DashboardScreen() {
 							}
 						}}
 					/>
+					<BoothPickerModal
+						visible={isPickerVisible}
+						onClose={() => setIsPickerVisible(false)}
+					/>
 				</SafeAreaView>
 			);
 		}
@@ -258,8 +275,18 @@ export default function DashboardScreen() {
 				style={[styles.container, { backgroundColor }]}
 				edges={["top"]}
 			>
-				<CustomHeader title="Dashboard" />
+				<CustomHeader
+					title="Dashboard"
+					boothContext
+					onBoothPress={() => setIsPickerVisible(true)}
+					onNotificationPress={handleNotificationPress}
+					notificationCount={unreadAlerts}
+				/>
 				<DashboardSkeleton isAllBoothsMode={isAllMode} />
+				<BoothPickerModal
+					visible={isPickerVisible}
+					onClose={() => setIsPickerVisible(false)}
+				/>
 			</SafeAreaView>
 		);
 	}
@@ -276,6 +303,8 @@ export default function DashboardScreen() {
 			>
 				<CustomHeader
 					title="Dashboard"
+					boothContext
+					onBoothPress={() => setIsPickerVisible(true)}
 					onNotificationPress={handleNotificationPress}
 					notificationCount={unreadAlerts}
 				/>
@@ -297,6 +326,10 @@ export default function DashboardScreen() {
 						</ThemedText>
 					</TouchableOpacity>
 				</View>
+				<BoothPickerModal
+					visible={isPickerVisible}
+					onClose={() => setIsPickerVisible(false)}
+				/>
 			</SafeAreaView>
 		);
 	}
@@ -308,6 +341,8 @@ export default function DashboardScreen() {
 		>
 			<CustomHeader
 				title="Dashboard"
+				boothContext
+				onBoothPress={() => setIsPickerVisible(true)}
 				onNotificationPress={handleNotificationPress}
 				notificationCount={unreadAlerts}
 			/>
@@ -324,60 +359,6 @@ export default function DashboardScreen() {
 					/>
 				}
 			>
-				{/* Booth Selector Card */}
-				<TouchableOpacity
-					style={[
-						styles.boothSelector,
-						{ backgroundColor: cardBg, borderColor },
-					]}
-					onPress={handleBoothPress}
-					activeOpacity={0.7}
-				>
-					<View style={styles.boothInfo}>
-						<View
-							style={[
-								styles.boothIconContainer,
-								{ backgroundColor: withAlpha(BRAND_COLOR, 0.15) },
-							]}
-						>
-							<IconSymbol
-								name={isAllMode ? "rectangle.stack" : "photo.stack"}
-								size={20}
-								color={BRAND_COLOR}
-							/>
-						</View>
-						<View style={styles.boothTextContainer}>
-							<ThemedText type="defaultSemiBold">
-								{isAllMode ? "All Booths" : boothDetail?.booth_name}
-							</ThemedText>
-							<ThemedText
-								style={[styles.boothLocation, { color: textSecondary }]}
-								numberOfLines={1}
-							>
-								{isAllMode
-									? `${dashboardOverview?.summary?.online_count ?? 0} online · ${dashboardOverview?.summary?.offline_count ?? 0} offline`
-									: (boothDetail?.booth_address ?? "No address")}
-							</ThemedText>
-						</View>
-					</View>
-					<View style={styles.boothStatusContainer}>
-						{/* Show status dot only for single booth mode */}
-						{!isAllMode && boothDetail && (
-							<View
-								style={[
-									styles.statusDot,
-									{
-										backgroundColor: getBoothStatusColor(
-											boothDetail.booth_status ?? "offline",
-										),
-									},
-								]}
-							/>
-						)}
-						<IconSymbol name="chevron.right" size={16} color={textSecondary} />
-					</View>
-				</TouchableOpacity>
-
 				{/* Revenue Overview Section - Works for both modes */}
 				{(isAllMode ? dashboardOverview : boothDetail) && (
 					<>
@@ -672,6 +653,11 @@ export default function DashboardScreen() {
 				{/* Bottom spacing */}
 				<View style={{ height: Spacing.xxl }} />
 			</ScrollView>
+
+			<BoothPickerModal
+				visible={isPickerVisible}
+				onClose={() => setIsPickerVisible(false)}
+			/>
 		</SafeAreaView>
 	);
 }
@@ -726,45 +712,6 @@ const styles = StyleSheet.create({
 		color: "white",
 		fontSize: 16,
 		fontWeight: "600",
-	},
-	boothSelector: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		padding: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 1,
-		marginTop: Spacing.md,
-	},
-	boothInfo: {
-		flexDirection: "row",
-		alignItems: "center",
-		flex: 1,
-	},
-	boothIconContainer: {
-		width: 40,
-		height: 40,
-		borderRadius: 20,
-		justifyContent: "center",
-		alignItems: "center",
-		marginRight: Spacing.sm,
-	},
-	boothTextContainer: {
-		flex: 1,
-	},
-	boothLocation: {
-		fontSize: 12,
-		marginTop: 2,
-	},
-	boothStatusContainer: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: Spacing.sm,
-	},
-	statusDot: {
-		width: 10,
-		height: 10,
-		borderRadius: 5,
 	},
 	periodSelector: {
 		flexDirection: "row",
