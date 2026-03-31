@@ -173,80 +173,29 @@ export default function AnalyticsScreen() {
 		});
 	};
 
-	// Loading state - skeleton for polished loading experience
-	if (isLoading) {
-		return (
-			<SafeAreaView
-				style={[styles.container, { backgroundColor }]}
-				edges={["top"]}
-			>
-				<CustomHeader
-					title="Analytics"
-					boothContext
-					onBoothPress={() => setIsPickerVisible(true)}
-					onNotificationPress={handleNotificationPress}
-					notificationCount={unreadAlerts}
-				/>
-				<AnalyticsSkeleton />
-				<BoothPickerModal
-					visible={isPickerVisible}
-					onClose={() => setIsPickerVisible(false)}
-				/>
-			</SafeAreaView>
-		);
-	}
+	// Derive main content data
+	const stats = dashboardData?.stats;
+	const byProduct = dashboardData?.by_product || [];
+	const byPayment = dashboardData?.by_payment || [];
+	const transactions = dashboardData?.recent_transactions?.data || [];
+	const boothName =
+		!isAllMode && boothData?.booth_name ? boothData.booth_name : null;
 
-	// Error state
-	if (error) {
-		return (
-			<SafeAreaView
-				style={[styles.container, { backgroundColor }]}
-				edges={["top"]}
-			>
-				<CustomHeader
-					title="Analytics"
-					boothContext
-					onBoothPress={() => setIsPickerVisible(true)}
-					onNotificationPress={handleNotificationPress}
-					notificationCount={unreadAlerts}
-				/>
+	// Render content based on state — separated to keep a single BoothPickerModal instance
+	const renderContent = () => {
+		if (isLoading) return <AnalyticsSkeleton />;
+
+		if (error) {
+			return (
 				<ErrorState
 					title="Failed to load analytics"
 					message={error.message || "An unexpected error occurred"}
 					onRetry={() => refetch()}
 				/>
-				<BoothPickerModal
-					visible={isPickerVisible}
-					onClose={() => setIsPickerVisible(false)}
-				/>
-			</SafeAreaView>
-		);
-	}
+			);
+		}
 
-	// Main content with data
-	const stats = dashboardData?.stats;
-	const byProduct = dashboardData?.by_product || [];
-	const byPayment = dashboardData?.by_payment || [];
-	// Access transactions from nested data property (API returns { data, pagination })
-	const transactions = dashboardData?.recent_transactions?.data || [];
-
-	// Get booth name for display (only available in single booth mode)
-	const boothName =
-		!isAllMode && boothData?.booth_name ? boothData.booth_name : null;
-
-	return (
-		<SafeAreaView
-			style={[styles.container, { backgroundColor }]}
-			edges={["top"]}
-		>
-			<CustomHeader
-				title="Analytics"
-				boothContext
-				onBoothPress={() => setIsPickerVisible(true)}
-				onNotificationPress={handleNotificationPress}
-				notificationCount={unreadAlerts}
-			/>
-
+		return (
 			<ScrollView
 				style={styles.content}
 				showsVerticalScrollIndicator={false}
@@ -500,6 +449,23 @@ export default function AnalyticsScreen() {
 				{/* Bottom spacing */}
 				<View style={{ height: Spacing.xxl }} />
 			</ScrollView>
+		);
+	};
+
+	return (
+		<SafeAreaView
+			style={[styles.container, { backgroundColor }]}
+			edges={["top"]}
+		>
+			<CustomHeader
+				title="Analytics"
+				boothContext
+				onBoothPress={() => setIsPickerVisible(true)}
+				onNotificationPress={handleNotificationPress}
+				notificationCount={unreadAlerts}
+			/>
+
+			{renderContent()}
 
 			<BoothPickerModal
 				visible={isPickerVisible}

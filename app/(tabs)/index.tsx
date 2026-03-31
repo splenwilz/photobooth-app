@@ -208,48 +208,26 @@ export default function DashboardScreen() {
 	const activeError = isAllMode ? errorOverview : errorDetail;
 	const activeRefetch = isAllMode ? refetchOverview : refetchDetail;
 
-	if (!isInitialLoading && activeError) {
-		return (
-			<SafeAreaView
-				style={[styles.container, { backgroundColor }]}
-				edges={["top"]}
-			>
-				<CustomHeader
-					title="Dashboard"
-					boothContext
-					onBoothPress={() => setIsPickerVisible(true)}
-					onNotificationPress={handleNotificationPress}
-					notificationCount={unreadAlerts}
-				/>
+	const hasNoBooths = dashboardOverview?.summary?.total_booths === 0;
+	const isShowingLoading = (isInitialLoading || isInvalidBoothSelection || isWaitingForDashboardData || isWaitingForBoothData) && !activeError;
+
+	// Render content based on state — separated to keep a single BoothPickerModal instance
+	const renderContent = () => {
+		// Error state
+		if (!isInitialLoading && activeError) {
+			return (
 				<ErrorState
 					title="Failed to load dashboard"
 					message={activeError.message || "An unexpected error occurred"}
 					onRetry={() => activeRefetch()}
 				/>
-				<BoothPickerModal
-					visible={isPickerVisible}
-					onClose={() => setIsPickerVisible(false)}
-				/>
-			</SafeAreaView>
-		);
-	}
+			);
+		}
 
-	// Show skeleton while loading OR while data hasn't arrived yet
-	if ((isInitialLoading || isInvalidBoothSelection || isWaitingForDashboardData || isWaitingForBoothData) && !activeError) {
-		// If loading takes too long, show a friendly message instead of skeleton forever
-		if (isLoadingTimedOut) {
-			return (
-				<SafeAreaView
-					style={[styles.container, { backgroundColor }]}
-					edges={["top"]}
-				>
-					<CustomHeader
-						title="Dashboard"
-						boothContext
-						onBoothPress={() => setIsPickerVisible(true)}
-						onNotificationPress={handleNotificationPress}
-						notificationCount={unreadAlerts}
-					/>
+		// Loading states
+		if (isShowingLoading) {
+			if (isLoadingTimedOut) {
+				return (
 					<ErrorState
 						title="Taking longer than expected"
 						message="We're having trouble reaching the server. Please check your internet connection and try again."
@@ -262,52 +240,14 @@ export default function DashboardScreen() {
 							}
 						}}
 					/>
-					<BoothPickerModal
-						visible={isPickerVisible}
-						onClose={() => setIsPickerVisible(false)}
-					/>
-				</SafeAreaView>
-			);
+				);
+			}
+			return <DashboardSkeleton isAllBoothsMode={isAllMode} />;
 		}
 
-		return (
-			<SafeAreaView
-				style={[styles.container, { backgroundColor }]}
-				edges={["top"]}
-			>
-				<CustomHeader
-					title="Dashboard"
-					boothContext
-					onBoothPress={() => setIsPickerVisible(true)}
-					onNotificationPress={handleNotificationPress}
-					notificationCount={unreadAlerts}
-				/>
-				<DashboardSkeleton isAllBoothsMode={isAllMode} />
-				<BoothPickerModal
-					visible={isPickerVisible}
-					onClose={() => setIsPickerVisible(false)}
-				/>
-			</SafeAreaView>
-		);
-	}
-
-	// No booths state - check if user has no booths
-	// This handles: new signups, all booths deleted
-	const hasNoBooths = dashboardOverview?.summary?.total_booths === 0;
-
-	if (hasNoBooths) {
-		return (
-			<SafeAreaView
-				style={[styles.container, { backgroundColor }]}
-				edges={["top"]}
-			>
-				<CustomHeader
-					title="Dashboard"
-					boothContext
-					onBoothPress={() => setIsPickerVisible(true)}
-					onNotificationPress={handleNotificationPress}
-					notificationCount={unreadAlerts}
-				/>
+		// No booths state
+		if (hasNoBooths) {
+			return (
 				<View style={[styles.container, styles.centered]}>
 					<IconSymbol name="photo.stack" size={64} color={textSecondary} />
 					<ThemedText type="subtitle" style={styles.emptyTitle}>
@@ -326,27 +266,11 @@ export default function DashboardScreen() {
 						</ThemedText>
 					</TouchableOpacity>
 				</View>
-				<BoothPickerModal
-					visible={isPickerVisible}
-					onClose={() => setIsPickerVisible(false)}
-				/>
-			</SafeAreaView>
-		);
-	}
+			);
+		}
 
-	return (
-		<SafeAreaView
-			style={[styles.container, { backgroundColor }]}
-			edges={["top"]}
-		>
-			<CustomHeader
-				title="Dashboard"
-				boothContext
-				onBoothPress={() => setIsPickerVisible(true)}
-				onNotificationPress={handleNotificationPress}
-				notificationCount={unreadAlerts}
-			/>
-
+		// Main content
+		return (
 			<ScrollView
 				style={styles.content}
 				showsVerticalScrollIndicator={false}
@@ -438,7 +362,7 @@ export default function DashboardScreen() {
 								>
 									Payment Methods
 								</ThemedText>
-								
+
 								{/* Cash */}
 								<View style={styles.breakdownRow}>
 									<ThemedText style={{ color: textSecondary }}>Cash</ThemedText>
@@ -446,9 +370,9 @@ export default function DashboardScreen() {
 										{formatCurrency(paymentBreakdown?.cash ?? 0)}
 									</ThemedText>
 								</View>
-								
+
 								<View style={[styles.breakdownDivider, { backgroundColor: borderColor }]} />
-								
+
 								{/* Card */}
 								<View style={styles.breakdownRow}>
 									<ThemedText style={{ color: textSecondary }}>Card</ThemedText>
@@ -456,9 +380,9 @@ export default function DashboardScreen() {
 										{formatCurrency(paymentBreakdown?.card ?? 0)}
 									</ThemedText>
 								</View>
-								
+
 								<View style={[styles.breakdownDivider, { backgroundColor: borderColor }]} />
-								
+
 								{/* Manual */}
 								<View style={styles.breakdownRow}>
 									<ThemedText style={{ color: textSecondary }}>Manual</ThemedText>
@@ -653,6 +577,23 @@ export default function DashboardScreen() {
 				{/* Bottom spacing */}
 				<View style={{ height: Spacing.xxl }} />
 			</ScrollView>
+		);
+	};
+
+	return (
+		<SafeAreaView
+			style={[styles.container, { backgroundColor }]}
+			edges={["top"]}
+		>
+			<CustomHeader
+				title="Dashboard"
+				boothContext
+				onBoothPress={() => setIsPickerVisible(true)}
+				onNotificationPress={handleNotificationPress}
+				notificationCount={unreadAlerts}
+			/>
+
+			{renderContent()}
 
 			<BoothPickerModal
 				visible={isPickerVisible}

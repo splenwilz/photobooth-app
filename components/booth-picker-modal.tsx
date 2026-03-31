@@ -165,12 +165,14 @@ export function BoothPickerModal({ visible, onClose }: BoothPickerModalProps) {
 									</View>
 									<View style={styles.boothRowText}>
 										<ThemedText type="defaultSemiBold">All Booths</ThemedText>
-										<ThemedText
-											style={[styles.boothSubtext, { color: textSecondary }]}
-										>
-											{summary?.online_count ?? 0} online ·{" "}
-											{summary?.offline_count ?? 0} offline
-										</ThemedText>
+										{summary && (
+											<ThemedText
+												style={[styles.boothSubtext, { color: textSecondary }]}
+											>
+												{summary.online_count} online ·{" "}
+												{summary.offline_count} offline
+											</ThemedText>
+										)}
 									</View>
 								</View>
 								{selectedBoothId === ALL_BOOTHS_ID && (
