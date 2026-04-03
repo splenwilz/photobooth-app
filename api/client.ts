@@ -390,6 +390,7 @@ function isNoAccessTokenPublicAuthEndpoint(url: string): boolean {
     url.includes("/auth/refresh-token") ||
     url.includes("/auth/forgot-password") ||
     url.includes("/auth/reset-password") ||
+    url.includes("/auth/verify-reset-code") ||
     url.includes("/auth/verify-email") ||
     url.includes("/auth/authorize") ||
     url.includes("/auth/callback")
@@ -408,6 +409,7 @@ function isCredentialErrorPublicAuthEndpoint(url: string): boolean {
     url.includes("/auth/signup") ||
     url.includes("/auth/forgot-password") ||
     url.includes("/auth/reset-password") ||
+    url.includes("/auth/verify-reset-code") ||
     url.includes("/auth/verify-email") ||
     url.includes("/auth/authorize") ||
     url.includes("/auth/callback")

@@ -1,144 +1,188 @@
 /**
- * Reset Password Screen
- * 
- * Allows users to set a new password after clicking the reset link in email.
- * Opens via deep link: photoboothapp://auth/reset-password?token=xyz
- * 
+ * Reset Password - Code Entry Screen
+ *
+ * Step 2 of the password reset flow. User enters the 6-digit OTP code
+ * sent to their email. On success, navigates to the new-password screen
+ * with the returned token.
+ *
  * Flow:
- * 1. User clicks reset link in email
- * 2. Deep link opens app to this screen with token in URL params
- * 3. User enters new password
- * 4. Submits to POST /api/v1/auth/reset-password with token
- * 5. On success, redirects to sign in
- * 
- * @see https://docs.expo.dev/router/introduction/ - Expo Router docs
- * @see /api/auth/reset-password/queries.ts - useResetPassword hook
+ * 1. Forgot-password screen sends code to email, navigates here with email param
+ * 2. User enters 6-digit code
+ * 3. POST /api/v1/auth/verify-reset-code → returns {token}
+ * 4. Navigate to new-password screen with token
+ *
+ * @see /api/auth/verify-reset-code/queries.ts - useVerifyResetCode hook
  */
 
-import React, { useMemo, useState } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  ScrollView, 
+import React, { useState, useRef } from 'react';
+import {
+  StyleSheet,
+  View,
+  ScrollView,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from '@/components/themed-text';
-import { FormInput } from '@/components/auth/form-input';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Spacing, BRAND_COLOR, StatusColors, withAlpha } from '@/constants/theme';
-// API hook for reset password
-import { useResetPassword } from '@/api/auth/reset-password/queries';
+import { Spacing, BorderRadius, BRAND_COLOR, StatusColors, withAlpha } from '@/constants/theme';
+// API hooks
+import { useVerifyResetCode } from '@/api/auth/verify-reset-code/queries';
+import { useForgotPassword } from '@/api/auth/forgot-password/queries';
+
+const CODE_LENGTH = 6;
 
 export default function ResetPasswordScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textSecondary = useThemeColor({}, 'textSecondary');
   const cardBg = useThemeColor({}, 'card');
+  const borderColor = useThemeColor({}, 'border');
+  const textColor = useThemeColor({}, 'text');
 
-  // Extract token from URL params (from deep link)
-  // e.g., photoboothapp://auth/reset-password?token=abc123
-  const params = useLocalSearchParams<{ token?: string }>();
-  
-  const resetToken = useMemo(() => {
-    const tokenParam = params.token;
-    return typeof tokenParam === 'string' ? tokenParam : '';
-  }, [params.token]);
+  // Extract email from navigation params (passed from forgot-password screen)
+  const params = useLocalSearchParams<{ email?: string }>();
+  const email = typeof params.email === 'string' ? params.email : '';
 
-  // API mutation hook
-  const { mutateAsync: resetPasswordMutation, isPending } = useResetPassword();
+  // API mutation hooks
+  const { mutateAsync: verifyResetCodeMutation, isPending } = useVerifyResetCode();
+  const { mutateAsync: forgotPasswordMutation } = useForgotPassword();
 
-  // Form state
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState<{ newPassword?: string; confirmPassword?: string; root?: string }>({});
+  // State
+  const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
+  const [error, setError] = useState('');
+  const [isResending, setIsResending] = useState(false);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  // Validate and submit
-  const handleSubmit = async () => {
-    // Clear errors
-    setErrors({});
+  // Handle code input
+  const handleCodeChange = (value: string, index: number) => {
+    if (error) setError('');
 
-    // Validate token
-    if (!resetToken) {
-      setErrors({ root: 'Reset token missing. Please open the password reset link again.' });
-      return;
+    if (value.length > 1) {
+      // Handle paste
+      const pastedCode = value.slice(0, CODE_LENGTH).split('');
+      const newCode = [...code];
+      pastedCode.forEach((char, i) => {
+        if (index + i < CODE_LENGTH) {
+          newCode[index + i] = char;
+        }
+      });
+      setCode(newCode);
+
+      const nextIndex = Math.min(index + pastedCode.length, CODE_LENGTH - 1);
+      inputRefs.current[nextIndex]?.focus();
+    } else {
+      const newCode = [...code];
+      newCode[index] = value;
+      setCode(newCode);
+
+      if (value && index < CODE_LENGTH - 1) {
+        inputRefs.current[index + 1]?.focus();
+      }
     }
+  };
 
-    // Validate password
-    const newErrors: typeof errors = {};
-    
-    if (!newPassword) {
-      newErrors.newPassword = 'Password is required';
-    } else if (newPassword.length < 8) {
-      newErrors.newPassword = 'Password must be at least 8 characters';
-    } else if (!/\d/.test(newPassword)) {
-      newErrors.newPassword = 'Password must contain at least one number';
-    } else if (!/[A-Z]/.test(newPassword)) {
-      newErrors.newPassword = 'Password must contain at least one uppercase letter';
-    } else if (!/[a-z]/.test(newPassword)) {
-      newErrors.newPassword = 'Password must contain at least one lowercase letter';
+  // Handle backspace
+  const handleKeyPress = (key: string, index: number) => {
+    if (key === 'Backspace' && !code[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
     }
+  };
 
-    if (!confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (newPassword !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+  // Verify code
+  const handleVerify = async () => {
+    const fullCode = code.join('');
+    if (fullCode.length !== CODE_LENGTH) {
+      setError('Please enter the 6-digit code');
       return;
     }
 
     try {
-      // Call reset password API
-      // @see POST /api/v1/auth/reset-password
-      const response = await resetPasswordMutation({
-        token: resetToken,
-        new_password: newPassword,
-        confirm_new_password: confirmPassword,
-      });
-      console.log('[ResetPassword] Success:', response);
-      
-      // Show success and redirect to sign in
-      Alert.alert(
-        'Password Updated',
-        'Your password has been reset successfully. Please sign in with your new password.',
-        [
-          {
-            text: 'Sign In',
-            onPress: () => router.replace('/auth/signin'),
-          },
-        ]
-      );
+      // @see POST /api/v1/auth/verify-reset-code
+      const response = await verifyResetCodeMutation({ code: fullCode });
+      console.log('[ResetPassword] Code verified:', response);
+
+      // Navigate to new-password screen with the returned token
+      router.push({ pathname: '/auth/new-password', params: { token: response.token } });
     } catch (err: unknown) {
-      console.error('[ResetPassword] Error:', err);
-      // Extract error message from API response
-      const errorMessage = err instanceof Error ? err.message : 'Failed to reset password. Please try again.';
-      setErrors({ root: errorMessage });
+      console.error('[ResetPassword] Verify error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Invalid or expired code. Please try again.';
+      setError(errorMessage);
+      // Clear code and refocus first input
+      setCode(Array(CODE_LENGTH).fill(''));
+      inputRefs.current[0]?.focus();
     }
   };
 
-  // Navigate back to sign in
-  const handleBackToSignIn = () => {
-    router.push('/auth/signin');
+  // Resend code
+  const handleResend = async () => {
+    if (!email) {
+      Alert.alert(
+        'Unable to Resend',
+        'Please go back and enter your email again.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Go Back', onPress: () => router.back() },
+        ]
+      );
+      return;
+    }
+
+    try {
+      setIsResending(true);
+      await forgotPasswordMutation({ email });
+      setCode(Array(CODE_LENGTH).fill(''));
+      setError('');
+      inputRefs.current[0]?.focus();
+      Alert.alert('Code Resent', 'A new reset code has been sent to your email.');
+    } catch (err: unknown) {
+      console.error('[ResetPassword] Resend error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to resend code. Please try again.';
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsResending(false);
+    }
   };
 
-  // Show error if token is missing
-  const hasValidToken = Boolean(resetToken);
+  const isCodeComplete = code.every(c => c !== '');
+
+  // Fallback if no email param
+  if (!email) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor }]}>
+        <View style={styles.fallbackContainer}>
+          <View style={[styles.iconContainer, { backgroundColor: withAlpha(StatusColors.warning, 0.15) }]}>
+            <IconSymbol name="exclamationmark.triangle.fill" size={40} color={StatusColors.warning} />
+          </View>
+          <ThemedText type="title" style={styles.title}>
+            Missing Information
+          </ThemedText>
+          <ThemedText style={[styles.subtitle, { color: textSecondary }]}>
+            Please start the password reset process from the forgot password screen.
+          </ThemedText>
+          <View style={styles.buttonSection}>
+            <PrimaryButton
+              text="Go to Forgot Password"
+              onPress={() => router.replace('/auth/forgot-password')}
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -147,86 +191,85 @@ export default function ResetPasswordScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View style={[styles.iconContainer, { backgroundColor: withAlpha(BRAND_COLOR, 0.15) }]}>
-              <IconSymbol name="lock.rotation" size={40} color={BRAND_COLOR} />
+              <IconSymbol name="envelope" size={40} color={BRAND_COLOR} />
             </View>
             <ThemedText type="title" style={styles.title}>
-              Update Your Password
+              Enter Reset Code
             </ThemedText>
             <ThemedText style={[styles.subtitle, { color: textSecondary }]}>
-              Set a new password with at least 8 characters, including uppercase, lowercase, and a number.
+              We sent a 6-digit code to
+            </ThemedText>
+            <ThemedText type="defaultSemiBold" style={styles.emailText}>
+              {email}
             </ThemedText>
           </View>
 
-          {/* Token Status */}
-          <View style={[styles.tokenStatus, { backgroundColor: cardBg }]}>
-            <IconSymbol 
-              name={hasValidToken ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"} 
-              size={20} 
-              color={hasValidToken ? StatusColors.success : StatusColors.warning} 
-            />
-            <ThemedText style={[styles.tokenText, { color: textSecondary }]}>
-              {hasValidToken 
-                ? 'Reset link verified' 
-                : 'Reset token missing. Please open the password reset link from your email.'}
-            </ThemedText>
-          </View>
-
-          {/* Form */}
-          <View style={styles.form}>
-            <FormInput
-              label="New Password"
-              placeholder="Enter new password"
-              icon="lock"
-              value={newPassword}
-              onChangeText={(value) => {
-                setNewPassword(value);
-                if (errors.newPassword) {
-                  setErrors(prev => ({ ...prev, newPassword: undefined }));
-                }
-              }}
-              error={errors.newPassword}
-              secureTextEntry
-            />
-
-            <FormInput
-              label="Confirm Password"
-              placeholder="Re-enter new password"
-              icon="lock"
-              value={confirmPassword}
-              onChangeText={(value) => {
-                setConfirmPassword(value);
-                if (errors.confirmPassword) {
-                  setErrors(prev => ({ ...prev, confirmPassword: undefined }));
-                }
-              }}
-              error={errors.confirmPassword}
-              secureTextEntry
-            />
-
-            {/* Root error */}
-            {errors.root && (
-              <View style={[styles.errorBox, { backgroundColor: withAlpha(StatusColors.error, 0.1) }]}>
-                <ThemedText style={[styles.errorText, { color: StatusColors.error }]}>
-                  {errors.root}
-                </ThemedText>
-              </View>
-            )}
-
-            <View style={styles.buttonSection}>
-              <PrimaryButton
-                text="Update Password"
-                onPress={handleSubmit}
-                isLoading={isPending}
-                disabled={!hasValidToken}
-              />
-            </View>
-
-            <TouchableOpacity style={styles.backLink} onPress={handleBackToSignIn}>
-              <ThemedText style={[styles.backLinkText, { color: BRAND_COLOR }]}>
-                Back to Sign In
+          {/* Error */}
+          {error ? (
+            <View style={[styles.errorBox, { backgroundColor: withAlpha(StatusColors.error, 0.1) }]}>
+              <ThemedText style={[styles.errorText, { color: StatusColors.error }]}>
+                {error}
               </ThemedText>
-            </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {/* Code Input */}
+          <View style={styles.codeContainer}>
+            {code.map((digit, index) => (
+              <TextInput
+                key={index}
+                ref={(ref) => { inputRefs.current[index] = ref; }}
+                style={[
+                  styles.codeInput,
+                  {
+                    backgroundColor: cardBg,
+                    borderColor: digit ? BRAND_COLOR : borderColor,
+                    color: textColor,
+                  },
+                ]}
+                value={digit}
+                onChangeText={(value) => handleCodeChange(value, index)}
+                onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
+                keyboardType="number-pad"
+                maxLength={CODE_LENGTH}
+                selectTextOnFocus
+              />
+            ))}
           </View>
+
+          {/* Verify Button */}
+          <View style={styles.buttonSection}>
+            <PrimaryButton
+              text="Verify Code"
+              onPress={handleVerify}
+              isLoading={isPending}
+              disabled={!isCodeComplete}
+            />
+          </View>
+
+          {/* Resend Link */}
+          <TouchableOpacity
+            style={styles.resendSection}
+            onPress={handleResend}
+            disabled={isResending || isPending}
+          >
+            <ThemedText style={[styles.resendText, { color: textSecondary }]}>
+              {"Didn't receive the code? "}
+            </ThemedText>
+            <ThemedText style={[
+              styles.resendLink,
+              { color: BRAND_COLOR, opacity: isResending ? 0.6 : 1 },
+            ]}>
+              {isResending ? 'Sending...' : 'Resend'}
+            </ThemedText>
+          </TouchableOpacity>
+
+          {/* Back to Sign In */}
+          <TouchableOpacity style={styles.backLink} onPress={() => router.replace('/auth/signin')}>
+            <ThemedText style={[styles.backLinkText, { color: BRAND_COLOR }]}>
+              Back to Sign In
+            </ThemedText>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -272,20 +315,9 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingHorizontal: Spacing.md,
   },
-  tokenStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-    borderRadius: 12,
-    marginBottom: Spacing.lg,
-  },
-  tokenText: {
-    flex: 1,
-    fontSize: 13,
-  },
-  form: {
-    marginBottom: Spacing.lg,
+  emailText: {
+    fontSize: 16,
+    marginTop: Spacing.xs,
   },
   errorBox: {
     padding: Spacing.md,
@@ -296,8 +328,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+  codeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  codeInput: {
+    width: 48,
+    height: 56,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 2,
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
   buttonSection: {
-    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  resendSection: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resendText: {
+    fontSize: 14,
+  },
+  resendLink: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   backLink: {
     marginTop: Spacing.lg,
@@ -307,5 +366,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  fallbackContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+  },
 });
-
