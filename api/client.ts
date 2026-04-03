@@ -8,6 +8,7 @@ export const REFRESH_TOKEN_KEY = "auth_refresh_token";
 export const USER_STORAGE_KEY = "auth_user";
 export const PENDING_PASSWORD_KEY = "auth_pending_password";
 export const PENDING_RESET_EMAIL_KEY = "auth_pending_reset_email";
+export const PENDING_RESET_TOKEN_KEY = "auth_pending_reset_token";
 
 /**
  * Custom error class for API errors with status code and parsed error message
@@ -290,6 +291,41 @@ export async function clearPendingResetEmail(): Promise<void> {
 }
 
 /**
+ * Save pending reset token to secure storage (for password reset flow step 3)
+ */
+export async function savePendingResetToken(token: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(PENDING_RESET_TOKEN_KEY, token);
+  } catch (error) {
+    console.error("[API] Failed to save pending reset token:", error);
+    throw error;
+  }
+}
+
+/**
+ * Retrieve pending reset token from secure storage
+ */
+export async function getPendingResetToken(): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(PENDING_RESET_TOKEN_KEY);
+  } catch (error) {
+    console.error("[API] Failed to read pending reset token:", error);
+    return null;
+  }
+}
+
+/**
+ * Clear pending reset token from secure storage
+ */
+export async function clearPendingResetToken(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(PENDING_RESET_TOKEN_KEY);
+  } catch (error) {
+    console.error("[API] Failed to clear pending reset token:", error);
+  }
+}
+
+/**
  * Clear tokens from secure storage (on logout)
  */
 export async function clearTokens(): Promise<void> {
@@ -300,6 +336,7 @@ export async function clearTokens(): Promise<void> {
     await SecureStore.deleteItemAsync(USER_STORAGE_KEY);
     await SecureStore.deleteItemAsync(PENDING_PASSWORD_KEY);
     await SecureStore.deleteItemAsync(PENDING_RESET_EMAIL_KEY);
+    await SecureStore.deleteItemAsync(PENDING_RESET_TOKEN_KEY);
     console.log("[API] [TOKEN] All tokens cleared successfully");
   } catch (error) {
     console.error("[API] [TOKEN] Failed to clear tokens:", error);

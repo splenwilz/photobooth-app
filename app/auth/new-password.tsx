@@ -13,7 +13,7 @@
  * @see /api/auth/reset-password/queries.ts - useResetPassword hook
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -24,7 +24,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from '@/components/themed-text';
 import { FormInput } from '@/components/auth/form-input';
@@ -34,26 +34,33 @@ import { Spacing, BRAND_COLOR, StatusColors, withAlpha } from '@/constants/theme
 // API hook and schema for reset password
 import { useResetPassword } from '@/api/auth/reset-password/queries';
 import { passwordSchema } from '@/api/auth/reset-password/types';
+import { getPendingResetToken, clearPendingResetToken } from '@/api/client';
 
 export default function NewPasswordScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const textSecondary = useThemeColor({}, 'textSecondary');
 
-  // Extract token from navigation params (passed from reset-password/code screen)
-  const params = useLocalSearchParams<{ token?: string }>();
-
-  const resetToken = useMemo(() => {
-    const tokenParam = params.token;
-    return typeof tokenParam === 'string' ? tokenParam : '';
-  }, [params.token]);
-
   // API mutation hook
   const { mutateAsync: resetPasswordMutation, isPending } = useResetPassword();
 
-  // Form state
+  // State
+  const [resetToken, setResetToken] = useState('');
+  const [isLoadingToken, setIsLoadingToken] = useState(true);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<{ newPassword?: string; confirmPassword?: string; root?: string }>({});
+
+  // Load token from secure storage on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const storedToken = await getPendingResetToken();
+        if (storedToken) setResetToken(storedToken);
+      } finally {
+        setIsLoadingToken(false);
+      }
+    })();
+  }, []);
 
   // Validate and submit
   const handleSubmit = async () => {
@@ -88,12 +95,15 @@ export default function NewPasswordScreen() {
 
     try {
       // @see POST /api/v1/auth/reset-password
-      const response = await resetPasswordMutation({
+      await resetPasswordMutation({
         token: resetToken,
         new_password: newPassword,
         confirm_new_password: confirmPassword,
       });
       if (__DEV__) console.log('[NewPassword] Password reset success');
+
+      // Clear the token from secure storage immediately after use
+      await clearPendingResetToken();
 
       Alert.alert(
         'Password Updated',
@@ -112,8 +122,8 @@ export default function NewPasswordScreen() {
     }
   };
 
-  // Fallback if no token
-  if (!resetToken) {
+  // Fallback if no token in secure storage
+  if (!isLoadingToken && !resetToken) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
         <View style={styles.fallbackContainer}>

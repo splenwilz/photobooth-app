@@ -35,7 +35,7 @@ import { Spacing, BorderRadius, BRAND_COLOR, StatusColors, withAlpha } from '@/c
 // API hooks
 import { useVerifyResetCode } from '@/api/auth/verify-reset-code/queries';
 import { useForgotPassword } from '@/api/auth/forgot-password/queries';
-import { getPendingResetEmail, clearPendingResetEmail } from '@/api/client';
+import { getPendingResetEmail, clearPendingResetEmail, savePendingResetToken } from '@/api/client';
 
 const CODE_LENGTH = 6;
 
@@ -61,15 +61,26 @@ export default function ResetPasswordScreen() {
   // Load email from secure storage on mount
   useEffect(() => {
     (async () => {
-      const storedEmail = await getPendingResetEmail();
-      if (storedEmail) setEmail(storedEmail);
-      setIsLoadingEmail(false);
+      try {
+        const storedEmail = await getPendingResetEmail();
+        if (storedEmail) setEmail(storedEmail);
+      } finally {
+        setIsLoadingEmail(false);
+      }
     })();
   }, []);
 
   // Handle code input — filters non-digit characters for both single input and paste
   const handleCodeChange = (value: string, index: number) => {
     if (error) setError('');
+
+    // Allow empty value (deletion) to clear the digit
+    if (value === '') {
+      const newCode = [...code];
+      newCode[index] = '';
+      setCode(newCode);
+      return;
+    }
 
     const digitsOnly = value.replace(/\D/g, '');
     if (!digitsOnly) return;
@@ -118,9 +129,10 @@ export default function ResetPasswordScreen() {
       const response = await verifyResetCodeMutation({ code: fullCode });
       if (__DEV__) console.log('[ResetPassword] Code verified');
 
-      // Clear stored email and navigate to new-password screen with the returned token
+      // Save token to secure storage, clear email, and navigate without sensitive params
+      await savePendingResetToken(response.token);
       await clearPendingResetEmail();
-      router.push({ pathname: '/auth/new-password', params: { token: response.token } });
+      router.push('/auth/new-password');
     } catch (err: unknown) {
       if (__DEV__) console.error('[ResetPassword] Verify error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Invalid or expired code. Please try again.';
