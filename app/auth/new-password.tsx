@@ -31,8 +31,9 @@ import { FormInput } from '@/components/auth/form-input';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Spacing, BRAND_COLOR, StatusColors, withAlpha } from '@/constants/theme';
-// API hook for reset password
+// API hook and schema for reset password
 import { useResetPassword } from '@/api/auth/reset-password/queries';
+import { passwordSchema } from '@/api/auth/reset-password/types';
 
 export default function NewPasswordScreen() {
   const backgroundColor = useThemeColor({}, 'background');
@@ -67,14 +68,11 @@ export default function NewPasswordScreen() {
 
     if (!newPassword) {
       newErrors.newPassword = 'Password is required';
-    } else if (newPassword.length < 8) {
-      newErrors.newPassword = 'Password must be at least 8 characters';
-    } else if (!/\d/.test(newPassword)) {
-      newErrors.newPassword = 'Password must contain at least one number';
-    } else if (!/[A-Z]/.test(newPassword)) {
-      newErrors.newPassword = 'Password must contain at least one uppercase letter';
-    } else if (!/[a-z]/.test(newPassword)) {
-      newErrors.newPassword = 'Password must contain at least one lowercase letter';
+    } else {
+      const result = passwordSchema.safeParse(newPassword);
+      if (!result.success) {
+        newErrors.newPassword = result.error.issues[0].message;
+      }
     }
 
     if (!confirmPassword) {
@@ -95,7 +93,7 @@ export default function NewPasswordScreen() {
         new_password: newPassword,
         confirm_new_password: confirmPassword,
       });
-      console.log('[NewPassword] Success:', response);
+      if (__DEV__) console.log('[NewPassword] Password reset success');
 
       Alert.alert(
         'Password Updated',
@@ -108,7 +106,7 @@ export default function NewPasswordScreen() {
         ]
       );
     } catch (err: unknown) {
-      console.error('[NewPassword] Error:', err);
+      if (__DEV__) console.error('[NewPassword] Error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to reset password. Please try again.';
       setErrors({ root: errorMessage });
     }

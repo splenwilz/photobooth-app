@@ -7,6 +7,7 @@ export const ACCESS_TOKEN_KEY = "auth_access_token";
 export const REFRESH_TOKEN_KEY = "auth_refresh_token";
 export const USER_STORAGE_KEY = "auth_user";
 export const PENDING_PASSWORD_KEY = "auth_pending_password";
+export const PENDING_RESET_EMAIL_KEY = "auth_pending_reset_email";
 
 /**
  * Custom error class for API errors with status code and parsed error message
@@ -254,6 +255,41 @@ export async function clearPendingPassword(): Promise<void> {
 }
 
 /**
+ * Save pending reset email to secure storage (for password reset flow)
+ */
+export async function savePendingResetEmail(email: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(PENDING_RESET_EMAIL_KEY, email);
+  } catch (error) {
+    console.error("[API] Failed to save pending reset email:", error);
+    throw error;
+  }
+}
+
+/**
+ * Retrieve pending reset email from secure storage
+ */
+export async function getPendingResetEmail(): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(PENDING_RESET_EMAIL_KEY);
+  } catch (error) {
+    console.error("[API] Failed to read pending reset email:", error);
+    return null;
+  }
+}
+
+/**
+ * Clear pending reset email from secure storage
+ */
+export async function clearPendingResetEmail(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(PENDING_RESET_EMAIL_KEY);
+  } catch (error) {
+    console.error("[API] Failed to clear pending reset email:", error);
+  }
+}
+
+/**
  * Clear tokens from secure storage (on logout)
  */
 export async function clearTokens(): Promise<void> {
@@ -263,6 +299,7 @@ export async function clearTokens(): Promise<void> {
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_STORAGE_KEY);
     await SecureStore.deleteItemAsync(PENDING_PASSWORD_KEY);
+    await SecureStore.deleteItemAsync(PENDING_RESET_EMAIL_KEY);
     console.log("[API] [TOKEN] All tokens cleared successfully");
   } catch (error) {
     console.error("[API] [TOKEN] Failed to clear tokens:", error);
@@ -380,40 +417,38 @@ async function triggerRefresh(): Promise<boolean> {
 }
 
 /**
- * Endpoints that can proceed without an access token.
- * Includes /auth/refresh-token because it authenticates via refresh token.
+ * Auth endpoint policies — single source of truth for public auth endpoint behavior.
+ *
+ * noAccessToken:       Endpoint can proceed without a Bearer token.
+ * treat401AsCredError: A 401 means invalid credentials, not session expiry.
+ *                      /auth/refresh-token is excluded because a 401 there IS
+ *                      session expiry and must set isSessionExpired: true.
  */
-function isNoAccessTokenPublicAuthEndpoint(url: string): boolean {
-  return (
-    url.includes("/auth/signin") ||
-    url.includes("/auth/signup") ||
-    url.includes("/auth/refresh-token") ||
-    url.includes("/auth/forgot-password") ||
-    url.includes("/auth/reset-password") ||
-    url.includes("/auth/verify-reset-code") ||
-    url.includes("/auth/verify-email") ||
-    url.includes("/auth/authorize") ||
-    url.includes("/auth/callback")
-  );
+const AUTH_ENDPOINT_POLICIES: Record<string, { noAccessToken: boolean; treat401AsCredError: boolean }> = {
+  "/auth/signin":            { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/signup":            { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/refresh-token":     { noAccessToken: true,  treat401AsCredError: false },
+  "/auth/forgot-password":   { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/reset-password":    { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/verify-reset-code": { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/verify-email":      { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/authorize":         { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/callback":          { noAccessToken: true,  treat401AsCredError: true  },
+};
+
+function findEndpointPolicy(url: string) {
+  for (const [path, policy] of Object.entries(AUTH_ENDPOINT_POLICIES)) {
+    if (url.includes(path)) return policy;
+  }
+  return null;
 }
 
-/**
- * Endpoints where a 401 means invalid credentials, not session expiry.
- * Excludes /auth/refresh-token — a 401 there means the refresh token is
- * invalid, which IS session expiry and must set isSessionExpired: true
- * so query-client.ts suppresses retries and triggers the global redirect.
- */
+function isNoAccessTokenPublicAuthEndpoint(url: string): boolean {
+  return findEndpointPolicy(url)?.noAccessToken === true;
+}
+
 function isCredentialErrorPublicAuthEndpoint(url: string): boolean {
-  return (
-    url.includes("/auth/signin") ||
-    url.includes("/auth/signup") ||
-    url.includes("/auth/forgot-password") ||
-    url.includes("/auth/reset-password") ||
-    url.includes("/auth/verify-reset-code") ||
-    url.includes("/auth/verify-email") ||
-    url.includes("/auth/authorize") ||
-    url.includes("/auth/callback")
-  );
+  return findEndpointPolicy(url)?.treat401AsCredError === true;
 }
 
 /**

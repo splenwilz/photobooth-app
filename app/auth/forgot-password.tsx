@@ -32,6 +32,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Spacing, BRAND_COLOR, withAlpha } from '@/constants/theme';
 // API hook for forgot password
 import { useForgotPassword } from '@/api/auth/forgot-password/queries';
+import { savePendingResetEmail } from '@/api/client';
 
 export default function ForgotPasswordScreen() {
   const backgroundColor = useThemeColor({}, 'background');
@@ -62,12 +63,14 @@ export default function ForgotPasswordScreen() {
     try {
       // Call forgot password API
       // @see POST /api/v1/auth/forgot-password
-      const response = await forgotPasswordMutation({ email: email.trim() });
-      console.log('[ForgotPassword] Success:', response);
-      // Navigate to reset-password screen with email for OTP entry
-      router.push({ pathname: '/auth/reset-password', params: { email: email.trim() } });
+      const trimmedEmail = email.trim();
+      const response = await forgotPasswordMutation({ email: trimmedEmail });
+      if (__DEV__) console.log('[ForgotPassword] Success:', response);
+      // Save email to secure storage and navigate without PII in params
+      await savePendingResetEmail(trimmedEmail);
+      router.push('/auth/reset-password');
     } catch (err: unknown) {
-      console.error('[ForgotPassword] Error:', err);
+      if (__DEV__) console.error('[ForgotPassword] Error:', err);
       // Extract error message from API response
       const errorMessage = err instanceof Error ? err.message : 'Failed to send reset code. Please try again.';
       setError(errorMessage);

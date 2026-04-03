@@ -14,7 +14,7 @@
  * @see /api/auth/verify-reset-code/queries.ts - useVerifyResetCode hook
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -26,7 +26,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from '@/components/themed-text';
 import { PrimaryButton } from '@/components/auth/primary-button';
@@ -35,6 +35,7 @@ import { Spacing, BorderRadius, BRAND_COLOR, StatusColors, withAlpha } from '@/c
 // API hooks
 import { useVerifyResetCode } from '@/api/auth/verify-reset-code/queries';
 import { useForgotPassword } from '@/api/auth/forgot-password/queries';
+import { getPendingResetEmail, clearPendingResetEmail } from '@/api/client';
 
 const CODE_LENGTH = 6;
 
@@ -45,43 +46,53 @@ export default function ResetPasswordScreen() {
   const borderColor = useThemeColor({}, 'border');
   const textColor = useThemeColor({}, 'text');
 
-  // Extract email from navigation params (passed from forgot-password screen)
-  const params = useLocalSearchParams<{ email?: string }>();
-  const email = typeof params.email === 'string' ? params.email : '';
-
   // API mutation hooks
   const { mutateAsync: verifyResetCodeMutation, isPending } = useVerifyResetCode();
   const { mutateAsync: forgotPasswordMutation } = useForgotPassword();
 
   // State
+  const [email, setEmail] = useState('');
+  const [isLoadingEmail, setIsLoadingEmail] = useState(true);
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [error, setError] = useState('');
   const [isResending, setIsResending] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  // Handle code input
+  // Load email from secure storage on mount
+  useEffect(() => {
+    (async () => {
+      const storedEmail = await getPendingResetEmail();
+      if (storedEmail) setEmail(storedEmail);
+      setIsLoadingEmail(false);
+    })();
+  }, []);
+
+  // Handle code input — filters non-digit characters for both single input and paste
   const handleCodeChange = (value: string, index: number) => {
     if (error) setError('');
 
-    if (value.length > 1) {
+    const digitsOnly = value.replace(/\D/g, '');
+    if (!digitsOnly) return;
+
+    if (digitsOnly.length > 1) {
       // Handle paste
-      const pastedCode = value.slice(0, CODE_LENGTH).split('');
+      const pastedDigits = digitsOnly.slice(0, CODE_LENGTH).split('');
       const newCode = [...code];
-      pastedCode.forEach((char, i) => {
+      pastedDigits.forEach((char, i) => {
         if (index + i < CODE_LENGTH) {
           newCode[index + i] = char;
         }
       });
       setCode(newCode);
 
-      const nextIndex = Math.min(index + pastedCode.length, CODE_LENGTH - 1);
+      const nextIndex = Math.min(index + pastedDigits.length, CODE_LENGTH - 1);
       inputRefs.current[nextIndex]?.focus();
     } else {
       const newCode = [...code];
-      newCode[index] = value;
+      newCode[index] = digitsOnly;
       setCode(newCode);
 
-      if (value && index < CODE_LENGTH - 1) {
+      if (index < CODE_LENGTH - 1) {
         inputRefs.current[index + 1]?.focus();
       }
     }
@@ -105,12 +116,13 @@ export default function ResetPasswordScreen() {
     try {
       // @see POST /api/v1/auth/verify-reset-code
       const response = await verifyResetCodeMutation({ code: fullCode });
-      console.log('[ResetPassword] Code verified:', response);
+      if (__DEV__) console.log('[ResetPassword] Code verified');
 
-      // Navigate to new-password screen with the returned token
+      // Clear stored email and navigate to new-password screen with the returned token
+      await clearPendingResetEmail();
       router.push({ pathname: '/auth/new-password', params: { token: response.token } });
     } catch (err: unknown) {
-      console.error('[ResetPassword] Verify error:', err);
+      if (__DEV__) console.error('[ResetPassword] Verify error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Invalid or expired code. Please try again.';
       setError(errorMessage);
       // Clear code and refocus first input
@@ -141,7 +153,7 @@ export default function ResetPasswordScreen() {
       inputRefs.current[0]?.focus();
       Alert.alert('Code Resent', 'A new reset code has been sent to your email.');
     } catch (err: unknown) {
-      console.error('[ResetPassword] Resend error:', err);
+      if (__DEV__) console.error('[ResetPassword] Resend error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to resend code. Please try again.';
       Alert.alert('Error', errorMessage);
     } finally {
@@ -151,8 +163,8 @@ export default function ResetPasswordScreen() {
 
   const isCodeComplete = code.every(c => c !== '');
 
-  // Fallback if no email param
-  if (!email) {
+  // Fallback if no email in secure storage
+  if (!isLoadingEmail && !email) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor }]}>
         <View style={styles.fallbackContainer}>
@@ -233,6 +245,7 @@ export default function ResetPasswordScreen() {
                 keyboardType="number-pad"
                 maxLength={CODE_LENGTH}
                 selectTextOnFocus
+                accessibilityLabel={`OTP digit ${index + 1} of ${CODE_LENGTH}`}
               />
             ))}
           </View>
