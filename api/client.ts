@@ -335,8 +335,9 @@ export async function clearTokens(): Promise<void> {
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_STORAGE_KEY);
     await SecureStore.deleteItemAsync(PENDING_PASSWORD_KEY);
-    await SecureStore.deleteItemAsync(PENDING_RESET_EMAIL_KEY);
-    await SecureStore.deleteItemAsync(PENDING_RESET_TOKEN_KEY);
+    // Note: PENDING_RESET_EMAIL_KEY and PENDING_RESET_TOKEN_KEY are intentionally
+    // NOT cleared here — they are managed by the reset flow itself so that an
+    // unrelated session expiry does not abort a password reset in progress.
     console.log("[API] [TOKEN] All tokens cleared successfully");
   } catch (error) {
     console.error("[API] [TOKEN] Failed to clear tokens:", error);
@@ -474,8 +475,16 @@ const AUTH_ENDPOINT_POLICIES: Record<string, { noAccessToken: boolean; treat401A
 };
 
 function findEndpointPolicy(url: string) {
+  let pathname: string;
+  try {
+    // Handle both relative ("/api/v1/...") and absolute ("https://...") URLs
+    const parsed = new URL(url, "http://localhost");
+    pathname = parsed.pathname.replace(/\/+$/, "");
+  } catch {
+    pathname = url;
+  }
   for (const [path, policy] of Object.entries(AUTH_ENDPOINT_POLICIES)) {
-    if (url.includes(path)) return policy;
+    if (pathname === path || pathname.endsWith(path)) return policy;
   }
   return null;
 }
@@ -543,7 +552,7 @@ export async function apiClient<T>(
 
     // Add Authorization header if token exists
     if (accessToken) {
-      headers["Authorization"] = `Bearer ${accessToken}`;
+      headers.Authorization = `Bearer ${accessToken}`;
     }
 
     const targetUrl = url.startsWith("http") ? url : `${apiBaseUrl}${url}`;
@@ -572,11 +581,11 @@ export async function apiClient<T>(
     const onCallerAbort = callerSignal
       ? () => controller.abort()
       : undefined;
-    if (callerSignal) {
+    if (callerSignal && onCallerAbort) {
       if (callerSignal.aborted) {
         controller.abort();
       } else {
-        callerSignal.addEventListener("abort", onCallerAbort!, { once: true });
+        callerSignal.addEventListener("abort", onCallerAbort, { once: true });
       }
     }
 

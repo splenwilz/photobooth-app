@@ -102,9 +102,6 @@ export default function NewPasswordScreen() {
       });
       if (__DEV__) console.log('[NewPassword] Password reset success');
 
-      // Clear the token from secure storage immediately after use
-      await clearPendingResetToken();
-
       Alert.alert(
         'Password Updated',
         'Your password has been reset successfully. Please sign in with your new password.',
@@ -119,7 +116,16 @@ export default function NewPasswordScreen() {
       if (__DEV__) console.error('[NewPassword] Error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to reset password. Please try again.';
       setErrors({ root: errorMessage });
+    } finally {
+      // Always clear token from secure storage — success, failure, or abandonment
+      await clearPendingResetToken();
     }
+  };
+
+  // Navigate back to sign in with cleanup
+  const handleBackToSignIn = async () => {
+    await clearPendingResetToken();
+    router.replace('/auth/signin');
   };
 
   // Fallback if no token in secure storage
@@ -221,7 +227,7 @@ export default function NewPasswordScreen() {
               />
             </View>
 
-            <TouchableOpacity style={styles.backLink} onPress={() => router.replace('/auth/signin')}>
+            <TouchableOpacity style={styles.backLink} onPress={handleBackToSignIn}>
               <ThemedText style={[styles.backLinkText, { color: BRAND_COLOR }]}>
                 Back to Sign In
               </ThemedText>

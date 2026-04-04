@@ -124,15 +124,13 @@ export default function ResetPasswordScreen() {
       return;
     }
 
+    // Step 1: Verify the OTP code with the server
+    let token: string;
     try {
       // @see POST /api/v1/auth/verify-reset-code
       const response = await verifyResetCodeMutation({ code: fullCode });
       if (__DEV__) console.log('[ResetPassword] Code verified');
-
-      // Save token to secure storage, clear email, and navigate without sensitive params
-      await savePendingResetToken(response.token);
-      await clearPendingResetEmail();
-      router.push('/auth/new-password');
+      token = response.token;
     } catch (err: unknown) {
       if (__DEV__) console.error('[ResetPassword] Verify error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Invalid or expired code. Please try again.';
@@ -140,6 +138,17 @@ export default function ResetPasswordScreen() {
       // Clear code and refocus first input
       setCode(Array(CODE_LENGTH).fill(''));
       inputRefs.current[0]?.focus();
+      return;
+    }
+
+    // Step 2: Persist token and navigate — separate from verification
+    try {
+      await savePendingResetToken(token);
+      await clearPendingResetEmail();
+      router.push('/auth/new-password');
+    } catch (err: unknown) {
+      if (__DEV__) console.error('[ResetPassword] Storage error:', err);
+      setError('Something went wrong. Please try again.');
     }
   };
 

@@ -50,12 +50,15 @@ export default function ForgotPasswordScreen() {
     // Clear error
     setError('');
 
+    // Normalize once and use everywhere
+    const trimmedEmail = email.trim();
+
     // Validate email
-    if (!email.trim()) {
+    if (!trimmedEmail) {
       setError('Email is required');
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setError('Please enter a valid email');
       return;
     }
@@ -63,7 +66,6 @@ export default function ForgotPasswordScreen() {
     try {
       // Call forgot password API
       // @see POST /api/v1/auth/forgot-password
-      const trimmedEmail = email.trim();
       const response = await forgotPasswordMutation({ email: trimmedEmail });
       if (__DEV__) console.log('[ForgotPassword] Success:', response);
       // Save email to secure storage and navigate without PII in params
