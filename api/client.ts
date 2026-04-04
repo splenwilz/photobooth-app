@@ -596,6 +596,17 @@ export async function apiClient<T>(
       });
       return response;
     } catch (fetchError) {
+      // If the caller's AbortSignal triggered the abort (e.g. React Query
+      // unmount cancellation), rethrow the original error so the caller's
+      // abort handling works as expected instead of wrapping it as an ApiError.
+      if (
+        !timedOut &&
+        callerSignal?.aborted &&
+        fetchError instanceof DOMException &&
+        fetchError.name === "AbortError"
+      ) {
+        throw fetchError;
+      }
       throw new ApiError(
         0,
         timedOut

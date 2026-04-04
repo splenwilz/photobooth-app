@@ -2,14 +2,14 @@
  * Reset Password - Code Entry Screen
  *
  * Step 2 of the password reset flow. User enters the 6-digit OTP code
- * sent to their email. On success, navigates to the new-password screen
- * with the returned token.
+ * sent to their email.
  *
  * Flow:
- * 1. Forgot-password screen sends code to email, navigates here with email param
- * 2. User enters 6-digit code
- * 3. POST /api/v1/auth/verify-reset-code → returns {token}
- * 4. Navigate to new-password screen with token
+ * 1. Forgot-password screen saves email to secure storage, navigates here
+ * 2. This screen reads email from secure storage (for display and resend)
+ * 3. User enters 6-digit code → POST /api/v1/auth/verify-reset-code
+ * 4. Returned token is saved to secure storage for the new-password screen
+ * 5. Navigate to new-password screen (no sensitive data in route params)
  *
  * @see /api/auth/verify-reset-code/queries.ts - useVerifyResetCode hook
  */
@@ -144,12 +144,17 @@ export default function ResetPasswordScreen() {
     // Step 2: Persist token and navigate — separate from verification
     try {
       await savePendingResetToken(token);
-      await clearPendingResetEmail();
       router.push('/auth/new-password');
     } catch (err: unknown) {
       if (__DEV__) console.error('[ResetPassword] Storage error:', err);
       setError('Something went wrong. Please try again.');
+      return;
     }
+
+    // Best-effort cleanup — don't block navigation if this fails
+    clearPendingResetEmail().catch((err) => {
+      if (__DEV__) console.error('[ResetPassword] Email cleanup error:', err);
+    });
   };
 
   // Resend code

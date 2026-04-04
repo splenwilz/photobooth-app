@@ -63,19 +63,24 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
+    // Step 1: Send reset code via API
     try {
-      // Call forgot password API
       // @see POST /api/v1/auth/forgot-password
-      const response = await forgotPasswordMutation({ email: trimmedEmail });
-      if (__DEV__) console.log('[ForgotPassword] Success:', response);
-      // Save email to secure storage and navigate without PII in params
+      await forgotPasswordMutation({ email: trimmedEmail });
+    } catch (err: unknown) {
+      if (__DEV__) console.error('[ForgotPassword] API error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send reset code. Please try again.';
+      setError(errorMessage);
+      return;
+    }
+
+    // Step 2: Persist email and navigate — separate from API call
+    try {
       await savePendingResetEmail(trimmedEmail);
       router.push('/auth/reset-password');
     } catch (err: unknown) {
-      if (__DEV__) console.error('[ForgotPassword] Error:', err);
-      // Extract error message from API response
-      const errorMessage = err instanceof Error ? err.message : 'Failed to send reset code. Please try again.';
-      setError(errorMessage);
+      if (__DEV__) console.error('[ForgotPassword] Storage error:', err);
+      setError('Code sent, but failed to continue. Please try again.');
     }
   };
 
