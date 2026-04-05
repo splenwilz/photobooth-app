@@ -523,6 +523,9 @@ export function useUpdateBoothSettings() {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.booths.list(),
 			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.overview(),
+			});
 		},
 	});
 }
