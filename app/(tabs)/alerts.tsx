@@ -1,17 +1,18 @@
 /**
  * Alerts Screen
  *
- * Central notification center for all alerts and notifications.
- * Shows critical, warning, and informational alerts from all booths.
+ * Central notification center for alerts and notifications.
+ * Shows critical, warning, and informational alerts from all booths
+ * or a specific booth selected via the booth picker.
  *
  * Features:
+ * - Booth picker to scope alerts to a specific booth or all booths
  * - Filter by severity (All/Critical/Warning/Info)
  * - Filter by category (Hardware/Supplies/Network/Revenue)
- * - Mark as read functionality
  * - Pull-to-refresh
  *
- * @see https://docs.expo.dev/router/introduction/ - Expo Router docs
- * @see GET /api/v1/analytics/alerts - API endpoint
+ * @see GET /api/v1/analytics/alerts - All booths endpoint
+ * @see GET /api/v1/analytics/alerts/{booth_id} - Single booth endpoint
  */
 
 import { useIsFocused } from "@react-navigation/native";
@@ -25,9 +26,10 @@ import {
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-// API hook
-import { useAlerts } from "@/api/alerts/queries";
+// API hooks
+import { useAlerts, useBoothAlerts } from "@/api/alerts/queries";
 import type { AlertSeverity } from "@/api/alerts/types";
+import { BoothPickerModal } from "@/components/booth-picker-modal";
 import { CustomHeader } from "@/components/custom-header";
 import { AlertsSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
@@ -42,6 +44,7 @@ import {
 	withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 import type { Alert, AlertCategory } from "@/types/photobooth";
 // Utilities - using shared formatRelativeTime from utils
 import { formatRelativeTime } from "@/utils";
@@ -51,7 +54,6 @@ type FilterCategory = "all" | AlertCategory;
 
 /**
  * Get icon for alert severity
- * @see IconSymbol - Available icon names
  */
 function getSeverityIcon(severity: AlertSeverity): string {
 	switch (severity) {
@@ -68,7 +70,6 @@ function getSeverityIcon(severity: AlertSeverity): string {
 
 /**
  * Get color for alert severity
- * @see StatusColors - Theme status colors
  */
 function getSeverityColor(severity: AlertSeverity): string {
 	switch (severity) {
@@ -169,20 +170,38 @@ export default function AlertsScreen() {
 	// Track if screen is focused - prevents refresh indicator from freezing when navigating
 	const isFocused = useIsFocused();
 
+	// Booth picker state
+	const [isPickerVisible, setIsPickerVisible] = useState(false);
+	const { selectedBoothId } = useBoothStore();
+	const isAllMode = selectedBoothId === ALL_BOOTHS_ID;
+
 	// State for filters
 	const [filterSeverity, setFilterSeverity] = useState<FilterSeverity>("all");
 	const [filterCategory, setFilterCategory] = useState<FilterCategory>("all");
 
-	// Fetch alerts from API
+	// Fetch alerts — conditional on booth selection (same pattern as analytics.tsx)
 	const {
-		data,
-		isLoading,
-		error,
-		refetch,
-		isRefetching: isQueryRefetching,
-	} = useAlerts({
-		limit: 50,
-	});
+		data: allData,
+		isLoading: isLoadingAll,
+		error: errorAll,
+		refetch: refetchAll,
+		isRefetching: isRefetchingAll,
+	} = useAlerts({ limit: 50 }, { enabled: isAllMode });
+
+	const {
+		data: boothData,
+		isLoading: isLoadingBooth,
+		error: errorBooth,
+		refetch: refetchBooth,
+		isRefetching: isRefetchingBooth,
+	} = useBoothAlerts(isAllMode ? null : selectedBoothId, { limit: 50 });
+
+	// Unified data access
+	const data = isAllMode ? allData : boothData;
+	const isLoading = isAllMode ? isLoadingAll : isLoadingBooth;
+	const error = isAllMode ? errorAll : errorBooth;
+	const refetch = isAllMode ? refetchAll : refetchBooth;
+	const isQueryRefetching = isAllMode ? isRefetchingAll : isRefetchingBooth;
 
 	// Only show refresh indicator when screen is focused (prevents frozen loader)
 	const isRefetching = isFocused && isQueryRefetching;
@@ -190,7 +209,17 @@ export default function AlertsScreen() {
 	// Memoize alerts array to prevent useMemo dependency warnings
 	const alerts = useMemo(() => data?.alerts ?? [], [data?.alerts]);
 
-	// Filter alerts locally (API doesn't support multiple filters at once)
+	// Use API summary when available, fall back to client-side counting
+	const summaryCounts = useMemo(() => {
+		if (data?.summary) return data.summary;
+		return {
+			critical: alerts.filter((a) => a.type === "critical").length,
+			warning: alerts.filter((a) => a.type === "warning").length,
+			info: alerts.filter((a) => a.type === "info").length,
+		};
+	}, [data?.summary, alerts]);
+
+	// Filter alerts locally
 	const filteredAlerts = useMemo(() => {
 		return alerts.filter((alert) => {
 			if (filterSeverity !== "all" && alert.type !== filterSeverity)
@@ -201,14 +230,9 @@ export default function AlertsScreen() {
 		});
 	}, [alerts, filterSeverity, filterCategory]);
 
-	// Count unread alerts by severity
-	const unreadCounts = useMemo(
-		() => ({
-			critical: alerts.filter((a) => a.type === "critical" && !a.isRead).length,
-			warning: alerts.filter((a) => a.type === "warning" && !a.isRead).length,
-			info: alerts.filter((a) => a.type === "info" && !a.isRead).length,
-			total: alerts.filter((a) => !a.isRead).length,
-		}),
+	// Count total unread for badge
+	const totalUnread = useMemo(
+		() => alerts.filter((a) => !a.isRead).length,
 		[alerts],
 	);
 
@@ -235,7 +259,6 @@ export default function AlertsScreen() {
 
 	// Handle alert press (could mark as read via API in the future)
 	const handleAlertPress = (alertId: string) => {
-		console.log("Alert pressed:", alertId);
 		// TODO: Implement mark as read API call when endpoint is available
 	};
 
@@ -246,8 +269,16 @@ export default function AlertsScreen() {
 				style={[styles.container, { backgroundColor }]}
 				edges={["top"]}
 			>
-				<CustomHeader title="Alerts" />
+				<CustomHeader
+					title="Alerts"
+					boothContext
+					onBoothPress={() => setIsPickerVisible(true)}
+				/>
 				<AlertsSkeleton />
+				<BoothPickerModal
+					visible={isPickerVisible}
+					onClose={() => setIsPickerVisible(false)}
+				/>
 			</SafeAreaView>
 		);
 	}
@@ -259,11 +290,19 @@ export default function AlertsScreen() {
 				style={[styles.container, { backgroundColor }]}
 				edges={["top"]}
 			>
-				<CustomHeader title="Alerts" />
+				<CustomHeader
+					title="Alerts"
+					boothContext
+					onBoothPress={() => setIsPickerVisible(true)}
+				/>
 				<ErrorState
 					title="Failed to load alerts"
 					message={error.message || "An unexpected error occurred"}
 					onRetry={() => refetch()}
+				/>
+				<BoothPickerModal
+					visible={isPickerVisible}
+					onClose={() => setIsPickerVisible(false)}
 				/>
 			</SafeAreaView>
 		);
@@ -276,13 +315,15 @@ export default function AlertsScreen() {
 		>
 			<CustomHeader
 				title="Alerts"
+				boothContext
+				onBoothPress={() => setIsPickerVisible(true)}
 				rightAction={
-					unreadCounts.total > 0 ? (
+					totalUnread > 0 ? (
 						<View
 							style={[styles.unreadBadge, { backgroundColor: BRAND_COLOR }]}
 						>
 							<ThemedText style={styles.unreadBadgeText}>
-								{unreadCounts.total}
+								{totalUnread}
 							</ThemedText>
 						</View>
 					) : undefined
@@ -309,7 +350,7 @@ export default function AlertsScreen() {
 							<ThemedText
 								style={[styles.summaryValue, { color: StatusColors.error }]}
 							>
-								{unreadCounts.critical}
+								{summaryCounts.critical}
 							</ThemedText>
 							<ThemedText
 								style={[styles.summaryLabel, { color: textSecondary }]}
@@ -324,7 +365,7 @@ export default function AlertsScreen() {
 							<ThemedText
 								style={[styles.summaryValue, { color: StatusColors.warning }]}
 							>
-								{unreadCounts.warning}
+								{summaryCounts.warning}
 							</ThemedText>
 							<ThemedText
 								style={[styles.summaryLabel, { color: textSecondary }]}
@@ -339,7 +380,7 @@ export default function AlertsScreen() {
 							<ThemedText
 								style={[styles.summaryValue, { color: StatusColors.info }]}
 							>
-								{unreadCounts.info}
+								{summaryCounts.info}
 							</ThemedText>
 							<ThemedText
 								style={[styles.summaryLabel, { color: textSecondary }]}
@@ -485,6 +526,11 @@ export default function AlertsScreen() {
 				{/* Bottom spacing */}
 				<View style={{ height: Spacing.xxl }} />
 			</ScrollView>
+
+			<BoothPickerModal
+				visible={isPickerVisible}
+				onClose={() => setIsPickerVisible(false)}
+			/>
 		</SafeAreaView>
 	);
 }
@@ -499,15 +545,6 @@ const styles = StyleSheet.create({
 	},
 	section: {
 		marginTop: Spacing.lg,
-	},
-	loadingContainer: {
-		flex: 1,
-		justifyContent: "center",
-		alignItems: "center",
-	},
-	loadingText: {
-		marginTop: Spacing.md,
-		fontSize: 16,
 	},
 	unreadBadge: {
 		minWidth: 24,
