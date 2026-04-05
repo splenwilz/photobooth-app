@@ -71,7 +71,10 @@ export function useBoothAlerts(
 			? queryKeys.alerts.booth(boothId, params)
 			: ["alerts", "booth", null, params],
 		queryFn: async () => {
-			const response = await getBoothAlerts(boothId as string, params);
+			if (!boothId) {
+				return { alerts: [] };
+			}
+			const response = await getBoothAlerts(boothId, params);
 			return {
 				summary: response.summary,
 				alerts: response.alerts.map(mapAlertsApiAlertToAppAlert),
