@@ -3,6 +3,7 @@
  *
  * Types for alerts and notifications from the API.
  * @see GET /api/v1/analytics/alerts
+ * @see GET /api/v1/analytics/alerts/{booth_id}
  */
 
 /**
@@ -35,14 +36,29 @@ export interface Alert {
 	booth_name: string;
 	timestamp: string;
 	is_read: boolean;
+	/** Only present on app_error alerts */
+	error_count?: number;
+}
+
+/**
+ * Alert severity summary counts
+ */
+export interface AlertSummary {
+	critical: number;
+	warning: number;
+	info: number;
 }
 
 /**
  * Alerts list response from API
- * GET /api/v1/analytics/alerts
+ * @see GET /api/v1/analytics/alerts
+ * @see GET /api/v1/analytics/alerts/{booth_id}
  */
 export interface AlertsResponse {
+	summary: AlertSummary;
 	alerts: Alert[];
+	total: number;
+	returned: number;
 }
 
 /**
@@ -53,9 +69,6 @@ export interface AlertsParams {
 	severity?: AlertSeverity;
 	/** Filter by category: hardware, supplies, network, revenue */
 	category?: AlertCategory;
-	/** Maximum alerts to return (default: 50, max: 200) */
+	/** Maximum alerts to return (default: 50, max: 100) */
 	limit?: number;
 }
-
-
-

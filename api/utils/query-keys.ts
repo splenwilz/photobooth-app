@@ -137,6 +137,13 @@ export const queryKeys = {
       ['alerts', 'list', params] as const,
 
     /**
+     * Get alerts for a specific booth
+     * @see GET /api/v1/analytics/alerts/{booth_id}
+     */
+    booth: (boothId: string, params?: { severity?: string; category?: string; limit?: number }) =>
+      ['alerts', 'booth', boothId, params] as const,
+
+    /**
      * Get single alert by ID
      */
     detail: (alertId: string) => ['alerts', 'detail', alertId] as const,

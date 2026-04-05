@@ -48,5 +48,25 @@ export async function getAlerts(
 	return response;
 }
 
+/**
+ * Get alerts for a specific booth
+ *
+ * @param boothId - The booth's unique ID
+ * @param params - Optional query parameters (severity, category, limit)
+ * @returns Promise resolving to alerts response scoped to the booth
+ * @see GET /api/v1/analytics/alerts/{booth_id}
+ */
+export async function getBoothAlerts(
+	boothId: string,
+	params?: AlertsParams,
+): Promise<AlertsResponse> {
+	const queryString = buildQueryString(params as Record<string, unknown>);
 
-
+	const response = await apiClient<AlertsResponse>(
+		`/api/v1/analytics/alerts/${boothId}${queryString}`,
+		{
+			method: "GET",
+		},
+	);
+	return response;
+}
