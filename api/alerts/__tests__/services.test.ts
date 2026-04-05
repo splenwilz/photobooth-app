@@ -47,6 +47,13 @@ describe("getAlerts", () => {
 		expect(result).toEqual(mockResponse);
 	});
 
+	it("propagates API errors", async () => {
+		const error = new Error("Unauthorized");
+		mockApiClient.mockRejectedValue(error);
+
+		await expect(getAlerts()).rejects.toThrow("Unauthorized");
+	});
+
 	it("appends query params when provided", async () => {
 		mockApiClient.mockResolvedValue(mockResponse);
 

@@ -67,9 +67,11 @@ export function useBoothAlerts(
 	params?: AlertsParams,
 ) {
 	return useQuery<TransformedAlertsResponse>({
-		queryKey: queryKeys.alerts.booth(boothId!, params),
+		queryKey: boothId
+			? queryKeys.alerts.booth(boothId, params)
+			: ["alerts", "booth", null, params],
 		queryFn: async () => {
-			const response = await getBoothAlerts(boothId!, params);
+			const response = await getBoothAlerts(boothId as string, params);
 			return {
 				summary: response.summary,
 				alerts: response.alerts.map(mapAlertsApiAlertToAppAlert),
