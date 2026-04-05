@@ -1,4 +1,4 @@
-import { apiClient, clearTokens, clearQueryCache } from "@/api/client";
+import { apiClient, clearTokens, clearPendingResetData, clearQueryCache } from "@/api/client";
 import type { SignoutResponse } from "./types";
 
 /**
@@ -12,15 +12,17 @@ export const signout = async (): Promise<SignoutResponse> => {
             method: "POST",
         });
 
-        // Clear tokens and cache regardless of API response
+        // Clear tokens, reset flow data, and cache regardless of API response
         // This ensures local state is cleared even if backend call fails
         await clearTokens();
+        await clearPendingResetData();
         clearQueryCache();
 
         return response;
     } catch (error) {
         // Even if logout API fails, clear local state
         await clearTokens();
+        await clearPendingResetData();
         clearQueryCache();
         throw error;
     }

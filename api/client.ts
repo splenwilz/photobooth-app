@@ -326,6 +326,17 @@ export async function clearPendingResetToken(): Promise<void> {
 }
 
 /**
+ * Clear all pending password reset data from secure storage.
+ * Call on explicit logout or when the reset flow completes/is abandoned.
+ * Intentionally separate from clearTokens so that an unrelated session
+ * expiry does not abort an in-progress reset flow.
+ */
+export async function clearPendingResetData(): Promise<void> {
+  await clearPendingResetEmail();
+  await clearPendingResetToken();
+}
+
+/**
  * Clear tokens from secure storage (on logout)
  */
 export async function clearTokens(): Promise<void> {
