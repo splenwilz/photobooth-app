@@ -61,7 +61,6 @@ export function EditBoothModal({
 
 	const [name, setName] = useState("");
 	const [address, setAddress] = useState("");
-	const [keyboardHeight, setKeyboardHeight] = useState(0);
 
 	const hasPopulated = useRef(false);
 
@@ -77,30 +76,12 @@ export function EditBoothModal({
 		hasPopulated.current = true;
 	}, [visible, initialName, initialAddress]);
 
-	// Keyboard handling
-	useEffect(() => {
-		const showEvent =
-			Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-		const hideEvent =
-			Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-		const showSub = Keyboard.addListener(showEvent, (e) =>
-			setKeyboardHeight(e.endCoordinates.height),
-		);
-		const hideSub = Keyboard.addListener(hideEvent, () =>
-			setKeyboardHeight(0),
-		);
-		return () => {
-			showSub.remove();
-			hideSub.remove();
-		};
-	}, []);
-
 	const hasNameChange = name !== initialName;
 	const hasAddressChange = address !== initialAddress;
 	const hasAnyChange = hasNameChange || hasAddressChange;
 	const isProcessing = updateBoothSettingsMutation.isPending;
 
-	const bottomPadding = Math.max(insets.bottom, Spacing.md) + keyboardHeight;
+	const bottomPadding = Math.max(insets.bottom, Spacing.md);
 
 	const handleClose = () => {
 		if (!isProcessing) {
