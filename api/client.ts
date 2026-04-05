@@ -7,6 +7,8 @@ export const ACCESS_TOKEN_KEY = "auth_access_token";
 export const REFRESH_TOKEN_KEY = "auth_refresh_token";
 export const USER_STORAGE_KEY = "auth_user";
 export const PENDING_PASSWORD_KEY = "auth_pending_password";
+export const PENDING_RESET_EMAIL_KEY = "auth_pending_reset_email";
+export const PENDING_RESET_TOKEN_KEY = "auth_pending_reset_token";
 
 /**
  * Custom error class for API errors with status code and parsed error message
@@ -254,6 +256,87 @@ export async function clearPendingPassword(): Promise<void> {
 }
 
 /**
+ * Save pending reset email to secure storage (for password reset flow)
+ */
+export async function savePendingResetEmail(email: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(PENDING_RESET_EMAIL_KEY, email);
+  } catch (error) {
+    console.error("[API] Failed to save pending reset email:", error);
+    throw error;
+  }
+}
+
+/**
+ * Retrieve pending reset email from secure storage
+ */
+export async function getPendingResetEmail(): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(PENDING_RESET_EMAIL_KEY);
+  } catch (error) {
+    console.error("[API] Failed to read pending reset email:", error);
+    return null;
+  }
+}
+
+/**
+ * Clear pending reset email from secure storage
+ */
+export async function clearPendingResetEmail(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(PENDING_RESET_EMAIL_KEY);
+  } catch (error) {
+    console.error("[API] Failed to clear pending reset email:", error);
+  }
+}
+
+/**
+ * Save pending reset token to secure storage (for password reset flow step 3)
+ */
+export async function savePendingResetToken(token: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(PENDING_RESET_TOKEN_KEY, token);
+  } catch (error) {
+    console.error("[API] Failed to save pending reset token:", error);
+    throw error;
+  }
+}
+
+/**
+ * Retrieve pending reset token from secure storage
+ */
+export async function getPendingResetToken(): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(PENDING_RESET_TOKEN_KEY);
+  } catch (error) {
+    console.error("[API] Failed to read pending reset token:", error);
+    return null;
+  }
+}
+
+/**
+ * Clear pending reset token from secure storage
+ */
+export async function clearPendingResetToken(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(PENDING_RESET_TOKEN_KEY);
+  } catch (error) {
+    console.error("[API] Failed to clear pending reset token:", error);
+  }
+}
+
+/**
+ * Clear all pending password reset data from secure storage.
+ * Call on explicit logout or when the reset flow completes/is abandoned.
+ * Intentionally separate from clearTokens so that an unrelated session
+ * expiry does not abort an in-progress reset flow.
+ */
+export async function clearPendingResetData(): Promise<void> {
+  await clearPendingResetEmail();
+  await clearPendingResetToken();
+}
+
+/**
  * Clear tokens from secure storage (on logout)
  */
 export async function clearTokens(): Promise<void> {
@@ -263,6 +346,9 @@ export async function clearTokens(): Promise<void> {
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_STORAGE_KEY);
     await SecureStore.deleteItemAsync(PENDING_PASSWORD_KEY);
+    // Note: PENDING_RESET_EMAIL_KEY and PENDING_RESET_TOKEN_KEY are intentionally
+    // NOT cleared here — they are managed by the reset flow itself so that an
+    // unrelated session expiry does not abort a password reset in progress.
     console.log("[API] [TOKEN] All tokens cleared successfully");
   } catch (error) {
     console.error("[API] [TOKEN] Failed to clear tokens:", error);
@@ -380,38 +466,46 @@ async function triggerRefresh(): Promise<boolean> {
 }
 
 /**
- * Endpoints that can proceed without an access token.
- * Includes /auth/refresh-token because it authenticates via refresh token.
+ * Auth endpoint policies — single source of truth for public auth endpoint behavior.
+ *
+ * noAccessToken:       Endpoint can proceed without a Bearer token.
+ * treat401AsCredError: A 401 means invalid credentials, not session expiry.
+ *                      /auth/refresh-token is excluded because a 401 there IS
+ *                      session expiry and must set isSessionExpired: true.
  */
-function isNoAccessTokenPublicAuthEndpoint(url: string): boolean {
-  return (
-    url.includes("/auth/signin") ||
-    url.includes("/auth/signup") ||
-    url.includes("/auth/refresh-token") ||
-    url.includes("/auth/forgot-password") ||
-    url.includes("/auth/reset-password") ||
-    url.includes("/auth/verify-email") ||
-    url.includes("/auth/authorize") ||
-    url.includes("/auth/callback")
-  );
+const AUTH_ENDPOINT_POLICIES: Record<string, { noAccessToken: boolean; treat401AsCredError: boolean }> = {
+  "/auth/signin":            { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/signup":            { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/refresh-token":     { noAccessToken: true,  treat401AsCredError: false },
+  "/auth/forgot-password":   { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/reset-password":    { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/verify-reset-code": { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/verify-email":      { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/authorize":         { noAccessToken: true,  treat401AsCredError: true  },
+  "/auth/callback":          { noAccessToken: true,  treat401AsCredError: true  },
+};
+
+function findEndpointPolicy(url: string) {
+  let pathname: string;
+  try {
+    // Handle both relative ("/api/v1/...") and absolute ("https://...") URLs
+    const parsed = new URL(url, "http://localhost");
+    pathname = parsed.pathname.replace(/\/+$/, "");
+  } catch {
+    pathname = url;
+  }
+  for (const [path, policy] of Object.entries(AUTH_ENDPOINT_POLICIES)) {
+    if (pathname === path || pathname.endsWith(path)) return policy;
+  }
+  return null;
 }
 
-/**
- * Endpoints where a 401 means invalid credentials, not session expiry.
- * Excludes /auth/refresh-token — a 401 there means the refresh token is
- * invalid, which IS session expiry and must set isSessionExpired: true
- * so query-client.ts suppresses retries and triggers the global redirect.
- */
+function isNoAccessTokenPublicAuthEndpoint(url: string): boolean {
+  return findEndpointPolicy(url)?.noAccessToken === true;
+}
+
 function isCredentialErrorPublicAuthEndpoint(url: string): boolean {
-  return (
-    url.includes("/auth/signin") ||
-    url.includes("/auth/signup") ||
-    url.includes("/auth/forgot-password") ||
-    url.includes("/auth/reset-password") ||
-    url.includes("/auth/verify-email") ||
-    url.includes("/auth/authorize") ||
-    url.includes("/auth/callback")
-  );
+  return findEndpointPolicy(url)?.treat401AsCredError === true;
 }
 
 /**
@@ -469,7 +563,7 @@ export async function apiClient<T>(
 
     // Add Authorization header if token exists
     if (accessToken) {
-      headers["Authorization"] = `Bearer ${accessToken}`;
+      headers.Authorization = `Bearer ${accessToken}`;
     }
 
     const targetUrl = url.startsWith("http") ? url : `${apiBaseUrl}${url}`;
@@ -498,11 +592,11 @@ export async function apiClient<T>(
     const onCallerAbort = callerSignal
       ? () => controller.abort()
       : undefined;
-    if (callerSignal) {
+    if (callerSignal && onCallerAbort) {
       if (callerSignal.aborted) {
         controller.abort();
       } else {
-        callerSignal.addEventListener("abort", onCallerAbort!, { once: true });
+        callerSignal.addEventListener("abort", onCallerAbort, { once: true });
       }
     }
 
@@ -513,6 +607,17 @@ export async function apiClient<T>(
       });
       return response;
     } catch (fetchError) {
+      // If the caller's AbortSignal triggered the abort (e.g. React Query
+      // unmount cancellation), rethrow the original error so the caller's
+      // abort handling works as expected instead of wrapping it as an ApiError.
+      if (
+        !timedOut &&
+        callerSignal?.aborted &&
+        fetchError instanceof DOMException &&
+        fetchError.name === "AbortError"
+      ) {
+        throw fetchError;
+      }
       throw new ApiError(
         0,
         timedOut

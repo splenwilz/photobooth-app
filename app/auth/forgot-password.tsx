@@ -1,14 +1,14 @@
 /**
  * Forgot Password Screen
- * 
+ *
  * Password reset request screen where users enter their email.
- * Sends reset link to email via POST /api/v1/auth/forgot-password
- * 
+ * Sends reset code to email via POST /api/v1/auth/forgot-password
+ *
  * Flow:
  * 1. User enters email
- * 2. API sends reset email with deep link: photoboothapp://auth/reset-password?token=xyz
- * 3. User clicks link, opens reset-password screen
- * 
+ * 2. API sends 6-digit OTP code to email
+ * 3. Navigates to reset-password screen to enter code + new password
+ *
  * @see https://docs.expo.dev/router/introduction/ - Expo Router docs
  * @see /api/auth/forgot-password/queries.ts - useForgotPassword hook
  */
@@ -29,9 +29,10 @@ import { ThemedText } from '@/components/themed-text';
 import { FormInput } from '@/components/auth/form-input';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Spacing, BRAND_COLOR, StatusColors, withAlpha } from '@/constants/theme';
+import { Spacing, BRAND_COLOR, withAlpha } from '@/constants/theme';
 // API hook for forgot password
 import { useForgotPassword } from '@/api/auth/forgot-password/queries';
+import { savePendingResetEmail } from '@/api/client';
 
 export default function ForgotPasswordScreen() {
   const backgroundColor = useThemeColor({}, 'background');
@@ -43,34 +44,43 @@ export default function ForgotPasswordScreen() {
   // Form state
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  const [isSuccess, setIsSuccess] = useState(false);
 
   // Validate and submit
   const handleSubmit = async () => {
     // Clear error
     setError('');
 
+    // Normalize once and use everywhere
+    const trimmedEmail = email.trim();
+
     // Validate email
-    if (!email.trim()) {
+    if (!trimmedEmail) {
       setError('Email is required');
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setError('Please enter a valid email');
       return;
     }
 
+    // Step 1: Send reset code via API
     try {
-      // Call forgot password API
       // @see POST /api/v1/auth/forgot-password
-      const response = await forgotPasswordMutation({ email: email.trim() });
-      console.log('[ForgotPassword] Success:', response);
-      setIsSuccess(true);
+      await forgotPasswordMutation({ email: trimmedEmail });
     } catch (err: unknown) {
-      console.error('[ForgotPassword] Error:', err);
-      // Extract error message from API response
-      const errorMessage = err instanceof Error ? err.message : 'Failed to send reset email. Please try again.';
+      if (__DEV__) console.error('[ForgotPassword] API error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send reset code. Please try again.';
       setError(errorMessage);
+      return;
+    }
+
+    // Step 2: Persist email and navigate — separate from API call
+    try {
+      await savePendingResetEmail(trimmedEmail);
+      router.push('/auth/reset-password');
+    } catch (err: unknown) {
+      if (__DEV__) console.error('[ForgotPassword] Storage error:', err);
+      setError('Code sent, but failed to continue. Please try again.');
     }
   };
 
@@ -78,44 +88,6 @@ export default function ForgotPasswordScreen() {
   const handleBackToSignIn = () => {
     router.back();
   };
-
-  // Success state - email sent
-  if (isSuccess) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor }]}>
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.successContainer}>
-            <View style={[styles.iconContainer, { backgroundColor: withAlpha(StatusColors.success, 0.15) }]}>
-              <IconSymbol name="checkmark.circle.fill" size={48} color={StatusColors.success} />
-            </View>
-            <ThemedText type="title" style={styles.title}>
-              Check Your Email
-            </ThemedText>
-            <ThemedText style={[styles.successText, { color: textSecondary }]}>
-              {"We've sent password reset instructions to:"}
-            </ThemedText>
-            <ThemedText type="defaultSemiBold" style={styles.emailText}>
-              {email}
-            </ThemedText>
-            <ThemedText style={[styles.successText, { color: textSecondary }]}>
-              {"If you don't see it, check your spam folder."}
-            </ThemedText>
-
-            <View style={styles.buttonSection}>
-              <PrimaryButton
-                text="Back to Sign In"
-                onPress={handleBackToSignIn}
-              />
-            </View>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
@@ -146,7 +118,7 @@ export default function ForgotPasswordScreen() {
               Forgot Password?
             </ThemedText>
             <ThemedText style={[styles.subtitle, { color: textSecondary }]}>
-              {"No worries! Enter your email and we'll send you reset instructions."}
+              {"No worries! Enter your email and we'll send you a reset code."}
             </ThemedText>
           </View>
 
@@ -169,7 +141,7 @@ export default function ForgotPasswordScreen() {
 
             <View style={styles.buttonSection}>
               <PrimaryButton
-                text="Send Reset Link"
+                text="Send Reset Code"
                 onPress={handleSubmit}
                 isLoading={isPending}
               />
@@ -234,18 +206,5 @@ const styles = StyleSheet.create({
   },
   buttonSection: {
     marginTop: Spacing.md,
-  },
-  successContainer: {
-    alignItems: 'center',
-    marginTop: Spacing.xxl,
-  },
-  successText: {
-    fontSize: 15,
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
-  },
-  emailText: {
-    fontSize: 16,
-    marginBottom: Spacing.lg,
   },
 });

@@ -1,6 +1,8 @@
 import { createMutationHook } from "@/api/utils/query-helpers";
-import type { AuthResponse } from "../types";
 import { resetPassword } from "./services";
-import type { ResetPasswordRequest } from "./types";
+import type { ResetPasswordRequest, ResetPasswordResponse } from "./types";
 
-export const useResetPassword = createMutationHook<ResetPasswordRequest, AuthResponse>(resetPassword);
+export const useResetPassword = createMutationHook<
+	ResetPasswordRequest,
+	ResetPasswordResponse
+>(resetPassword);
