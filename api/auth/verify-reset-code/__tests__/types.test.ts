@@ -32,4 +32,9 @@ describe("VerifyResetCodeRequestSchema", () => {
 		const result = VerifyResetCodeRequestSchema.safeParse({ code: "" });
 		expect(result.success).toBe(false);
 	});
+
+	it("rejects empty object (missing code field)", () => {
+		const result = VerifyResetCodeRequestSchema.safeParse({});
+		expect(result.success).toBe(false);
+	});
 });

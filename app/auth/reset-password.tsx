@@ -282,7 +282,7 @@ export default function ResetPasswordScreen() {
               text="Verify Code"
               onPress={handleVerify}
               isLoading={isPending}
-              disabled={!isCodeComplete}
+              disabled={!isCodeComplete || isResending}
             />
           </View>
 
@@ -304,7 +304,10 @@ export default function ResetPasswordScreen() {
           </TouchableOpacity>
 
           {/* Back to Sign In */}
-          <TouchableOpacity style={styles.backLink} onPress={() => router.replace('/auth/signin')}>
+          <TouchableOpacity style={styles.backLink} onPress={async () => {
+            await clearPendingResetEmail();
+            router.replace('/auth/signin');
+          }}>
             <ThemedText style={[styles.backLinkText, { color: BRAND_COLOR }]}>
               Back to Sign In
             </ThemedText>
