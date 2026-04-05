@@ -64,6 +64,8 @@ export default function ResetPasswordScreen() {
       try {
         const storedEmail = await getPendingResetEmail();
         if (storedEmail) setEmail(storedEmail);
+      } catch (err) {
+        if (__DEV__) console.error('[ResetPassword] Failed to read reset email:', err);
       } finally {
         setIsLoadingEmail(false);
       }

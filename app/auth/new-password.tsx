@@ -56,6 +56,8 @@ export default function NewPasswordScreen() {
       try {
         const storedToken = await getPendingResetToken();
         if (storedToken) setResetToken(storedToken);
+      } catch (err) {
+        if (__DEV__) console.error('[NewPassword] Failed to read reset token:', err);
       } finally {
         setIsLoadingToken(false);
       }
