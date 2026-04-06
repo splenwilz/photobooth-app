@@ -204,6 +204,7 @@ export function BusinessSettingsModal({
 			Alert.alert("Error", errors.join("\n"));
 		} else {
 			Alert.alert("Saved", "Settings have been updated.");
+			onClose();
 		}
 	};
 

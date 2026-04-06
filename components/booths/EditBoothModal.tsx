@@ -73,8 +73,8 @@ export function EditBoothModal({
 		hasPopulated.current = true;
 	}, [visible, initialName, initialAddress]);
 
-	const hasNameChange = name !== initialName;
-	const hasAddressChange = address !== initialAddress;
+	const hasNameChange = name.trim() !== initialName.trim();
+	const hasAddressChange = address.trim() !== initialAddress.trim();
 	const hasAnyChange = hasNameChange || hasAddressChange;
 	const isProcessing = updateBoothSettingsMutation.isPending;
 
