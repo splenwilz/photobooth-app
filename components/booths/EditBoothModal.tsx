@@ -1,7 +1,7 @@
 /**
  * EditBoothModal Component
  *
- * Lightweight bottom sheet modal for editing booth name and address.
+ * Full-screen modal for editing booth name and address.
  * Accessible directly from the booth card on the booths screen.
  *
  * @see components/ui/booth-card.tsx - Triggered from booth card edit action
@@ -20,9 +20,8 @@ import {
 	TextInput,
 	TouchableOpacity,
 	View,
-	useWindowDimensions,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useUpdateBoothSettings } from "@/api/booths";
 import { ThemedText } from "@/components/themed-text";
@@ -54,8 +53,6 @@ export function EditBoothModal({
 	const borderColor = useThemeColor({}, "border");
 	const textSecondary = useThemeColor({}, "textSecondary");
 	const textColor = useThemeColor({}, "text");
-	const insets = useSafeAreaInsets();
-	const { height: screenHeight } = useWindowDimensions();
 
 	const updateBoothSettingsMutation = useUpdateBoothSettings();
 
@@ -80,8 +77,6 @@ export function EditBoothModal({
 	const hasAddressChange = address !== initialAddress;
 	const hasAnyChange = hasNameChange || hasAddressChange;
 	const isProcessing = updateBoothSettingsMutation.isPending;
-
-	const bottomPadding = Math.max(insets.bottom, Spacing.md);
 
 	const handleClose = () => {
 		if (!isProcessing) {
@@ -119,56 +114,51 @@ export function EditBoothModal({
 	return (
 		<Modal
 			visible={visible}
-			transparent
 			animationType="slide"
 			onRequestClose={handleClose}
 		>
-			<View style={styles.overlay}>
-				<TouchableOpacity
-					style={styles.backdrop}
-					activeOpacity={1}
-					onPress={handleClose}
-				/>
-
-				<View
-					style={[
-						styles.sheet,
-						{
-							backgroundColor,
-							paddingBottom: bottomPadding,
-							maxHeight: screenHeight * 0.6,
-						},
-					]}
-				>
-					{/* Header */}
-					<View style={styles.header}>
-						<View style={[styles.handle, { backgroundColor: borderColor }]} />
-						<View style={styles.headerRow}>
-							<ThemedText type="subtitle">Edit Booth</ThemedText>
-							<TouchableOpacity
-								onPress={handleClose}
-								disabled={isProcessing}
-								hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-							>
-								<IconSymbol
-									name="xmark.circle.fill"
-									size={28}
-									color={textSecondary}
-								/>
-							</TouchableOpacity>
-						</View>
-					</View>
-
-					{/* Form */}
-					<KeyboardAvoidingView
-						behavior={Platform.OS === "ios" ? "padding" : undefined}
-						keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+			<SafeAreaView style={[styles.container, { backgroundColor }]}>
+				{/* Header */}
+				<View style={styles.header}>
+					<TouchableOpacity
+						onPress={handleClose}
+						disabled={isProcessing}
+						hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
 					>
+						<IconSymbol name="xmark" size={22} color={textSecondary} />
+					</TouchableOpacity>
+					<ThemedText type="subtitle" style={styles.headerTitle}>
+						Edit Booth
+					</ThemedText>
+					<TouchableOpacity
+						onPress={handleSave}
+						disabled={!hasAnyChange || isProcessing}
+					>
+						<ThemedText
+							style={[
+								styles.saveText,
+								{
+									color: hasAnyChange ? BRAND_COLOR : textSecondary,
+									opacity: isProcessing ? 0.5 : 1,
+								},
+							]}
+						>
+							{isProcessing ? "Saving..." : "Save"}
+						</ThemedText>
+					</TouchableOpacity>
+				</View>
+
+				{/* Form */}
+				<KeyboardAvoidingView
+					style={styles.flex}
+					behavior={Platform.OS === "ios" ? "padding" : "height"}
+				>
 					<ScrollView
+						style={styles.flex}
+						contentContainerStyle={styles.formContent}
 						keyboardShouldPersistTaps="handled"
 						showsVerticalScrollIndicator={false}
 					>
-					<View style={styles.form}>
 						{/* Booth Name */}
 						<View style={styles.fieldContainer}>
 							<ThemedText
@@ -230,70 +220,40 @@ export function EditBoothModal({
 								/>
 							</View>
 						</View>
-
-						{/* Save Button */}
-						{hasAnyChange && (
-							<TouchableOpacity
-								style={[
-									styles.saveButton,
-									{
-										backgroundColor: BRAND_COLOR,
-										opacity: isProcessing ? 0.7 : 1,
-									},
-								]}
-								onPress={handleSave}
-								disabled={isProcessing}
-							>
-								<ThemedText style={styles.saveButtonText}>
-									{isProcessing ? "Saving..." : "Save Changes"}
-								</ThemedText>
-							</TouchableOpacity>
-						)}
-					</View>
 					</ScrollView>
-					</KeyboardAvoidingView>
-				</View>
-			</View>
+				</KeyboardAvoidingView>
+			</SafeAreaView>
 		</Modal>
 	);
 }
 
 const styles = StyleSheet.create({
-	overlay: {
+	container: {
 		flex: 1,
-		justifyContent: "flex-end",
 	},
-	backdrop: {
-		...StyleSheet.absoluteFillObject,
-		backgroundColor: "rgba(0,0,0,0.4)",
-	},
-	sheet: {
-		borderTopLeftRadius: BorderRadius.xl,
-		borderTopRightRadius: BorderRadius.xl,
-		paddingHorizontal: Spacing.lg,
+	flex: {
+		flex: 1,
 	},
 	header: {
-		alignItems: "center",
-		paddingTop: Spacing.sm,
-		paddingBottom: Spacing.md,
-	},
-	handle: {
-		width: 36,
-		height: 4,
-		borderRadius: 2,
-		marginBottom: Spacing.md,
-	},
-	headerRow: {
 		flexDirection: "row",
 		justifyContent: "space-between",
 		alignItems: "center",
-		width: "100%",
+		paddingHorizontal: Spacing.lg,
+		paddingVertical: Spacing.md,
 	},
-	form: {
-		paddingBottom: Spacing.md,
+	headerTitle: {
+		fontSize: 18,
+	},
+	saveText: {
+		fontSize: 16,
+		fontWeight: "600",
+	},
+	formContent: {
+		paddingHorizontal: Spacing.lg,
+		paddingTop: Spacing.lg,
 	},
 	fieldContainer: {
-		marginBottom: Spacing.md,
+		marginBottom: Spacing.lg,
 	},
 	fieldLabel: {
 		fontSize: 13,
@@ -317,17 +277,5 @@ const styles = StyleSheet.create({
 		flex: 1,
 		fontSize: 16,
 		height: "100%",
-	},
-	saveButton: {
-		height: 48,
-		borderRadius: BorderRadius.lg,
-		justifyContent: "center",
-		alignItems: "center",
-		marginTop: Spacing.sm,
-	},
-	saveButtonText: {
-		color: "#FFFFFF",
-		fontSize: 16,
-		fontWeight: "600",
 	},
 });

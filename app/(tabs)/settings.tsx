@@ -1096,7 +1096,7 @@ export default function SettingsScreen() {
 
 			{/* Business Settings Modal */}
 			<BusinessSettingsModal
-				visible={showBusinessSettingsModal}
+				visible={showBusinessSettingsModal && (!effectiveBoothId || !!boothDetail)}
 				boothId={effectiveBoothId}
 				userId={userProfile.userId}
 				boothName={boothDetail?.booth_name}

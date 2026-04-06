@@ -438,7 +438,11 @@ export default function BoothsScreen() {
 								// Set as active booth (no navigation — user can switch screens via tabs)
 								setSelectedBoothId(booth.id);
 							}}
-							onEditPress={() => setEditingBooth(booth)}
+							onEditPress={() => {
+								// Look up raw API address to avoid passing the "No address" sentinel
+								const rawBooth = boothData?.booths?.find(b => b.booth_id === booth.id);
+								setEditingBooth({ ...booth, location: rawBooth?.booth_address ?? "" });
+							}}
 						/>
 					))}
 

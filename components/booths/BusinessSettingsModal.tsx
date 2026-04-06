@@ -127,9 +127,9 @@ export function BusinessSettingsModal({
 	const hasBusinessNameChange =
 		businessName !== (userProfile?.business_name ?? "");
 	const hasBoothNameChange =
-		boothId != null && boothName !== (initialBoothName ?? "");
+		boothId != null && boothName.trim() !== (initialBoothName ?? "").trim();
 	const hasAddressChange =
-		boothId != null && address !== (boothSettings?.address ?? "");
+		boothId != null && address.trim() !== (boothSettings?.address ?? "").trim();
 
 	const isProcessing =
 		updateBusinessNameMutation.isPending ||

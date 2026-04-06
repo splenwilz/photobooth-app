@@ -166,6 +166,9 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 								}}
 								hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
 								style={styles.editButton}
+								accessibilityLabel="Edit booth"
+								accessibilityHint="Opens editor for booth name and address"
+								accessibilityRole="button"
 							>
 								<IconSymbol name="pencil" size={14} color={textSecondary} />
 							</TouchableOpacity>
