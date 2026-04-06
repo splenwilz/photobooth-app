@@ -189,7 +189,7 @@ export function BusinessSettingsModal({
 					.mutateAsync({
 						boothId,
 						...(hasBoothNameChange ? { name: boothName.trim() } : {}),
-						...(hasAddressChange ? { address } : {}),
+						...(hasAddressChange ? { address: address.trim() } : {}),
 					})
 					.then(() => {})
 					.catch((error: any) => {
