@@ -11,7 +11,7 @@
  * @see app/(tabs)/settings.tsx - Used in Settings screen
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
@@ -177,8 +177,8 @@ export function BusinessSettingsModal({
 							console.error("[BusinessSettings] SecureStore sync failed:", e);
 						}
 					})
-					.catch((error: any) => {
-						errors.push(error.message || "Failed to save business name.");
+					.catch((error: unknown) => {
+						errors.push(error instanceof Error ? error.message : "Failed to save business name.");
 					}),
 			);
 		}
@@ -192,8 +192,8 @@ export function BusinessSettingsModal({
 						...(hasAddressChange ? { address: address.trim() } : {}),
 					})
 					.then(() => {})
-					.catch((error: any) => {
-						errors.push(error.message || "Failed to save booth settings.");
+					.catch((error: unknown) => {
+						errors.push(error instanceof Error ? error.message : "Failed to save booth settings.");
 					}),
 			);
 		}
