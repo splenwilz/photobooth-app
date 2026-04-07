@@ -513,6 +513,11 @@ export function useUpdateBoothSettings() {
 				queryClient.setQueryData(context.queryKey, context.previous);
 			}
 		},
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.overview(),
+			});
+		},
 		onSettled: (_, __, variables) => {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.booths.businessSettings(variables.boothId),

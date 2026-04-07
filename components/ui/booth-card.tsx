@@ -45,6 +45,8 @@ interface BoothCardProps {
 	subscriptionStatus?: BoothCardSubscriptionInfo;
 	/** Callback when card is pressed */
 	onPress?: () => void;
+	/** Callback when edit button is pressed */
+	onEditPress?: () => void;
 }
 
 /**
@@ -127,6 +129,7 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 	isSelected = false,
 	subscriptionStatus,
 	onPress,
+	onEditPress,
 }) => {
 	const cardBg = useThemeColor({}, "card");
 	const borderColor = useThemeColor({}, "border");
@@ -151,9 +154,26 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 			{/* Header Row */}
 			<View style={styles.header}>
 				<View style={styles.titleContainer}>
-					<ThemedText type="defaultSemiBold" style={styles.name}>
-						{booth.name}
-					</ThemedText>
+					<View style={styles.nameRow}>
+						<ThemedText type="defaultSemiBold" style={styles.name} numberOfLines={1}>
+							{booth.name}
+						</ThemedText>
+						{onEditPress && (
+							<TouchableOpacity
+								onPress={(e) => {
+									e.stopPropagation();
+									onEditPress();
+								}}
+								hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+								style={styles.editButton}
+								accessibilityLabel="Edit booth"
+								accessibilityHint="Opens editor for booth name and address"
+								accessibilityRole="button"
+							>
+								<IconSymbol name="pencil" size={14} color={textSecondary} />
+							</TouchableOpacity>
+						)}
+					</View>
 					<View style={styles.locationRow}>
 						<IconSymbol name="location" size={12} color={textSecondary} />
 						<ThemedText
@@ -329,8 +349,18 @@ const styles = StyleSheet.create({
 		flex: 1,
 		marginRight: Spacing.sm,
 	},
+	nameRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: Spacing.xs,
+	},
 	name: {
 		fontSize: 16,
+		marginBottom: 4,
+		flexShrink: 1,
+	},
+	editButton: {
+		padding: 4,
 		marginBottom: 4,
 	},
 	locationRow: {

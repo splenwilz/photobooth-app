@@ -764,7 +764,7 @@ export default function SettingsScreen() {
 							title={boothName}
 							subtitle={boothAddress}
 							value={operationMode}
-							onPress={() => console.log("Edit booth info")}
+							onPress={() => setShowBusinessSettingsModal(true)}
 						/>
 					</View>
 				)}
@@ -1096,9 +1096,10 @@ export default function SettingsScreen() {
 
 			{/* Business Settings Modal */}
 			<BusinessSettingsModal
-				visible={showBusinessSettingsModal}
+				visible={showBusinessSettingsModal && (!effectiveBoothId || !!boothDetail)}
 				boothId={effectiveBoothId}
 				userId={userProfile.userId}
+				boothName={boothDetail?.booth_name}
 				onClose={() => setShowBusinessSettingsModal(false)}
 			/>
 

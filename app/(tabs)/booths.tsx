@@ -37,6 +37,7 @@ import { CustomHeader } from "@/components/custom-header";
 import { BoothsSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
 import { ErrorState } from "@/components/ui/error-state";
+import { EditBoothModal } from "@/components/booths";
 import { BoothCard } from "@/components/ui/booth-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -144,6 +145,7 @@ export default function BoothsScreen() {
 	// Local state
 	const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
 	const [searchQuery, setSearchQuery] = useState("");
+	const [editingBooth, setEditingBooth] = useState<Booth | null>(null);
 
 	// Map API booths to local format
 	const booths = useMemo(() => {
@@ -436,6 +438,11 @@ export default function BoothsScreen() {
 								// Set as active booth (no navigation — user can switch screens via tabs)
 								setSelectedBoothId(booth.id);
 							}}
+							onEditPress={() => {
+								// Look up raw API address to avoid passing the "No address" sentinel
+								const rawBooth = boothData?.booths?.find(b => b.booth_id === booth.id);
+								setEditingBooth({ ...booth, location: rawBooth?.booth_address ?? "" });
+							}}
 						/>
 					))}
 
@@ -480,6 +487,16 @@ export default function BoothsScreen() {
 			>
 				<IconSymbol name="plus" size={28} color="#FFFFFF" />
 			</Pressable>
+
+			{editingBooth && (
+				<EditBoothModal
+					visible={!!editingBooth}
+					boothId={editingBooth.id}
+					boothName={editingBooth.name}
+					boothAddress={editingBooth.location}
+					onClose={() => setEditingBooth(null)}
+				/>
+			)}
 		</SafeAreaView>
 	);
 }
