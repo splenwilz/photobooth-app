@@ -115,6 +115,7 @@ export function EditBoothModal({
 		<Modal
 			visible={visible}
 			animationType="slide"
+			presentationStyle="pageSheet"
 			onRequestClose={handleClose}
 		>
 			<SafeAreaView style={[styles.container, { backgroundColor }]}>
@@ -186,6 +187,7 @@ export function EditBoothModal({
 									placeholderTextColor={textSecondary}
 									maxLength={100}
 									editable={!isProcessing}
+									autoFocus
 								/>
 							</View>
 						</View>
