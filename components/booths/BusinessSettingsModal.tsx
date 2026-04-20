@@ -102,6 +102,11 @@ export function BusinessSettingsModal({
 	useEffect(() => {
 		if (!visible) {
 			hasPopulated.current = false;
+			setBusinessName("");
+			setBoothName("");
+			setDisplayName("");
+			setAddress("");
+			setUseDisplayNameOnBooths(false);
 			return;
 		}
 		if (hasPopulated.current) return;
@@ -174,13 +179,18 @@ export function BusinessSettingsModal({
 				userId,
 				use_display_name_on_booths: value,
 			});
+		} catch (error) {
+			setUseDisplayNameOnBooths(previousValue);
+			Alert.alert("Error", error instanceof Error ? error.message : "Failed to update setting.");
+			return;
+		}
+		try {
 			const stored = await getStoredUser();
 			if (stored) {
 				await saveUser({ ...stored, use_display_name_on_booths: value });
 			}
-		} catch (error) {
-			setUseDisplayNameOnBooths(previousValue);
-			Alert.alert("Error", error instanceof Error ? error.message : "Failed to update setting.");
+		} catch (e) {
+			console.error("[BusinessSettings] SecureStore sync failed:", e);
 		}
 	};
 
