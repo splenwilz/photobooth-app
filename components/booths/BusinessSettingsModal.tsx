@@ -11,15 +11,18 @@
  * @see app/(tabs)/settings.tsx - Used in Settings screen
  */
 
+import * as ImagePicker from "expo-image-picker";
 import { useEffect, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
+	Image,
 	Keyboard,
 	Modal,
 	Platform,
 	ScrollView,
 	StyleSheet,
+	Switch,
 	TextInput,
 	TouchableOpacity,
 	View,
@@ -29,10 +32,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
 	useBoothBusinessSettings,
+	useDeleteBoothLogo,
 	useUpdateBoothSettings,
+	useUploadBoothLogo,
 } from "@/api/booths";
 import {
+	useDeleteAccountLogo,
 	useUpdateBusinessName,
+	useUploadAccountLogo,
 	useUserProfile,
 } from "@/api/users";
 import { saveUser, getStoredUser } from "@/api/client";
@@ -77,11 +84,17 @@ export function BusinessSettingsModal({
 	// ── Mutations ────────────────────────────────────────────────────────
 	const updateBusinessNameMutation = useUpdateBusinessName();
 	const updateBoothSettingsMutation = useUpdateBoothSettings();
+	const uploadAccountLogoMutation = useUploadAccountLogo();
+	const deleteAccountLogoMutation = useDeleteAccountLogo();
+	const uploadBoothLogoMutation = useUploadBoothLogo();
+	const deleteBoothLogoMutation = useDeleteBoothLogo();
 
 	// ── Form State ───────────────────────────────────────────────────────
 	const [businessName, setBusinessName] = useState("");
 	const [boothName, setBoothName] = useState("");
+	const [displayName, setDisplayName] = useState("");
 	const [address, setAddress] = useState("");
+	const [useDisplayNameOnBooths, setUseDisplayNameOnBooths] = useState(false);
 	const [keyboardHeight, setKeyboardHeight] = useState(0);
 
 	// ── Populate form on modal open (once fresh data is available) ───────
@@ -101,7 +114,9 @@ export function BusinessSettingsModal({
 
 		setBusinessName(userProfile?.business_name ?? "");
 		setBoothName(initialBoothName ?? "");
+		setDisplayName(boothSettings?.display_name ?? "");
 		setAddress(boothSettings?.address ?? "");
+		setUseDisplayNameOnBooths(boothSettings?.use_display_name_on_booths ?? userProfile?.use_display_name_on_booths ?? false);
 		hasPopulated.current = true;
 	}, [visible, userProfile, boothSettings, boothId, isBoothSettingsFetching, initialBoothName]);
 
@@ -128,12 +143,18 @@ export function BusinessSettingsModal({
 		businessName !== (userProfile?.business_name ?? "");
 	const hasBoothNameChange =
 		boothId != null && boothName.trim() !== (initialBoothName ?? "").trim();
+	const hasDisplayNameChange =
+		boothId != null && displayName.trim() !== (boothSettings?.display_name ?? "").trim();
 	const hasAddressChange =
 		boothId != null && address.trim() !== (boothSettings?.address ?? "").trim();
-
 	const isProcessing =
 		updateBusinessNameMutation.isPending ||
 		updateBoothSettingsMutation.isPending;
+	const isLogoProcessing =
+		uploadAccountLogoMutation.isPending ||
+		deleteAccountLogoMutation.isPending ||
+		uploadBoothLogoMutation.isPending ||
+		deleteBoothLogoMutation.isPending;
 
 	// ── Handlers ─────────────────────────────────────────────────────────
 
@@ -144,7 +165,107 @@ export function BusinessSettingsModal({
 		}
 	};
 
-	const hasBoothSettingsChange = hasBoothNameChange || hasAddressChange;
+	const handleToggleUseDisplayName = async (value: boolean) => {
+		if (isProcessing) return;
+		const previousValue = useDisplayNameOnBooths;
+		setUseDisplayNameOnBooths(value);
+		try {
+			await updateBusinessNameMutation.mutateAsync({
+				userId,
+				use_display_name_on_booths: value,
+			});
+			const stored = await getStoredUser();
+			if (stored) {
+				await saveUser({ ...stored, use_display_name_on_booths: value });
+			}
+		} catch (error) {
+			setUseDisplayNameOnBooths(previousValue);
+			Alert.alert("Error", error instanceof Error ? error.message : "Failed to update setting.");
+		}
+	};
+
+	const handlePickLogo = async (target: "account" | "booth") => {
+		try {
+			const permissionResult =
+				await ImagePicker.requestMediaLibraryPermissionsAsync();
+			if (!permissionResult.granted) {
+				Alert.alert(
+					"Permission Required",
+					"Please allow access to your photo library to upload a logo.",
+				);
+				return;
+			}
+
+			const result = await ImagePicker.launchImageLibraryAsync({
+				mediaTypes: ["images"],
+				allowsMultipleSelection: false,
+				quality: 0.8,
+			});
+
+			if (result.canceled || !result.assets[0]) return;
+
+			const asset = result.assets[0];
+			const filename = asset.fileName ?? `logo_${Date.now()}.jpg`;
+			const mimeType = asset.mimeType ?? "image/jpeg";
+
+			if (target === "account") {
+				await uploadAccountLogoMutation.mutateAsync({
+					userId,
+					fileUri: asset.uri,
+					mimeType,
+					filename,
+				});
+				Alert.alert("Success", "Account logo updated.");
+			} else if (boothId) {
+				await uploadBoothLogoMutation.mutateAsync({
+					boothId,
+					fileUri: asset.uri,
+					mimeType,
+					filename,
+				});
+				Alert.alert("Success", "Booth logo updated.");
+			}
+		} catch (error) {
+			Alert.alert(
+				"Upload Failed",
+				error instanceof Error ? error.message : "Failed to upload logo.",
+			);
+		}
+	};
+
+	const handleDeleteLogo = (target: "account" | "booth") => {
+		Alert.alert(
+			"Remove Logo",
+			target === "account"
+				? "Remove your account logo? Booths using it will have no logo."
+				: "Remove the custom booth logo? This booth will use the account logo.",
+			[
+				{ text: "Cancel", style: "cancel" },
+				{
+					text: "Delete",
+					style: "destructive",
+					onPress: async () => {
+						try {
+							if (target === "account") {
+								await deleteAccountLogoMutation.mutateAsync({ userId });
+								Alert.alert("Success", "Account logo removed.");
+							} else if (boothId) {
+								await deleteBoothLogoMutation.mutateAsync({ boothId });
+								Alert.alert("Success", "Booth logo removed.");
+							}
+						} catch (error) {
+							Alert.alert(
+								"Error",
+								error instanceof Error ? error.message : "Failed to remove logo.",
+							);
+						}
+					},
+				},
+			],
+		);
+	};
+
+	const hasBoothSettingsChange = hasBoothNameChange || hasDisplayNameChange || hasAddressChange;
 
 	const hasAnyChange = hasBusinessNameChange || hasBoothSettingsChange;
 
@@ -160,45 +281,36 @@ export function BusinessSettingsModal({
 
 		const errors: string[] = [];
 
-		// Fire both API calls in parallel when both have changes
-		const promises: Promise<void>[] = [];
+		// Save booth settings FIRST so display_name is persisted before the
+		// account mutation's onSuccess invalidates all booth queries.
+		if (hasBoothSettingsChange && boothId) {
+			try {
+				await updateBoothSettingsMutation.mutateAsync({
+					boothId,
+					...(hasBoothNameChange ? { name: boothName.trim() } : {}),
+					...(hasDisplayNameChange ? { display_name: displayName.trim() } : {}),
+					...(hasAddressChange ? { address: address.trim() } : {}),
+				});
+			} catch (error: unknown) {
+				errors.push(error instanceof Error ? error.message : "Failed to save booth settings.");
+			}
+		}
 
 		if (hasBusinessNameChange && userId) {
-			promises.push(
-				updateBusinessNameMutation
-					.mutateAsync({ userId, business_name: businessName })
-					.then(async () => {
-						try {
-							const stored = await getStoredUser();
-							if (stored) {
-								await saveUser({ ...stored, business_name: businessName });
-							}
-						} catch (e) {
-							console.error("[BusinessSettings] SecureStore sync failed:", e);
-						}
-					})
-					.catch((error: unknown) => {
-						errors.push(error instanceof Error ? error.message : "Failed to save business name.");
-					}),
-			);
+			try {
+				await updateBusinessNameMutation.mutateAsync({ userId, business_name: businessName });
+				try {
+					const stored = await getStoredUser();
+					if (stored) {
+						await saveUser({ ...stored, business_name: businessName });
+					}
+				} catch (e) {
+					console.error("[BusinessSettings] SecureStore sync failed:", e);
+				}
+			} catch (error: unknown) {
+				errors.push(error instanceof Error ? error.message : "Failed to save business name.");
+			}
 		}
-
-		if (hasBoothSettingsChange && boothId) {
-			promises.push(
-				updateBoothSettingsMutation
-					.mutateAsync({
-						boothId,
-						...(hasBoothNameChange ? { name: boothName.trim() } : {}),
-						...(hasAddressChange ? { address: address.trim() } : {}),
-					})
-					.then(() => {})
-					.catch((error: unknown) => {
-						errors.push(error instanceof Error ? error.message : "Failed to save booth settings.");
-					}),
-			);
-		}
-
-		await Promise.all(promises);
 
 		if (errors.length > 0) {
 			Alert.alert("Error", errors.join("\n"));
@@ -300,6 +412,109 @@ export function BusinessSettingsModal({
 							</ThemedText>
 						</View>
 
+						{/* ── Use Display Name on All Booths (Account-level toggle) ── */}
+						<View style={styles.fieldContainer}>
+							<View style={styles.toggleRow}>
+								<View style={styles.toggleLabelContainer}>
+									<ThemedText
+										style={[styles.fieldLabel, { color: textSecondary }]}
+									>
+										Use Business Name on All Booths
+									</ThemedText>
+									<ThemedText
+										style={[styles.fieldHint, { color: textSecondary }]}
+									>
+										{useDisplayNameOnBooths
+											? "Business name will appear on all booth welcome screens"
+											: "Each booth can set its own display name"}
+									</ThemedText>
+								</View>
+								<Switch
+									testID="use-display-name-toggle"
+									value={useDisplayNameOnBooths}
+									onValueChange={handleToggleUseDisplayName}
+									trackColor={{ false: borderColor, true: BRAND_COLOR }}
+									disabled={isProcessing}
+								/>
+							</View>
+						</View>
+
+						{/* ── Account Logo ────────────────────────────── */}
+						<View style={styles.fieldContainer}>
+							<ThemedText
+								style={[styles.fieldLabel, { color: textSecondary }]}
+							>
+								Account Logo
+							</ThemedText>
+							<View
+								style={[
+									styles.logoSection,
+									{ backgroundColor: cardBg, borderColor },
+								]}
+							>
+								{userProfile?.logo_url ? (
+									<Image
+										testID="account-logo-preview"
+										source={{ uri: userProfile.logo_url }}
+										style={styles.logoPreview}
+										resizeMode="contain"
+									/>
+								) : (
+									<View style={[styles.logoPlaceholder, { borderColor }]}>
+										<IconSymbol
+											name="photo"
+											size={32}
+											color={textSecondary}
+										/>
+										<ThemedText
+											style={[styles.logoPlaceholderText, { color: textSecondary }]}
+										>
+											No logo
+										</ThemedText>
+									</View>
+								)}
+								<View style={styles.logoActions}>
+									<TouchableOpacity
+										testID="upload-account-logo-button"
+										style={[styles.logoButton, { backgroundColor: BRAND_COLOR }]}
+										onPress={() => handlePickLogo("account")}
+										disabled={isLogoProcessing}
+									>
+										{uploadAccountLogoMutation.isPending ? (
+											<ActivityIndicator color="white" size="small" />
+										) : (
+											<ThemedText style={styles.logoButtonText}>
+												{userProfile?.logo_url ? "Replace" : "Upload"}
+											</ThemedText>
+										)}
+									</TouchableOpacity>
+									{userProfile?.logo_url && (
+										<TouchableOpacity
+											testID="delete-account-logo-button"
+											style={[styles.logoButton, styles.logoDeleteButton, { borderColor }]}
+											onPress={() => handleDeleteLogo("account")}
+											disabled={isLogoProcessing}
+										>
+											{deleteAccountLogoMutation.isPending ? (
+												<ActivityIndicator color={textSecondary} size="small" />
+											) : (
+												<ThemedText
+													style={[styles.logoButtonText, { color: "#FF3B30" }]}
+												>
+													Remove
+												</ThemedText>
+											)}
+										</TouchableOpacity>
+									)}
+								</View>
+							</View>
+							<ThemedText
+								style={[styles.fieldHint, { color: textSecondary }]}
+							>
+								Default logo for all your booths
+							</ThemedText>
+						</View>
+
 						{/* ── Booth-level fields ──────────────────────── */}
 						{boothId && (
 							<>
@@ -339,6 +554,45 @@ export function BusinessSettingsModal({
 									</ThemedText>
 								</View>
 
+								{/* Display Name */}
+								<View style={styles.fieldContainer}>
+									<ThemedText
+										style={[styles.fieldLabel, { color: textSecondary }]}
+									>
+										Display Name
+									</ThemedText>
+									<View
+										style={[
+											styles.inputContainer,
+											{ backgroundColor: cardBg, borderColor },
+											useDisplayNameOnBooths && styles.inputDisabled,
+										]}
+									>
+										<IconSymbol
+											name="textformat"
+											size={20}
+											color={textSecondary}
+											style={styles.inputIcon}
+										/>
+										<TextInput
+											style={[styles.input, { color: textColor }]}
+											value={displayName}
+											onChangeText={setDisplayName}
+											placeholder="Enter display name for welcome screen"
+											placeholderTextColor={textSecondary}
+											maxLength={255}
+											editable={!updateBoothSettingsMutation.isPending && !useDisplayNameOnBooths}
+										/>
+									</View>
+									<ThemedText
+										style={[styles.fieldHint, { color: textSecondary }]}
+									>
+										{useDisplayNameOnBooths
+											? "Overridden by business name (toggle above)"
+											: "Name shown on this booth's welcome screen"}
+									</ThemedText>
+								</View>
+
 								{/* Address */}
 								<View style={styles.fieldContainer}>
 									<ThemedText
@@ -375,6 +629,83 @@ export function BusinessSettingsModal({
 									</ThemedText>
 								</View>
 
+								{/* ── Booth Logo ─────────────────────── */}
+								<View style={styles.fieldContainer}>
+									<ThemedText
+										style={[styles.fieldLabel, { color: textSecondary }]}
+									>
+										Booth Logo
+									</ThemedText>
+									<View
+										style={[
+											styles.logoSection,
+											{ backgroundColor: cardBg, borderColor },
+										]}
+									>
+										{boothSettings?.custom_logo_url ? (
+											<Image
+												testID="booth-logo-preview"
+												source={{ uri: boothSettings.custom_logo_url }}
+												style={styles.logoPreview}
+												resizeMode="contain"
+											/>
+										) : (
+											<View style={[styles.logoPlaceholder, { borderColor }]}>
+												<IconSymbol
+													name="photo"
+													size={32}
+													color={textSecondary}
+												/>
+												<ThemedText
+													style={[styles.logoPlaceholderText, { color: textSecondary }]}
+												>
+													No logo
+												</ThemedText>
+											</View>
+										)}
+										<View style={styles.logoActions}>
+											<TouchableOpacity
+												testID="upload-booth-logo-button"
+												style={[styles.logoButton, { backgroundColor: BRAND_COLOR }]}
+												onPress={() => handlePickLogo("booth")}
+												disabled={isLogoProcessing}
+											>
+												{uploadBoothLogoMutation.isPending ? (
+													<ActivityIndicator color="white" size="small" />
+												) : (
+													<ThemedText style={styles.logoButtonText}>
+														{boothSettings?.custom_logo_url ? "Replace" : "Upload"}
+													</ThemedText>
+												)}
+											</TouchableOpacity>
+											{boothSettings?.custom_logo_url && (
+												<TouchableOpacity
+													testID="delete-booth-logo-button"
+													style={[styles.logoButton, styles.logoDeleteButton, { borderColor }]}
+													onPress={() => handleDeleteLogo("booth")}
+													disabled={isLogoProcessing}
+												>
+													{deleteBoothLogoMutation.isPending ? (
+														<ActivityIndicator color={textSecondary} size="small" />
+													) : (
+														<ThemedText
+															style={[styles.logoButtonText, { color: "#FF3B30" }]}
+														>
+															Remove
+														</ThemedText>
+													)}
+												</TouchableOpacity>
+											)}
+										</View>
+									</View>
+									<ThemedText
+										style={[styles.fieldHint, { color: textSecondary }]}
+									>
+										{boothSettings?.custom_logo_url
+											? "Remove to use the account logo instead"
+											: "Upload to override the account logo for this booth"}
+									</ThemedText>
+								</View>
 
 								</>
 						)}
@@ -468,6 +799,68 @@ const styles = StyleSheet.create({
 	input: {
 		flex: 1,
 		fontSize: 16,
+	},
+	inputDisabled: {
+		opacity: 0.5,
+	},
+	toggleRow: {
+		flexDirection: "row" as const,
+		justifyContent: "space-between" as const,
+		alignItems: "center" as const,
+	},
+	toggleLabelContainer: {
+		flex: 1,
+		marginRight: Spacing.md,
+	},
+	// Logo
+	logoSection: {
+		flexDirection: "column" as const,
+		alignItems: "center" as const,
+		padding: Spacing.lg,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+		gap: Spacing.md,
+	},
+	logoPreview: {
+		width: 80,
+		height: 80,
+		borderRadius: BorderRadius.md,
+	},
+	logoPlaceholder: {
+		width: 80,
+		height: 80,
+		borderRadius: BorderRadius.md,
+		borderWidth: 1,
+		borderStyle: "dashed" as const,
+		alignItems: "center" as const,
+		justifyContent: "center" as const,
+	},
+	logoPlaceholderText: {
+		fontSize: 11,
+		marginTop: 4,
+	},
+	logoActions: {
+		flexDirection: "row" as const,
+		width: "100%" as const,
+		gap: Spacing.sm,
+	},
+	logoButton: {
+		flex: 1,
+		paddingVertical: Spacing.sm,
+		paddingHorizontal: Spacing.md,
+		borderRadius: BorderRadius.md,
+		alignItems: "center" as const,
+		justifyContent: "center" as const,
+		minHeight: 40,
+	},
+	logoDeleteButton: {
+		backgroundColor: "transparent",
+		borderWidth: 1,
+	},
+	logoButtonText: {
+		color: "white",
+		fontSize: 14,
+		fontWeight: "600" as const,
 	},
 	// Save buttons
 	saveFieldButton: {

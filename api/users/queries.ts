@@ -13,7 +13,7 @@ import {
 	updateBusinessName,
 	uploadAccountLogo,
 } from "./services";
-import type { UserProfileResponse } from "./types";
+import type { UpdateBusinessNameRequest, UserProfileResponse } from "./types";
 
 /**
  * Hook to fetch user profile
@@ -47,17 +47,24 @@ export function useUpdateBusinessName() {
 	return useMutation({
 		mutationFn: ({
 			userId,
-			business_name,
+			...data
 		}: {
 			userId: string;
-			business_name: string;
-		}) => updateBusinessName(userId, { business_name }),
+		} & UpdateBusinessNameRequest) => updateBusinessName(userId, data),
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.users.profile(variables.userId),
 			});
+			// Invalidate booth queries affected by business name / display name toggle
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.booths.all(),
+				queryKey: queryKeys.booths.overview(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.list(),
+			});
+			// All booths' business settings depend on use_display_name_on_booths
+			queryClient.invalidateQueries({
+				queryKey: ["booths", "businessSettings"],
 			});
 		},
 	});
@@ -89,8 +96,12 @@ export function useUploadAccountLogo() {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.users.profile(variables.userId),
 			});
+			// Account logo affects booth business settings and overview
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.booths.all(),
+				queryKey: queryKeys.booths.overview(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: ["booths", "businessSettings"],
 			});
 		},
 	});
@@ -114,7 +125,10 @@ export function useDeleteAccountLogo() {
 				queryKey: queryKeys.users.profile(variables.userId),
 			});
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.booths.all(),
+				queryKey: queryKeys.booths.overview(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: ["booths", "businessSettings"],
 			});
 		},
 	});
