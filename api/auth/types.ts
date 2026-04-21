@@ -23,6 +23,8 @@ export interface AuthUser {
   business_name: string | null;
   /** Presigned URL for account logo (null if no logo) */
   logo_url: string | null;
+  /** When true, all booths show business_name instead of their per-booth display_name */
+  use_display_name_on_booths: boolean;
 }
 
 /**

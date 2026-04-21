@@ -19,17 +19,21 @@ export interface UserProfileResponse {
 	business_name: string | null;
 	/** Presigned S3 URL for account logo (expires in 1 hour) */
 	logo_url: string | null;
+	/** When true, all booths show business_name instead of their per-booth display_name. Default: false */
+	use_display_name_on_booths: boolean;
 	created_at: string;
 	updated_at: string;
 }
 
 /**
- * Request body for updating user profile
- * @see PUT /api/v1/users/{user_id}
+ * Request body for updating user profile (business name and display name settings)
+ * @see PATCH /api/v1/users/{user_id}
  */
 export interface UpdateBusinessNameRequest {
 	/** Business name displayed on all booths (max 255 chars) */
-	business_name: string;
+	business_name?: string | null;
+	/** When true, all booths show business_name instead of per-booth display_name */
+	use_display_name_on_booths?: boolean | null;
 }
 
 /**

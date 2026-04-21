@@ -212,7 +212,13 @@ export async function saveUser(user: AuthUser): Promise<void> {
 export async function getStoredUser(): Promise<AuthUser | null> {
   try {
     const stored = await SecureStore.getItemAsync(USER_STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as AuthUser) : null;
+    if (!stored) return null;
+    const user = JSON.parse(stored) as AuthUser;
+    // Backward compat: old cached users may lack newer fields
+    if (user.use_display_name_on_booths === undefined) {
+      user.use_display_name_on_booths = false;
+    }
+    return user;
   } catch (error) {
     console.error("[API] Failed to read stored user:", error);
     return null;

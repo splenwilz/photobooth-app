@@ -693,6 +693,8 @@ export interface SyncTemplatesResponse {
 export interface BoothBusinessSettingsResponse {
   /** Account-level business name */
   business_name: string | null;
+  /** Per-booth display name for welcome screen (null if not set) */
+  display_name: string | null;
   /** Presigned URL for the effective logo (custom if overridden, otherwise account) */
   logo_url: string | null;
   /** Presigned URL for the booth's own uploaded custom logo, or null if none */
@@ -713,6 +715,10 @@ export interface BoothBusinessSettingsResponse {
   show_welcome_subtitle: boolean;
   /** Whether the booth accepts cloud-managed business settings */
   cloud_sync_enabled: boolean;
+  /** ISO timestamp of the last cloud sync settings update */
+  cloud_sync_updated_at: string | null;
+  /** Account-level: when true, business_name overrides per-booth display_name on all booths */
+  use_display_name_on_booths: boolean;
 }
 
 /**
@@ -722,6 +728,8 @@ export interface BoothBusinessSettingsResponse {
 export interface UpdateBoothSettingsRequest {
   /** Booth name (1-100 chars) */
   name?: string;
+  /** Per-booth display name for welcome screen (max 255 chars) */
+  display_name?: string;
   /** Physical location (max 500 chars) */
   address?: string;
   /** true = use custom booth logo, false = use account logo */
@@ -747,6 +755,7 @@ export interface UpdateBoothSettingsRequest {
 export interface UpdateBoothSettingsResponse {
   id: string;
   name: string;
+  display_name: string | null;
   owner_id: string;
   address: string | null;
   use_custom_logo: boolean;
@@ -757,6 +766,7 @@ export interface UpdateBoothSettingsResponse {
   show_logo: boolean;
   welcome_subtitle: string | null;
   show_welcome_subtitle: boolean;
+  cloud_sync_enabled: boolean;
   status: 'online' | 'offline' | 'warning';
   last_heartbeat: string | null;
   last_sync: string | null;
