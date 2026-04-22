@@ -110,16 +110,17 @@ export function StrandedSessionDetailsModal({
 		};
 	}, []);
 
-	// Session token bumped on each visible:false → true transition. Each
+	// Session token bumped on EVERY visibility transition. Each
 	// `handleSubmit` captures the current token before awaiting the mutation
-	// and compares it to the live token on resolve. This is stricter than
-	// "is any sheet open right now": it also catches the case where the user
-	// dismissed THIS sheet mid-flight and reopened it on a different row,
-	// where a "is anything visible" check would let session A's success
-	// Alert surface on session B and incorrectly close session B's modal.
+	// and compares it to the live token on resolve. Bumping on close (not
+	// just open) means a user who dismisses mid-flight and never reopens
+	// also invalidates their submission's session — so the "Refund recorded"
+	// Alert doesn't ghost onto an unrelated screen behind the dismissed
+	// sheet. Bumping again on reopen also catches the "dismissed and
+	// reopened a different row" case.
 	const modalSessionRef = useRef(0);
 	useEffect(() => {
-		if (visible) modalSessionRef.current += 1;
+		modalSessionRef.current += 1;
 	}, [visible]);
 
 	const defaultAmount = useMemo(() => {
@@ -148,13 +149,18 @@ export function StrandedSessionDetailsModal({
 	// Defaults are derived from row data via toFixed/inferRefundMethod, so
 	// re-renders with unchanged data produce equal strings → no spurious
 	// reset.
+	//
+	// Crucially, skip the reset while a refund is in flight: clobbering
+	// operator input mid-submit is bad UX, and `refundMutation.reset()`
+	// would flip `isPending` false → re-enable Submit → allow a racing
+	// double-submit while the original call is still flying.
 	useEffect(() => {
-		if (visible) {
-			setAmount(defaultAmount);
-			setMethod(defaultMethod);
-			setNote("");
-			refundMutation.reset();
-		}
+		if (!visible) return;
+		if (refundMutation.isPending) return;
+		setAmount(defaultAmount);
+		setMethod(defaultMethod);
+		setNote("");
+		refundMutation.reset();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [visible, row?.event.id, defaultAmount, defaultMethod]);
 
