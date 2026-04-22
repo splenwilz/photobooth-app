@@ -98,11 +98,11 @@ export function formatStrandedReason(
 	if (reason in KNOWN_STRANDED_REASONS) {
 		return KNOWN_STRANDED_REASONS[reason];
 	}
+	// `String.prototype.split` always returns at least one element, so
+	// `words[0]` is safe to index. Capitalize the first chunk and append the
+	// rest space-joined.
 	const words = reason.split("_");
-	if (words.length === 0) return reason;
-	return (
-		words[0].charAt(0).toUpperCase() +
-		words[0].slice(1) +
-		(words.length > 1 ? " " + words.slice(1).join(" ") : "")
-	);
+	const head = words[0].charAt(0).toUpperCase() + words[0].slice(1);
+	const tail = words.length > 1 ? " " + words.slice(1).join(" ") : "";
+	return head + tail;
 }

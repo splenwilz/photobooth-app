@@ -728,8 +728,13 @@ export function useRefundBoothTransaction() {
 		mutationFn: ({ boothId, transactionCode, ...data }) =>
 			refundBoothTransaction(boothId, transactionCode, data),
 		onSuccess: (_, variables) => {
+			// Use 3-element prefixes (no params slot) so invalidation matches
+			// every paginated cache entry. Calling the factories here would
+			// emit a 4-element key with `undefined` in the params slot, which
+			// React Query's element-wise structural matcher would NOT consider
+			// a match for `[..., {limit, offset}]` keys.
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.booths.criticalEvents(variables.boothId),
+				queryKey: ["booths", "criticalEvents", variables.boothId],
 			});
 			queryClient.invalidateQueries({
 				queryKey: ["booths", "transactions", variables.boothId],

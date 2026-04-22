@@ -100,10 +100,8 @@ export function StrandedSessionDetailsModal({
 
 	const refundMutation = useRefundBoothTransaction();
 
-	// Track whether the modal is still mounted + visible at the moment a
-	// refund mutation resolves. If the user dismissed the modal mid-flight,
-	// we skip the success/error Alert (it would surface on the wrong screen)
-	// and the redundant onClose call.
+	// Track whether the modal is still mounted at the moment a refund
+	// mutation resolves.
 	const isMountedRef = useRef(true);
 	useEffect(() => {
 		isMountedRef.current = true;
@@ -111,9 +109,17 @@ export function StrandedSessionDetailsModal({
 			isMountedRef.current = false;
 		};
 	}, []);
-	const visibleRef = useRef(visible);
+
+	// Session token bumped on each visible:false → true transition. Each
+	// `handleSubmit` captures the current token before awaiting the mutation
+	// and compares it to the live token on resolve. This is stricter than
+	// "is any sheet open right now": it also catches the case where the user
+	// dismissed THIS sheet mid-flight and reopened it on a different row,
+	// where a "is anything visible" check would let session A's success
+	// Alert surface on session B and incorrectly close session B's modal.
+	const modalSessionRef = useRef(0);
 	useEffect(() => {
-		visibleRef.current = visible;
+		if (visible) modalSessionRef.current += 1;
 	}, [visible]);
 
 	const defaultAmount = useMemo(() => {
@@ -204,6 +210,12 @@ export function StrandedSessionDetailsModal({
 
 	const handleSubmit = async () => {
 		if (!canSubmit || !event.transaction_code) return;
+		// Pin this submission to the current modal session so a late-arriving
+		// resolve from a previous open can't act on (or close) a fresh one.
+		const submissionSession = modalSessionRef.current;
+		const isStillThisSession = () =>
+			isMountedRef.current && submissionSession === modalSessionRef.current;
+
 		try {
 			await refundMutation.mutateAsync({
 				boothId,
@@ -212,14 +224,14 @@ export function StrandedSessionDetailsModal({
 				method,
 				...(note.trim() ? { note: note.trim() } : {}),
 			});
-			if (!isMountedRef.current || !visibleRef.current) return;
+			if (!isStillThisSession()) return;
 			Alert.alert(
 				"Refund recorded",
 				`${formatCurrency(parsedAmount)} via ${REFUND_METHOD_OPTIONS.find((o) => o.value === method)?.label ?? method}.`,
 			);
 			onClose();
 		} catch (e: unknown) {
-			if (!isMountedRef.current || !visibleRef.current) return;
+			if (!isStillThisSession()) return;
 			const msg = e instanceof Error ? e.message : "Refund failed";
 			Alert.alert("Could not record refund", msg);
 		}
