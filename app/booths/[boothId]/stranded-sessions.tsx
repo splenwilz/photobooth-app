@@ -114,13 +114,15 @@ export default function StrandedSessionsScreen() {
 		await Promise.all([eventsQuery.refetch(), transactionsQuery.refetch()]);
 	}, [eventsQuery, transactionsQuery]);
 
-	const isInitialLoading =
-		eventsQuery.isLoading || transactionsQuery.isLoading;
+	// The critical-events feed is authoritative (per the API doc) and now
+	// carries `transaction_total_price` inline, so the screen can render
+	// without the transactions lookup. Treat the transactions query as a
+	// non-blocking enrichment: a failure or slow load shouldn't gate the UI.
+	const isInitialLoading = eventsQuery.isLoading;
 	const isRefreshing =
 		(eventsQuery.isRefetching || transactionsQuery.isRefetching) &&
 		!isInitialLoading;
-
-	const error = eventsQuery.error ?? transactionsQuery.error;
+	const error = eventsQuery.error;
 
 	const renderItem = useCallback(
 		({ item }: { item: StrandedSessionRow }) => (
@@ -147,6 +149,9 @@ export default function StrandedSessionsScreen() {
 					style={styles.backButton}
 					onPress={() => router.back()}
 					hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+					accessibilityRole="button"
+					accessibilityLabel="Back"
+					accessibilityHint="Returns to the previous screen"
 				>
 					<IconSymbol name="chevron.left" size={24} color={tint} />
 				</TouchableOpacity>

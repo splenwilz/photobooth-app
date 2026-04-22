@@ -52,6 +52,7 @@ import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 // Utilities - extracted for separation of concerns
 import {
   formatCurrency,
+  joinCriticalEventsWithTransactions,
   mapBoothAlertToAppAlert,
   mapDashboardAlertToAppAlert,
 } from "@/utils";
@@ -170,15 +171,21 @@ export default function DashboardScreen() {
 	// Count only unrefunded events — once marked refunded, the row no longer
 	// needs operator attention.
 	// @see GET /api/v1/booths/{booth_id}/critical-events
-	const { data: criticalEventsData } = useBoothCriticalEvents(
-		hasBoothSelected ? selectedBoothId : null,
-	);
-	const strandedCount = useMemo(
-		() =>
-			(criticalEventsData?.events ?? []).filter((e) => e.refund === null)
-				.length,
-		[criticalEventsData?.events],
-	);
+	const {
+		data: criticalEventsData,
+		refetch: refetchCriticalEvents,
+	} = useBoothCriticalEvents(hasBoothSelected ? selectedBoothId : null);
+	// Run events through the same dedupe used by the destination list screen
+	// so the badge can never disagree with the list. (The server already
+	// dedupes on insert per the API spec, so this is defense-in-depth — but
+	// keeping the two consumers in lockstep is cheap.)
+	const strandedCount = useMemo(() => {
+		const rows = joinCriticalEventsWithTransactions(
+			criticalEventsData?.events ?? [],
+			[],
+		);
+		return rows.filter((r) => r.event.refund === null).length;
+	}, [criticalEventsData?.events]);
 
 	// Get revenue stats for selected period - works for both modes
 	const revenueStats = isAllMode
@@ -195,14 +202,16 @@ export default function DashboardScreen() {
 		? dashboardOverview?.upsale_breakdown?.[selectedPeriod]
 		: boothDetail?.upsale_breakdown?.[selectedPeriod];
 
-	// Pull-to-refresh handler - refreshes appropriate data based on mode
+	// Pull-to-refresh handler - refreshes appropriate data based on mode.
+	// In single-booth mode also refresh critical events so the
+	// "Needs Attention" badge reflects refunds recorded elsewhere.
 	const onRefresh = useCallback(async () => {
 		if (isAllMode) {
 			await refetchOverview();
 		} else {
-			await refetchDetail();
+			await Promise.all([refetchDetail(), refetchCriticalEvents()]);
 		}
-	}, [isAllMode, refetchOverview, refetchDetail]);
+	}, [isAllMode, refetchOverview, refetchDetail, refetchCriticalEvents]);
 
 	// Navigation handlers
 	const handleNotificationPress = () => {

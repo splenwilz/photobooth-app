@@ -270,6 +270,42 @@ describe("refundBoothTransaction", () => {
 		);
 	});
 
+	it("omits whitespace-only note and trims surrounding whitespace", async () => {
+		mockApiClient.mockResolvedValue(mockResponse);
+
+		await refundBoothTransaction("booth-123", "TXN-ABC", {
+			amount: 5.0,
+			method: "cash_till",
+			note: "   ",
+		});
+
+		expect(mockApiClient).toHaveBeenCalledWith(
+			"/api/v1/booths/booth-123/transactions/TXN-ABC/refund",
+			expect.objectContaining({
+				body: JSON.stringify({ amount: 5.0, method: "cash_till" }),
+			}),
+		);
+
+		mockApiClient.mockClear();
+
+		await refundBoothTransaction("booth-123", "TXN-ABC", {
+			amount: 5.0,
+			method: "cash_till",
+			note: "  receipt #9  ",
+		});
+
+		expect(mockApiClient).toHaveBeenCalledWith(
+			"/api/v1/booths/booth-123/transactions/TXN-ABC/refund",
+			expect.objectContaining({
+				body: JSON.stringify({
+					amount: 5.0,
+					method: "cash_till",
+					note: "receipt #9",
+				}),
+			}),
+		);
+	});
+
 	it("url-encodes the transaction code for path safety", async () => {
 		mockApiClient.mockResolvedValue(mockResponse);
 

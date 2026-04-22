@@ -534,12 +534,14 @@ export async function refundBoothTransaction(
 	if (!transactionCode)
 		throw new Error("Transaction code is required for refundBoothTransaction");
 
+	// Trim before checking — Boolean("   ") is true, which would leak a
+	// whitespace-only note past a naive truthy check and may fail server
+	// min-length validation.
+	const trimmedNote = data.note?.trim();
 	const body: RefundTransactionRequest = {
 		amount: data.amount,
 		method: data.method,
-		// Truthy check, not !== undefined — empty/whitespace notes shouldn't
-		// hit the API (it may enforce min-length validation).
-		...(data.note ? { note: data.note } : {}),
+		...(trimmedNote ? { note: trimmedNote } : {}),
 	};
 
 	const response = await apiClient<RefundTransactionResponse>(

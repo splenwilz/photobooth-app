@@ -132,7 +132,16 @@ export function StrandedSessionDetailsModal({
 	const [method, setMethod] = useState<RefundMethod>(defaultMethod);
 	const [note, setNote] = useState("");
 
-	// Reset local form state each time the modal opens for a new row.
+	// Reset local form state when:
+	//   - the modal opens (visible flips true)
+	//   - the user opens a different row (event.id changes)
+	//   - the underlying defaults hydrate after the modal is already open
+	//     (e.g. transactions query lands later and supplies a real
+	//     payment_method, flipping defaultMethod from "other" → "cash_till").
+	// Adding defaultAmount + defaultMethod to the deps catches the third case.
+	// Defaults are derived from row data via toFixed/inferRefundMethod, so
+	// re-renders with unchanged data produce equal strings → no spurious
+	// reset.
 	useEffect(() => {
 		if (visible) {
 			setAmount(defaultAmount);
@@ -141,7 +150,7 @@ export function StrandedSessionDetailsModal({
 			refundMutation.reset();
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [visible, row?.event.id]);
+	}, [visible, row?.event.id, defaultAmount, defaultMethod]);
 
 	if (!row) return null;
 	const { event, transaction } = row;
@@ -228,6 +237,9 @@ export function StrandedSessionDetailsModal({
 					<TouchableOpacity
 						onPress={onClose}
 						hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+						accessibilityRole="button"
+						accessibilityLabel="Close"
+						accessibilityHint="Closes this sheet"
 					>
 						<IconSymbol name="xmark" size={22} color={textSecondary} />
 					</TouchableOpacity>
