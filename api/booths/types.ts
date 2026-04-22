@@ -851,3 +851,186 @@ export interface DownloadLogsResponse {
   message: string;
 }
 
+// ============================================================================
+// STRANDED PAID SESSIONS TYPES
+// Booth transactions and critical events for refund review
+// ============================================================================
+
+/**
+ * Reason tag attached to a stranded transaction.
+ * The booth picks one of these when flagging a transaction post-payment.
+ * Treated as an open string so the cloud can introduce new tags without a
+ * frontend release; the listed values are the ones currently emitted.
+ *
+ * @see GET /api/v1/booths/{booth_id}/transactions
+ */
+export type StrandedReason =
+  | "payment_completion_handler_exception"
+  | "thank_you_navigation_failure"
+  | "print_thank_you_navigation_failure"
+  | "extra_prints_completion_failure"
+  | (string & {});
+
+/**
+ * Refund channel recorded against a transaction when the operator marks it
+ * refunded. PhotoBoothX does not route refunds through a payment processor —
+ * this is accounting closure only. Treated as an open string for forward
+ * compatibility.
+ *
+ * @see POST /api/v1/booths/{booth_id}/transactions/{transaction_code}/refund
+ */
+export type RefundMethod =
+  | "cash_till"
+  | "card_void"
+  | "manual_credit_reverse"
+  | "other"
+  | (string & {});
+
+/**
+ * Tag for a critical booth event.
+ * Treated as an open string so the cloud can add tags without a frontend
+ * release; switch on these for known UX, fall through generically otherwise.
+ *
+ * @see GET /api/v1/booths/{booth_id}/critical-events
+ */
+export type CriticalEventTag =
+  | "STRANDED_PAID_SESSION"
+  | "PAYMENT_RESULT_INVALID"
+  | (string & {});
+
+/**
+ * A single booth transaction synced to the cloud.
+ * The two `stranded_*` fields are populated only when the booth flagged the
+ * transaction as stranded post-payment.
+ *
+ * @see GET /api/v1/booths/{booth_id}/transactions
+ */
+export interface SyncedTransaction {
+  id: string;
+  local_id: number;
+  transaction_code: string;
+  product_type: string;
+  template_name: string | null;
+  quantity: number;
+  base_price: number;
+  total_price: number;
+  payment_method: string;
+  payment_status: string;
+  local_created_at: string;
+  synced_at: string;
+  /** When the booth flagged this transaction as stranded. Null on normal completions. */
+  stranded_at: string | null;
+  /** Short tag describing the cause; null on normal completions. */
+  stranded_reason: StrandedReason | null;
+  /** When the refund was marked (accounting closure). Null if unrefunded. */
+  refunded_at: string | null;
+  /** WorkOS user ID that attested to the refund. Null if unrefunded. */
+  refunded_by_user_id: string | null;
+  /** Amount refunded; may be less than total_price for partial refunds. */
+  refund_amount: number | null;
+  /** Channel used for the refund. */
+  refund_method: RefundMethod | null;
+  /** Free-form operator note (receipt number, incident context, etc.). */
+  refund_note: string | null;
+}
+
+/**
+ * Pagination params shared by the stranded-sessions list endpoints.
+ */
+export interface BoothPaginationParams {
+  /** Max rows to return (default: 50) */
+  limit?: number;
+  /** Pagination offset (default: 0) */
+  offset?: number;
+}
+
+/**
+ * Response from booth transactions endpoint.
+ * @see GET /api/v1/booths/{booth_id}/transactions
+ */
+export interface BoothTransactionsResponse {
+  booth_id: string;
+  booth_name: string;
+  transactions: SyncedTransaction[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Inline refund summary joined onto a critical event when the underlying
+ * transaction has been marked refunded. Null on events whose transaction
+ * has not yet been refunded.
+ */
+export interface CriticalEventRefundSummary {
+  refunded_at: string;
+  refunded_by_user_id: string;
+  refund_amount: number;
+  refund_method: RefundMethod;
+}
+
+/**
+ * A single critical (operator-alertable) event from a booth.
+ * The server joins `synced_transactions` by `transaction_code` so
+ * `transaction_total_price` and `refund` are available inline — no need
+ * for a second fetch to know the refund amount/status.
+ * @see GET /api/v1/booths/{booth_id}/critical-events
+ */
+export interface BoothCriticalEvent {
+  id: number;
+  tag: CriticalEventTag;
+  /** Free-form details (e.g., the underlying exception message) */
+  details: string;
+  /** Reference code shown to the customer; correlates with SyncedTransaction.transaction_code */
+  transaction_code: string | null;
+  occurred_at: string;
+  received_at: string;
+  /** Full paid amount for the underlying transaction (server-joined). */
+  transaction_total_price: number | null;
+  /** Inline refund summary when the transaction is refunded; null otherwise. */
+  refund: CriticalEventRefundSummary | null;
+}
+
+/**
+ * Response from booth critical-events endpoint.
+ * Newest `occurred_at` first (booth-reported incident time, not cloud arrival).
+ * @see GET /api/v1/booths/{booth_id}/critical-events
+ */
+export interface BoothCriticalEventsResponse {
+  booth_id: string;
+  booth_name: string;
+  events: BoothCriticalEvent[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Request body for recording a refund against a transaction.
+ * Note: money must be handed back / voided physically BEFORE calling this —
+ * the endpoint is accounting closure only.
+ *
+ * @see POST /api/v1/booths/{booth_id}/transactions/{transaction_code}/refund
+ */
+export interface RefundTransactionRequest {
+  /** Refund amount (> 0, <= total_price). Partial refunds allowed. */
+  amount: number;
+  /** Channel used to physically return funds. */
+  method: RefundMethod;
+  /** Free-form context (receipt number, incident description, etc.). */
+  note?: string;
+}
+
+/**
+ * Response body when a refund is recorded successfully.
+ * @see POST /api/v1/booths/{booth_id}/transactions/{transaction_code}/refund
+ */
+export interface RefundTransactionResponse {
+  transaction_code: string;
+  refunded_at: string;
+  refunded_by_user_id: string;
+  refund_amount: number;
+  refund_method: RefundMethod;
+  refund_note: string | null;
+}
+

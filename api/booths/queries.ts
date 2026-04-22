@@ -9,11 +9,14 @@ import {
 	generateBoothCode,
 	getBoothBusinessSettings,
 	getBoothCredentials,
+	getBoothCriticalEvents,
 	getBoothDetail,
 	getBoothList,
 	getBoothOverview,
 	getBoothPricing,
+	getBoothTransactions,
 	getDashboardOverview,
+	refundBoothTransaction,
 	requestEmergencyPassword,
 	restartBoothApp,
 	restartBoothSystem,
@@ -25,15 +28,20 @@ import {
 import type {
 	BoothBusinessSettingsResponse,
 	BoothCredentialsResponse,
+	BoothCriticalEventsResponse,
 	BoothDetailResponse,
 	BoothListResponse,
 	BoothOverviewResponse,
+	BoothPaginationParams,
 	BoothPricingResponse,
+	BoothTransactionsResponse,
 	CreateBoothRequest,
 	DashboardOverviewResponse,
 	DownloadLogsRequest,
 	EmergencyPasswordRequest,
 	GenerateCodeResponse,
+	RefundTransactionRequest,
+	RefundTransactionResponse,
 	RestartRequest,
 	UpdateBoothSettingsRequest,
 	UpdatePricingRequest,
@@ -642,5 +650,90 @@ export function useDownloadBoothLogs() {
 			...data
 		}: { boothId: string } & DownloadLogsRequest) =>
 			downloadBoothLogs(boothId, data),
+	});
+}
+
+// ============================================================================
+// STRANDED PAID SESSIONS HOOKS
+// ============================================================================
+
+/**
+ * Hook to fetch the full transaction list for a booth.
+ * Returned items include `stranded_at` and `stranded_reason` — use the
+ * dedicated `useStrandedTransactions` hook when you only want flagged rows.
+ *
+ * @param boothId - The booth ID (null disables the query)
+ * @param params - Optional pagination
+ * @see GET /api/v1/booths/{booth_id}/transactions
+ */
+export function useBoothTransactions(
+	boothId: string | null,
+	params?: BoothPaginationParams,
+) {
+	return useQuery<BoothTransactionsResponse>({
+		queryKey: boothId
+			? queryKeys.booths.transactions(boothId, params)
+			: ["booths", "transactions", null, params],
+		queryFn: () => getBoothTransactions(boothId!, params),
+		enabled: !!boothId,
+		// Stranded markers can land on a re-sync 10–30s after the first row arrives,
+		// so keep the data short-lived to surface them promptly.
+		staleTime: 30 * 1000,
+	});
+}
+
+/**
+ * Hook to fetch the critical-event feed for a booth.
+ * Use this as the alert trigger ("N sessions need review") and join with
+ * `useBoothTransactions` on `transaction_code` to get refund details.
+ *
+ * @param boothId - The booth ID (null disables the query)
+ * @param params - Optional pagination
+ * @see GET /api/v1/booths/{booth_id}/critical-events
+ */
+export function useBoothCriticalEvents(
+	boothId: string | null,
+	params?: BoothPaginationParams,
+) {
+	return useQuery<BoothCriticalEventsResponse>({
+		queryKey: boothId
+			? queryKeys.booths.criticalEvents(boothId, params)
+			: ["booths", "criticalEvents", null, params],
+		queryFn: () => getBoothCriticalEvents(boothId!, params),
+		enabled: !!boothId,
+		staleTime: 30 * 1000,
+	});
+}
+
+/**
+ * Hook to mark a transaction as refunded (accounting closure only — money
+ * must already be returned physically before calling).
+ *
+ * On success, invalidates both the transactions and critical-events caches
+ * for this booth so the list and dashboard badge refresh.
+ *
+ * On 409 the backend returns the existing refund record; the caller can
+ * inspect `error` and refetch to render "already refunded" state.
+ *
+ * @see POST /api/v1/booths/{booth_id}/transactions/{transaction_code}/refund
+ */
+export function useRefundBoothTransaction() {
+	const queryClient = useQueryClient();
+
+	return useMutation<
+		RefundTransactionResponse,
+		Error,
+		{ boothId: string; transactionCode: string } & RefundTransactionRequest
+	>({
+		mutationFn: ({ boothId, transactionCode, ...data }) =>
+			refundBoothTransaction(boothId, transactionCode, data),
+		onSuccess: (_, variables) => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.booths.criticalEvents(variables.boothId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: ["booths", "transactions", variables.boothId],
+			});
+		},
 	});
 }
