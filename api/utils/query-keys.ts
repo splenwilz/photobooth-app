@@ -94,6 +94,20 @@ export const queryKeys = {
      * @see GET /api/v1/booths/{booth_id}/business-settings
      */
     businessSettings: (boothId: string) => ['booths', 'businessSettings', boothId] as const,
+
+    /**
+     * Get booth transactions (includes stranded session fields)
+     * @see GET /api/v1/booths/{booth_id}/transactions
+     */
+    transactions: (boothId: string, params?: { limit?: number; offset?: number }) =>
+      ['booths', 'transactions', boothId, params] as const,
+
+    /**
+     * Get booth critical events (operator-alertable feed)
+     * @see GET /api/v1/booths/{booth_id}/critical-events
+     */
+    criticalEvents: (boothId: string, params?: { limit?: number; offset?: number }) =>
+      ['booths', 'criticalEvents', boothId, params] as const,
   },
 
   /**

@@ -3,10 +3,13 @@ import type { LogoDeleteResponse, LogoUploadResponse } from "../users/types";
 import type {
 	BoothBusinessSettingsResponse,
 	BoothCredentialsResponse,
+	BoothCriticalEventsResponse,
 	BoothDetailResponse,
 	BoothListResponse,
 	BoothOverviewResponse,
+	BoothPaginationParams,
 	BoothPricingResponse,
+	BoothTransactionsResponse,
 	CancelRestartResponse,
 	CreateBoothRequest,
 	CreateBoothResponse,
@@ -17,6 +20,8 @@ import type {
 	EmergencyPasswordRequest,
 	EmergencyPasswordResponse,
 	GenerateCodeResponse,
+	RefundTransactionRequest,
+	RefundTransactionResponse,
 	RestartAppResponse,
 	RestartRequest,
 	RestartSystemResponse,
@@ -445,6 +450,103 @@ export async function downloadBoothLogs(
 			body: JSON.stringify(data ?? {}),
 			timeout: 130000, // 130s timeout (booth can take up to 120s)
 		},
+	);
+	return response;
+}
+
+// ============================================================================
+// STRANDED PAID SESSIONS SERVICES
+// ============================================================================
+
+/**
+ * List transactions for a booth.
+ * Includes the `stranded_at` and `stranded_reason` fields used to surface
+ * sessions where the customer paid but the post-payment flow failed.
+ *
+ * @param boothId - The booth ID to fetch transactions for
+ * @param params - Optional pagination (limit defaults to 50, offset to 0)
+ * @returns Promise resolving to paginated transactions
+ * @see GET /api/v1/booths/{booth_id}/transactions
+ */
+export async function getBoothTransactions(
+	boothId: string,
+	params?: BoothPaginationParams,
+): Promise<BoothTransactionsResponse> {
+	if (!boothId) throw new Error("Booth ID is required for getBoothTransactions");
+	const limit = params?.limit ?? 50;
+	const offset = params?.offset ?? 0;
+	const response = await apiClient<BoothTransactionsResponse>(
+		`/api/v1/booths/${boothId}/transactions?limit=${limit}&offset=${offset}`,
+		{ method: "GET" },
+	);
+	return response;
+}
+
+/**
+ * List critical (operator-alertable) events for a booth.
+ * Use this as the alert trigger for stranded paid sessions; cross-reference
+ * each event's `transaction_code` against `getBoothTransactions` for the
+ * amount and payment method needed to issue a refund.
+ *
+ * Ordering: newest `occurred_at` first (booth-reported incident time, not
+ * cloud arrival order).
+ *
+ * @param boothId - The booth ID to fetch events for
+ * @param params - Optional pagination (limit defaults to 50, offset to 0)
+ * @returns Promise resolving to paginated critical events
+ * @see GET /api/v1/booths/{booth_id}/critical-events
+ */
+export async function getBoothCriticalEvents(
+	boothId: string,
+	params?: BoothPaginationParams,
+): Promise<BoothCriticalEventsResponse> {
+	if (!boothId)
+		throw new Error("Booth ID is required for getBoothCriticalEvents");
+	const limit = params?.limit ?? 50;
+	const offset = params?.offset ?? 0;
+	const response = await apiClient<BoothCriticalEventsResponse>(
+		`/api/v1/booths/${boothId}/critical-events?limit=${limit}&offset=${offset}`,
+		{ method: "GET" },
+	);
+	return response;
+}
+
+/**
+ * Record a refund against a transaction (accounting closure).
+ * Money must be physically returned (till opened / card voided) BEFORE
+ * calling this — the endpoint does not move money, it just attests that
+ * the operator did so.
+ *
+ * Error cases:
+ *   400 — amount > total_price
+ *   404 — booth not owned, or transaction code not found on the booth
+ *   409 — transaction already refunded (existing record returned in body)
+ *   422 — validation error (bad method, amount <= 0)
+ *
+ * @see POST /api/v1/booths/{booth_id}/transactions/{transaction_code}/refund
+ */
+export async function refundBoothTransaction(
+	boothId: string,
+	transactionCode: string,
+	data: RefundTransactionRequest,
+): Promise<RefundTransactionResponse> {
+	if (!boothId) throw new Error("Booth ID is required for refundBoothTransaction");
+	if (!transactionCode)
+		throw new Error("Transaction code is required for refundBoothTransaction");
+
+	// Trim before checking — Boolean("   ") is true, which would leak a
+	// whitespace-only note past a naive truthy check and may fail server
+	// min-length validation.
+	const trimmedNote = data.note?.trim();
+	const body: RefundTransactionRequest = {
+		amount: data.amount,
+		method: data.method,
+		...(trimmedNote ? { note: trimmedNote } : {}),
+	};
+
+	const response = await apiClient<RefundTransactionResponse>(
+		`/api/v1/booths/${boothId}/transactions/${encodeURIComponent(transactionCode)}/refund`,
+		{ method: "POST", body: JSON.stringify(body) },
 	);
 	return response;
 }

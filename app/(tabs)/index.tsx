@@ -15,7 +15,7 @@
 
 import { useIsFocused } from "@react-navigation/native";
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   RefreshControl,
   ScrollView,
@@ -26,7 +26,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 // API hooks
 import { useAlerts } from "@/api/alerts/queries";
-import { useBoothDetail, useDashboardOverview } from "@/api/booths/queries";
+import {
+  useBoothCriticalEvents,
+  useBoothDetail,
+  useDashboardOverview,
+} from "@/api/booths/queries";
 import { BoothPickerModal } from "@/components/booth-picker-modal";
 import { CustomHeader } from "@/components/custom-header";
 // Dashboard section components - extracted for separation of concerns
@@ -48,6 +52,7 @@ import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 // Utilities - extracted for separation of concerns
 import {
   formatCurrency,
+  joinCriticalEventsWithTransactions,
   mapBoothAlertToAppAlert,
   mapDashboardAlertToAppAlert,
 } from "@/utils";
@@ -160,6 +165,28 @@ export default function DashboardScreen() {
 	const { data: alertsData } = useAlerts();
 	const unreadAlerts = alertsData?.alerts?.filter((a) => !a.isRead).length ?? 0;
 
+	// Fetch critical events (stranded paid sessions) for the selected booth.
+	// These are a separate stream from alerts — only populated per-booth, so
+	// we only fetch when a specific booth is selected.
+	// Count only unrefunded events — once marked refunded, the row no longer
+	// needs operator attention.
+	// @see GET /api/v1/booths/{booth_id}/critical-events
+	const {
+		data: criticalEventsData,
+		refetch: refetchCriticalEvents,
+	} = useBoothCriticalEvents(hasBoothSelected ? selectedBoothId : null);
+	// Run events through the same dedupe used by the destination list screen
+	// so the badge can never disagree with the list. (The server already
+	// dedupes on insert per the API spec, so this is defense-in-depth — but
+	// keeping the two consumers in lockstep is cheap.)
+	const strandedCount = useMemo(() => {
+		const rows = joinCriticalEventsWithTransactions(
+			criticalEventsData?.events ?? [],
+			[],
+		);
+		return rows.filter((r) => r.event.refund === null).length;
+	}, [criticalEventsData?.events]);
+
 	// Get revenue stats for selected period - works for both modes
 	const revenueStats = isAllMode
 		? dashboardOverview?.revenue?.[selectedPeriod]
@@ -175,14 +202,16 @@ export default function DashboardScreen() {
 		? dashboardOverview?.upsale_breakdown?.[selectedPeriod]
 		: boothDetail?.upsale_breakdown?.[selectedPeriod];
 
-	// Pull-to-refresh handler - refreshes appropriate data based on mode
+	// Pull-to-refresh handler - refreshes appropriate data based on mode.
+	// In single-booth mode also refresh critical events so the
+	// "Needs Attention" badge reflects refunds recorded elsewhere.
 	const onRefresh = useCallback(async () => {
 		if (isAllMode) {
 			await refetchOverview();
 		} else {
-			await refetchDetail();
+			await Promise.all([refetchDetail(), refetchCriticalEvents()]);
 		}
-	}, [isAllMode, refetchOverview, refetchDetail]);
+	}, [isAllMode, refetchOverview, refetchDetail, refetchCriticalEvents]);
 
 	// Navigation handlers
 	const handleNotificationPress = () => {
@@ -464,6 +493,53 @@ export default function DashboardScreen() {
 								</View>
 							</View>
 						</View>
+
+						{/* Needs Attention — stranded paid sessions for this booth only */}
+						{!isAllMode && hasBoothSelected && strandedCount > 0 && (
+							<View style={styles.section}>
+								<TouchableOpacity
+									style={[
+										styles.attentionCard,
+										{
+											backgroundColor: withAlpha(StatusColors.error, 0.1),
+											borderColor: withAlpha(StatusColors.error, 0.35),
+										},
+									]}
+									activeOpacity={0.7}
+									onPress={() =>
+										router.push(`/booths/${selectedBoothId}/stranded-sessions`)
+									}
+									accessibilityRole="button"
+									accessibilityLabel={`${strandedCount} stranded sessions need review`}
+								>
+									<View style={styles.attentionLeft}>
+										<IconSymbol
+											name="exclamationmark.triangle.fill"
+											size={20}
+											color={StatusColors.error}
+										/>
+										<View style={styles.attentionTextBlock}>
+											<ThemedText
+												type="defaultSemiBold"
+												style={[styles.attentionTitle, { color: StatusColors.error }]}
+											>
+												{strandedCount} session{strandedCount === 1 ? "" : "s"} need review
+											</ThemedText>
+											<ThemedText
+												style={[styles.attentionSubtitle, { color: textSecondary }]}
+											>
+												Paid but not printed — customer may need a refund
+											</ThemedText>
+										</View>
+									</View>
+									<IconSymbol
+										name="chevron.right"
+										size={16}
+										color={StatusColors.error}
+									/>
+								</TouchableOpacity>
+							</View>
+						)}
 
 						{/* Hardware Status Section - Different for each mode */}
 						<View style={styles.section}>
@@ -751,5 +827,29 @@ const styles = StyleSheet.create({
 	},
 	noAlertsText: {
 		fontSize: 14,
+	},
+	attentionCard: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		padding: Spacing.md,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+	},
+	attentionLeft: {
+		flex: 1,
+		flexDirection: "row",
+		alignItems: "center",
+		gap: Spacing.sm,
+	},
+	attentionTextBlock: {
+		flex: 1,
+	},
+	attentionTitle: {
+		fontSize: 14,
+	},
+	attentionSubtitle: {
+		fontSize: 12,
+		marginTop: 2,
 	},
 });

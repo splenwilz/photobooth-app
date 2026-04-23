@@ -36,3 +36,11 @@ export {
 	mapDashboardAlertToAppAlert,
 } from "./alert-mapping";
 
+// Stranded paid sessions
+export {
+	type StrandedSessionRow,
+	formatCriticalEventTag,
+	formatStrandedReason,
+	joinCriticalEventsWithTransactions,
+} from "./stranded-sessions";
+

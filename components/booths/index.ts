@@ -10,4 +10,5 @@ export { EditBoothModal } from "./EditBoothModal";
 export { DeleteBoothModal } from "./DeleteBoothModal";
 export { DownloadLogsModal } from "./DownloadLogsModal";
 export { EmergencyPasswordModal } from "./EmergencyPasswordModal";
+export { StrandedSessionDetailsModal } from "./StrandedSessionDetailsModal";
 
