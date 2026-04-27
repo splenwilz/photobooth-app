@@ -13,7 +13,6 @@ import React, { useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -24,7 +23,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // API hooks
 import { useCreateBooth } from "@/api/booths/queries";
 import type { CreateBoothResponse } from "@/api/booths/types";
-import { PricingPlansSelector } from "@/components/subscription";
 import { FormInput } from "@/components/auth/form-input";
 import { PrimaryButton } from "@/components/auth/primary-button";
 import { ThemedText } from "@/components/themed-text";
@@ -70,26 +68,12 @@ export default function CreateBoothScreen() {
 	const [copiedField, setCopiedField] = useState<
 		"id" | "apiKey" | "code" | null
 	>(null);
-	// Pricing modal state
-	const [showPricingModal, setShowPricingModal] = useState(false);
 
 	// API mutation hook
 	const { mutate: createBooth, isPending, error: apiError } = useCreateBooth();
 
 	// Booth store for auto-selecting created booth
 	const { setSelectedBoothId } = useBoothStore();
-
-	// Handle subscribing to the newly created booth - opens pricing modal
-	const handleSubscribeToBooth = () => {
-		if (!createdBooth) return;
-		setShowPricingModal(true);
-	};
-
-	// Handle checkout completion from pricing selector
-	// Note: PricingPlansSelector already handles setSelectedBoothId and navigation
-	const handleCheckoutComplete = () => {
-		setShowPricingModal(false);
-	};
 
 	// Update form field
 	const updateField = (field: keyof FormData, value: string) => {
@@ -299,51 +283,28 @@ export default function CreateBoothScreen() {
 						</View>
 					</View>
 
-					{/* Next Steps - Subscribe to activate */}
+					{/* Next Steps — neutral connection guidance */}
 					<View
 						style={[
-							styles.activationCard,
+							styles.nextStepsCard,
 							{ backgroundColor: cardBg, borderColor },
 						]}
 					>
-						<View style={styles.activationHeader}>
-							<View
-								style={[
-									styles.activationIconContainer,
-									{ backgroundColor: withAlpha(BRAND_COLOR, 0.15) },
-								]}
-							>
-								<IconSymbol name="star.fill" size={24} color={BRAND_COLOR} />
-							</View>
-							<View style={styles.activationTextContainer}>
-								<ThemedText type="defaultSemiBold" style={styles.activationTitle}>
-									Subscribe to Activate
-								</ThemedText>
-								<ThemedText
-									style={[styles.activationSubtitle, { color: textSecondary }]}
-								>
-									Each booth needs its own subscription to connect and operate
-								</ThemedText>
-							</View>
-						</View>
-
-						<TouchableOpacity
-							style={[
-								styles.activationButton,
-								{ backgroundColor: BRAND_COLOR },
-							]}
-							onPress={handleSubscribeToBooth}
-						>
-							<IconSymbol name="star.fill" size={20} color="white" />
-							<ThemedText style={styles.activationButtonText}>
-								Subscribe to This Booth
+						<View style={styles.nextStepsHeader}>
+							<IconSymbol name="info.circle" size={20} color={BRAND_COLOR} />
+							<ThemedText type="defaultSemiBold" style={styles.nextStepsTitle}>
+								Booth Connection Steps
 							</ThemedText>
-						</TouchableOpacity>
-
+						</View>
 						<ThemedText
-							style={[styles.activationNote, { color: textSecondary }]}
+							style={[styles.nextStepsLine, { color: textSecondary }]}
 						>
-							After subscribing, you can scan the booth&apos;s QR code from Settings to complete activation.
+							1. Enter the registration code on your booth.
+						</ThemedText>
+						<ThemedText
+							style={[styles.nextStepsLine, { color: textSecondary }]}
+						>
+							2. When the booth is ready, return to Settings and tap &quot;Activate Booth License&quot; to scan its QR code.
 						</ThemedText>
 					</View>
 
@@ -363,22 +324,6 @@ export default function CreateBoothScreen() {
 						</TouchableOpacity>
 					</View>
 				</ScrollView>
-
-				{/* Pricing Plans Modal */}
-				<Modal
-					visible={showPricingModal}
-					animationType="slide"
-					presentationStyle="pageSheet"
-					onRequestClose={() => setShowPricingModal(false)}
-				>
-					<SafeAreaView style={[styles.pricingModal, { backgroundColor: cardBg }]}>
-						<PricingPlansSelector
-							boothId={createdBooth.id}
-							onCheckoutComplete={handleCheckoutComplete}
-							onCancel={() => setShowPricingModal(false)}
-						/>
-					</SafeAreaView>
-				</Modal>
 			</SafeAreaView>
 		);
 	}
@@ -475,10 +420,6 @@ export default function CreateBoothScreen() {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-	},
-	pricingModal: {
-		flex: 1,
-		padding: Spacing.lg,
 	},
 	keyboardView: {
 		flex: 1,
@@ -651,54 +592,26 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		lineHeight: 18,
 	},
-	// Activation Section
-	activationCard: {
+	// Next Steps card
+	nextStepsCard: {
 		width: "100%",
 		padding: Spacing.lg,
 		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
 		marginBottom: Spacing.xl,
-	},
-	activationHeader: {
-		flexDirection: "row",
-		alignItems: "flex-start",
-		marginBottom: Spacing.md,
-	},
-	activationIconContainer: {
-		width: 48,
-		height: 48,
-		borderRadius: 24,
-		justifyContent: "center",
-		alignItems: "center",
-		marginRight: Spacing.md,
-	},
-	activationTextContainer: {
-		flex: 1,
-	},
-	activationTitle: {
-		fontSize: 16,
-		marginBottom: 4,
-	},
-	activationSubtitle: {
-		fontSize: 13,
-		lineHeight: 18,
-	},
-	activationButton: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		paddingVertical: Spacing.md,
-		borderRadius: BorderRadius.lg,
 		gap: Spacing.sm,
 	},
-	activationButtonText: {
-		color: "white",
-		fontSize: 16,
-		fontWeight: "600",
+	nextStepsHeader: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: Spacing.sm,
+		marginBottom: Spacing.xs,
 	},
-	activationNote: {
-		fontSize: 12,
-		textAlign: "center",
-		marginTop: Spacing.sm,
+	nextStepsTitle: {
+		fontSize: 16,
+	},
+	nextStepsLine: {
+		fontSize: 13,
+		lineHeight: 20,
 	},
 });

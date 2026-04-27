@@ -119,8 +119,8 @@ export default function ScanScreen() {
 
 			switch (errorCode) {
 				case "NO_SUBSCRIPTION":
-					title = "Subscription Required";
-					alertMessage = `"${boothName}" doesn't have an active subscription. Please subscribe first.`;
+					title = "Activation Unavailable";
+					alertMessage = `"${boothName}" doesn't have an active subscription, so it can't be activated.`;
 					break;
 				case "SESSION_EXPIRED":
 					title = "QR Code Expired";
@@ -287,8 +287,8 @@ export default function ScanScreen() {
 							if (!result.can_proceed) {
 								// No subscription - show error
 								Alert.alert(
-									"Subscription Required",
-									`"${preSelectedBoothName}" doesn't have an active subscription. Please subscribe to this booth first.`,
+									"Activation Unavailable",
+									`"${preSelectedBoothName}" doesn't have an active subscription, so it can't be activated.`,
 									[
 										{
 											text: "OK",
@@ -364,8 +364,8 @@ export default function ScanScreen() {
 							// No subscription - show error
 							setShowBoothSelection(false);
 							Alert.alert(
-								"Subscription Required",
-								`"${boothName}" doesn't have an active subscription. Please subscribe to this booth first.`,
+								"Activation Unavailable",
+								`"${boothName}" doesn't have an active subscription, so it can't be activated.`,
 								[
 									{
 										text: "OK",

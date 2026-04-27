@@ -2,7 +2,6 @@
  * Template Store Types
  *
  * Types matching the backend Template API for the template marketplace.
- * Ported from the photobooth-website with mobile-specific cart types.
  *
  * @see /api/templates/services.ts - Template API service functions
  * @see /api/templates/queries.ts - React Query hooks
@@ -52,6 +51,49 @@ export interface TemplatePhotoArea {
   shape_type: string;
 }
 
+/**
+ * Lean projection returned by `GET /templates` (catalog list).
+ *
+ * Per the API docs, the list endpoint omits nested `category` / `layout`
+ * objects, `photo_areas`, and admin/upload metadata to reduce response
+ * size. Use the detail endpoints (`GET /templates/{id}`,
+ * `GET /templates/by-slug/{slug}`) when the full `Template` shape is
+ * required.
+ */
+export interface TemplateListItem {
+  id: number;
+  slug: string;
+  name: string;
+  description: string | null;
+  template_type: TemplateType;
+  price: string;
+  original_price: string | null;
+  tags: string | null;
+  is_new: boolean;
+  rating_average: string;
+  review_count: number;
+  download_count: number;
+  /**
+   * Signed S3 URL for the template file. Per API docs:
+   * - `null` for anonymous viewers, even free templates
+   * - Populated for free templates, admins, and owners of paid templates
+   * - `null` for authenticated non-owners of paid templates
+   * Clients should call `POST /templates/{id}/download` for the canonical, auth-required URL.
+   */
+  download_url: string | null;
+  /** Signed S3 URL for the preview image. `null` if the template has no preview asset. */
+  preview_url: string | null;
+  /** Signed S3 URL for the overlay asset (decorations layered atop photos). `null` if no overlay. */
+  overlay_url: string | null;
+  category_id: number | null;
+  layout_id: string | null;
+}
+
+/**
+ * Full template shape returned by detail endpoints
+ * (`GET /templates/{id}`, `GET /templates/by-slug/{slug}`) and embedded
+ * in `TemplatePurchase.template`.
+ */
 export interface Template {
   id: number;
   name: string;
@@ -78,17 +120,21 @@ export interface Template {
   download_count: number;
   rating_average: string;
   review_count: number;
-  download_url: string;
-  preview_url: string;
+  /** See note on `TemplateListItem.download_url` — same ownership semantics. */
+  download_url: string | null;
+  /** Signed S3 URL for the preview image. `null` if the template has no preview asset. */
+  preview_url: string | null;
+  /** Signed S3 URL for the overlay asset (decorations layered atop photos). `null` if no overlay. */
+  overlay_url: string | null;
   color_config: unknown;
-  created_by: string;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
 
-// List response
+// List response — uses the lean projection
 export interface TemplatesResponse {
-  templates: Template[];
+  templates: TemplateListItem[];
   total: number;
   page: number;
   per_page: number;
@@ -158,40 +204,4 @@ export interface PurchasesResponse {
   page: number;
   per_page: number;
   total_pages: number;
-}
-
-// Checkout
-export interface TemplateCheckoutLineItem {
-  template_id: number;
-  quantity: number;
-}
-
-export interface TemplateCheckoutRequest {
-  booth_id: string;
-  items: TemplateCheckoutLineItem[];
-  success_url: string;
-  cancel_url: string;
-  customer_email?: string;
-  metadata?: Record<string, string>;
-}
-
-export interface TemplateCheckoutResponse {
-  success: boolean;
-  checkout_url: string;
-  session_id: string;
-  error_message: string | null;
-}
-
-export interface CheckoutSessionResponse {
-  session_id: string;
-  status: string;
-  payment_status: string;
-  amount_total: number;
-  currency: string;
-}
-
-// Cart types (client-side only)
-export interface CartItem {
-  template: Template;
-  quantity: number;
 }

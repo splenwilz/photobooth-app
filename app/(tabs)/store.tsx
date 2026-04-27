@@ -2,10 +2,9 @@
  * Store Screen
  *
  * Template marketplace with search, filter modal, sorting, and a 2-column grid.
- * Users can browse templates, add to cart, and navigate to detail/cart screens.
+ * Browse-only on iOS — purchases happen on the web (Apple compliance).
  *
  * @see /api/templates/queries.ts - useTemplates hook
- * @see /stores/cart-store.ts - Cart state management
  */
 
 import { router } from "expo-router";
@@ -24,7 +23,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useTemplates } from "@/api/templates/queries";
-import type { Template, TemplateType, TemplatesQueryParams } from "@/api/templates/types";
+import type {
+  TemplateListItem,
+  TemplateType,
+  TemplatesQueryParams,
+} from "@/api/templates/types";
 import { CustomHeader } from "@/components/custom-header";
 import { TemplateCard } from "@/components/store/template-card";
 import { ThemedText } from "@/components/themed-text";
@@ -36,7 +39,6 @@ import {
   withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import { useCartStore } from "@/stores/cart-store";
 
 type FilterTab = "all" | "featured" | "new" | "free";
 type SortOption = "popular" | "newest" | "price_low" | "price_high" | "highest_rated";
@@ -122,14 +124,12 @@ export default function StoreScreen() {
     refetch,
   } = useTemplates(queryParams);
 
-  const cartItemCount = useCartStore((s) => s.getItemCount());
-
-  const handleTemplatePress = useCallback((template: Template) => {
+  const handleTemplatePress = useCallback((template: TemplateListItem) => {
     router.push(`/store/${template.id}`);
   }, []);
 
   const renderTemplate = useCallback(
-    ({ item }: { item: Template }) => (
+    ({ item }: { item: TemplateListItem }) => (
       <View style={styles.gridItem}>
         <TemplateCard template={item} onPress={handleTemplatePress} />
       </View>
@@ -145,27 +145,12 @@ export default function StoreScreen() {
       <CustomHeader
         title="Template Store"
         rightAction={
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.headerIconButton}
-              onPress={() => router.push("/store/purchased")}
-            >
-              <IconSymbol name="arrow.down.circle" size={22} color={textColor} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.cartHeaderButton}
-              onPress={() => router.push("/store/cart")}
-            >
-              <IconSymbol name="bag" size={22} color={textColor} />
-              {cartItemCount > 0 && (
-                <View style={styles.cartBadge}>
-                  <ThemedText style={styles.cartBadgeText}>
-                    {cartItemCount}
-                  </ThemedText>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.headerIconButton}
+            onPress={() => router.push("/store/purchased")}
+          >
+            <IconSymbol name="arrow.down.circle" size={22} color={textColor} />
+          </TouchableOpacity>
         }
       />
 
@@ -550,34 +535,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  // Header actions
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
   headerIconButton: {
     padding: Spacing.xs,
-  },
-  cartHeaderButton: {
-    position: "relative",
-    padding: Spacing.xs,
-  },
-  cartBadge: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    backgroundColor: BRAND_COLOR,
-    borderRadius: BorderRadius.full,
-    minWidth: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cartBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "700",
   },
 
   // Filter FAB

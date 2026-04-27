@@ -1,11 +1,12 @@
 /**
  * Payments API Services
  *
- * Service functions for subscription and payment operations.
+ * Service functions for reading subscription state and managing existing
+ * subscriptions. Purchase initiation (checkout creation) is deliberately
+ * absent — the iOS app does not initiate purchases per Apple compliance.
  *
  * @see GET /api/v1/payments/access - Check subscription access
  * @see GET /api/v1/payments/subscription - Get subscription details
- * @see POST /api/v1/payments/checkout/subscription - Create checkout session
  * @see POST /api/v1/payments/subscription/cancel - Cancel subscription
  * @see POST /api/v1/payments/portal - Get customer portal URL
  */
@@ -15,9 +16,6 @@ import type {
 	BoothSubscriptionItem,
 	BoothSubscriptionsListResponse,
 	CancelSubscriptionResponse,
-	CreateBoothCheckoutRequest,
-	CreateCheckoutRequest,
-	CreateCheckoutResponse,
 	CustomerPortalRequest,
 	CustomerPortalResponse,
 	SubscriptionAccessResponse,
@@ -61,35 +59,6 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsRespo
 	const response = await apiClient<SubscriptionDetailsResponse>(
 		"/api/v1/payments/subscription",
 		{ method: "GET" },
-	);
-	return response;
-}
-
-/**
- * Create subscription checkout session
- *
- * Creates a Stripe checkout session and returns the URL to redirect user to.
- * User completes payment on Stripe, then is redirected to success_url or cancel_url.
- *
- * @param data - Checkout configuration with URLs
- * @returns Checkout session with URL
- *
- * @example
- * const checkout = await createSubscriptionCheckout({
- *   success_url: "boothiq://payment-success",
- *   cancel_url: "boothiq://payment-cancel",
- * });
- * Linking.openURL(checkout.checkout_url);
- */
-export async function createSubscriptionCheckout(
-	data: CreateCheckoutRequest,
-): Promise<CreateCheckoutResponse> {
-	const response = await apiClient<CreateCheckoutResponse>(
-		"/api/v1/payments/checkout/subscription",
-		{
-			method: "POST",
-			body: JSON.stringify(data),
-		},
 	);
 	return response;
 }
@@ -193,36 +162,6 @@ export async function getBoothSubscription(
 	const response = await apiClient<BoothSubscriptionItem>(
 		`/api/v1/booths/${boothId}/subscription`,
 		{ method: "GET" },
-	);
-	return response;
-}
-
-/**
- * Create checkout session for booth subscription
- *
- * Creates a Stripe checkout session for a specific booth.
- * User completes payment on Stripe, then subscription is linked to booth via webhook.
- *
- * @param data - Checkout configuration with booth ID and URLs
- * @returns Checkout session with URL
- *
- * @example
- * const checkout = await createBoothCheckout({
- *   booth_id: "booth-123",
- *   success_url: "https://example.com/success",
- *   cancel_url: "https://example.com/cancel",
- * });
- * Linking.openURL(checkout.checkout_url);
- */
-export async function createBoothCheckout(
-	data: CreateBoothCheckoutRequest,
-): Promise<CreateCheckoutResponse> {
-	const response = await apiClient<CreateCheckoutResponse>(
-		`/api/v1/booths/${data.booth_id}/subscription/checkout`,
-		{
-			method: "POST",
-			body: JSON.stringify(data),
-		},
 	);
 	return response;
 }

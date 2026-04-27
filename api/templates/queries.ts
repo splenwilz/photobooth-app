@@ -9,7 +9,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../utils/query-keys";
 import {
-  createTemplateCheckout,
   deleteReview,
   downloadTemplate,
   getCategories,
@@ -21,10 +20,7 @@ import {
   submitReview,
   updateReview,
 } from "./services";
-import type {
-  TemplateCheckoutRequest,
-  TemplatesQueryParams,
-} from "./types";
+import type { TemplatesQueryParams } from "./types";
 
 /**
  * Hook to fetch paginated templates with filters
@@ -201,16 +197,5 @@ export function usePurchasedTemplates(
 export function useDownloadTemplate() {
   return useMutation({
     mutationFn: (id: number) => downloadTemplate(id),
-  });
-}
-
-/**
- * Hook to create a Stripe checkout session for template purchases
- * @see POST /api/v1/payments/checkout/templates
- */
-export function useTemplateCheckout() {
-  return useMutation({
-    mutationFn: (data: TemplateCheckoutRequest) =>
-      createTemplateCheckout(data),
   });
 }

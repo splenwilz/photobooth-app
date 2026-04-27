@@ -107,7 +107,11 @@ export default function PurchasedTemplatesScreen() {
   const renderPurchase = ({ item }: { item: TemplatePurchase }) => (
     <View style={[styles.item, { backgroundColor: cardBg, borderColor }]}>
       <Image
-        source={{ uri: item.template.preview_url }}
+        source={
+          item.template.preview_url
+            ? { uri: item.template.preview_url }
+            : null
+        }
         style={styles.itemImage}
         contentFit="cover"
         transition={200}

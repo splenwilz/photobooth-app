@@ -30,7 +30,6 @@ import { SplashScreen } from "@/components/splash-screen";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDeepLinks } from "@/hooks/use-deep-links";
 import { useBoothStore } from "@/stores/booth-store";
-import { useCartStore } from "@/stores/cart-store";
 
 // Keep the native splash visible while we load
 ExpoSplashScreen.preventAutoHideAsync();
@@ -58,7 +57,7 @@ function RootLayoutNav() {
         {/* Booth management */}
         <Stack.Screen name="booths" />
 
-        {/* Template store sub-screens (detail, cart, purchased) */}
+        {/* Template store sub-screens (detail, purchased) */}
         <Stack.Screen name="store" />
 
         {/* Transaction history */}
@@ -96,18 +95,17 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const hydrateBooth = useBoothStore((state) => state.hydrate);
-  const hydrateCart = useCartStore((state) => state.hydrate);
   const [appReady, setAppReady] = useState(false);
   const [splashDone, setSplashDone] = useState(false);
 
   // Hydrate stores from SecureStore on app start
   useEffect(() => {
     async function prepare() {
-      await Promise.all([hydrateBooth(), hydrateCart()]);
+      await hydrateBooth();
       setAppReady(true);
     }
     prepare();
-  }, [hydrateBooth, hydrateCart]);
+  }, [hydrateBooth]);
 
   // Hide the native splash once our custom splash is rendered
   useEffect(() => {

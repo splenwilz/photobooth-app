@@ -14,14 +14,11 @@
  */
 
 import Constants from "expo-constants";
-import * as WebBrowser from "expo-web-browser";
 import { router } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -51,8 +48,7 @@ import {
   getStoredUser,
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
-import { useBoothSubscription, useCreateBoothCheckout } from "@/api/payments";
-import { queryKeys } from "@/api/utils/query-keys";
+import { useBoothSubscription } from "@/api/payments";
 import {
   BusinessSettingsModal,
   ConnectionDetailsModal,
@@ -63,7 +59,6 @@ import {
 import {
   SubscriptionDetailsModal,
   SubscriptionStatusCard,
-  PricingPlansSelector,
 } from "@/components/subscription";
 import { AddCreditsModal } from "@/components/credits";
 import { BoothPickerModal } from "@/components/booth-picker-modal";
@@ -356,10 +351,6 @@ export default function SettingsScreen() {
 	// Booth subscription check (per-booth subscription model)
 	const { data: boothSubscription, refetch: refetchSubscription } = useBoothSubscription(effectiveBoothId);
 
-	// Checkout mutation for subscribing to booth
-	const createBoothCheckout = useCreateBoothCheckout();
-	const queryClient = useQueryClient();
-
 	// Pull-to-refresh state
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -399,8 +390,6 @@ export default function SettingsScreen() {
 
 	// State for Subscription Details modal
 	const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-	// Pricing plans modal for selecting a subscription plan
-	const [showPricingModal, setShowPricingModal] = useState(false);
 
 	// State for Business Settings modal
 	const [showBusinessSettingsModal, setShowBusinessSettingsModal] = useState(false);
@@ -592,56 +581,6 @@ export default function SettingsScreen() {
 		return `$${amount.toFixed(2)}`;
 	};
 
-	// Handle subscribing to booth (for unsubscribed booths)
-	const handleSubscribeToBooth = () => {
-		if (!effectiveBoothId) return;
-
-		const priceId = process.env.EXPO_PUBLIC_STRIPE_PRICE_MONTHLY;
-		const websiteUrl = process.env.EXPO_PUBLIC_WEBSITE_URL;
-
-		createBoothCheckout.mutate(
-			{
-				booth_id: effectiveBoothId,
-				price_id: priceId,
-				success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${effectiveBoothId}&type=subscription`,
-				cancel_url: `${websiteUrl}/pricing`,
-			},
-			{
-				onSuccess: async (data) => {
-					if (data.checkout_url) {
-						const browserResult = await WebBrowser.openAuthSessionAsync(
-							data.checkout_url,
-							`boothiq://payment-success?booth_id=${effectiveBoothId}`,
-							{ preferEphemeralSession: true }
-						);
-
-						if (browserResult.type === "success" && browserResult.url?.includes("payment-success")) {
-							queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
-							queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
-							queryClient.invalidateQueries({ queryKey: queryKeys.booths.detail(effectiveBoothId) });
-							queryClient.invalidateQueries({ queryKey: queryKeys.payments.boothSubscription(effectiveBoothId) });
-
-							// Select the subscribed booth as active
-							setSelectedBoothId(effectiveBoothId);
-
-							Alert.alert(
-								"Payment Successful",
-								"Your subscription has been activated!",
-								[{ text: "OK" }],
-							);
-						}
-					}
-				},
-				onError: (error) => {
-					Alert.alert(
-						"Error",
-						error.message || "Failed to start checkout. Please try again.",
-					);
-				},
-			},
-		);
-	};
-
 	return (
 		<SafeAreaView
 			style={[styles.container, { backgroundColor }]}
@@ -745,11 +684,6 @@ export default function SettingsScreen() {
 						<SubscriptionStatusCard
 							boothId={effectiveBoothId}
 							onViewDetails={() => setShowSubscriptionModal(true)}
-							onSelectPlan={() => {
-								if (effectiveBoothId) {
-									setShowPricingModal(true);
-								}
-							}}
 						/>
 					</View>
 				)}
@@ -894,12 +828,9 @@ export default function SettingsScreen() {
 								});
 							} else {
 								Alert.alert(
-									"Subscription Required",
-									"This booth needs an active subscription to activate licenses. Subscribe now?",
-									[
-										{ text: "Cancel", style: "cancel" },
-										{ text: "Subscribe", onPress: handleSubscribeToBooth },
-									]
+									"Activation Unavailable",
+									"This booth doesn't have an active subscription.",
+									[{ text: "OK" }],
 								);
 							}
 						}}
@@ -1119,24 +1050,6 @@ export default function SettingsScreen() {
 				onClose={() => setShowDownloadLogsModal(false)}
 			/>
 
-			{/* Pricing Plans Modal - only render when boothId is valid */}
-			{effectiveBoothId && (
-				<Modal
-					visible={showPricingModal}
-					animationType="slide"
-					presentationStyle="pageSheet"
-					onRequestClose={() => setShowPricingModal(false)}
-				>
-					<SafeAreaView style={[styles.pricingModal, { backgroundColor: cardBg }]}>
-						<PricingPlansSelector
-							boothId={effectiveBoothId}
-							onCheckoutComplete={() => setShowPricingModal(false)}
-							onCancel={() => setShowPricingModal(false)}
-						/>
-					</SafeAreaView>
-				</Modal>
-			)}
-
 			<BoothPickerModal
 				visible={isPickerVisible}
 				onClose={() => setIsPickerVisible(false)}
@@ -1148,10 +1061,6 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-	},
-	pricingModal: {
-		flex: 1,
-		padding: Spacing.lg,
 	},
 	content: {
 		flex: 1,

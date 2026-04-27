@@ -1,14 +1,14 @@
 /**
  * Subscription Status Card
  *
- * Displays current subscription status with action buttons.
- * Shows different states: active, trialing, past_due, canceled, or no subscription.
+ * Read-only display of subscription state. Shows status, plan name, and
+ * expiry date. For active subscriptions, exposes a "Manage Billing" button
+ * that opens the Stripe customer portal — managing an existing subscription
+ * is allowed by Apple. There is no in-app purchase initiation.
  */
 
 import {
 	useBoothSubscription,
-	useCreateBoothCheckout,
-	useCreateCheckout,
 	useCustomerPortal,
 	useSubscriptionAccess,
 } from "@/api/payments";
@@ -23,9 +23,6 @@ import {
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
-import { router } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
 import {
 	ActivityIndicator,
 	Alert,
@@ -33,16 +30,12 @@ import {
 	TouchableOpacity,
 	View,
 } from "react-native";
-import { queryKeys } from "@/api/utils/query-keys";
-import { useBoothStore } from "@/stores/booth-store";
 
 interface SubscriptionStatusCardProps {
 	/** Booth ID for per-booth subscription. If null, shows user-level subscription. */
 	boothId?: string | null;
 	/** Called when user wants to see full subscription details */
 	onViewDetails?: () => void;
-	/** Called when user wants to select a plan (opens pricing selector) */
-	onSelectPlan?: () => void;
 	/** Plan name to display when subscribed */
 	planName?: string | null;
 }
@@ -116,7 +109,6 @@ function formatExpiryDate(dateString: string | null): string {
 export function SubscriptionStatusCard({
 	boothId,
 	onViewDetails,
-	onSelectPlan,
 	planName,
 }: SubscriptionStatusCardProps) {
 	const cardBg = useThemeColor({}, "card");
@@ -132,12 +124,7 @@ export function SubscriptionStatusCard({
 	const isPerBooth = !!boothId;
 	const isLoading = isPerBooth ? isBoothLoading : isUserLoading;
 
-	// Mutations
-	const createCheckout = useCreateCheckout();
-	const createBoothCheckout = useCreateBoothCheckout();
 	const customerPortal = useCustomerPortal();
-	const queryClient = useQueryClient();
-	const setSelectedBoothId = useBoothStore((s) => s.setSelectedBoothId);
 
 	// Normalize subscription data from either source
 	const hasSubscription = isPerBooth
@@ -156,131 +143,9 @@ export function SubscriptionStatusCard({
 	const statusColor = getStatusColor(status);
 	const statusText = getStatusText(status);
 
-	const handleSubscribe = () => {
-		// If onSelectPlan is provided, open the pricing selector instead of direct checkout
-		if (onSelectPlan) {
-			onSelectPlan();
-			return;
-		}
-
-		// Fallback to legacy direct checkout with hardcoded price
-		const priceId = process.env.EXPO_PUBLIC_STRIPE_PRICE_MONTHLY;
-		const websiteUrl = process.env.EXPO_PUBLIC_WEBSITE_URL;
-
-		if (isPerBooth && boothId) {
-			// Per-booth subscription checkout
-			createBoothCheckout.mutate(
-				{
-					booth_id: boothId,
-					price_id: priceId,
-					success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&booth_id=${boothId}&type=subscription`,
-					cancel_url: `${websiteUrl}/pricing`,
-				},
-				{
-					onSuccess: async (data) => {
-						if (data?.checkout_url && typeof data.checkout_url === "string") {
-							const browserResult = await WebBrowser.openAuthSessionAsync(
-								data.checkout_url,
-								`boothiq://payment-success?booth_id=${boothId}`,
-								{ preferEphemeralSession: true } // Avoids "wants to sign in" prompt
-							);
-
-							// Handle the deep link result directly
-							if (browserResult.type === "success" && browserResult.url?.includes("payment-success")) {
-								// Invalidate subscription queries
-								queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
-								queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
-								queryClient.invalidateQueries({ queryKey: queryKeys.booths.detail(boothId) });
-								queryClient.invalidateQueries({ queryKey: queryKeys.payments.boothSubscription(boothId) });
-								// Also invalidate all booth subscriptions list (used by booths screen)
-								queryClient.invalidateQueries({ queryKey: queryKeys.payments.boothSubscriptions() });
-
-								// Select the subscribed booth as active
-								setSelectedBoothId(boothId);
-
-								// Navigate to booths tab
-								router.replace("/(tabs)/booths");
-
-								Alert.alert(
-									"Payment Successful",
-									"Your subscription has been activated!",
-									[{ text: "OK" }],
-								);
-							}
-						} else {
-							Alert.alert(
-								"Error",
-								"Could not get checkout URL. Please try again.",
-							);
-						}
-					},
-					onError: (error) => {
-						Alert.alert(
-							"Error",
-							error.message || "Failed to start checkout. Please try again.",
-						);
-					},
-				},
-			);
-		} else {
-			// User-level subscription checkout
-			createCheckout.mutate(
-				{
-					price_id: priceId,
-					success_url: `${websiteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&type=subscription`,
-					cancel_url: `${websiteUrl}/pricing`,
-				},
-				{
-					onSuccess: async (data) => {
-						if (data?.checkout_url && typeof data.checkout_url === "string") {
-							const browserResult = await WebBrowser.openAuthSessionAsync(
-								data.checkout_url,
-								"boothiq://payment-success",
-								{ preferEphemeralSession: true } // Avoids "wants to sign in" prompt
-							);
-
-							// Handle the deep link result directly
-							if (browserResult.type === "success" && browserResult.url?.includes("payment-success")) {
-								// Invalidate subscription queries
-								queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
-								queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
-
-								// Navigate to dashboard
-								router.replace("/");
-
-								Alert.alert(
-									"Payment Successful",
-									"Your subscription has been activated!",
-									[{ text: "OK" }],
-								);
-							}
-						} else {
-							Alert.alert(
-								"Error",
-								"Could not get checkout URL. Please try again.",
-							);
-						}
-					},
-					onError: (error) => {
-						Alert.alert(
-							"Error",
-							error.message || "Failed to start checkout. Please try again.",
-						);
-					},
-				},
-			);
-		}
-	};
-
-	const isCheckoutPending = isPerBooth
-		? createBoothCheckout.isPending
-		: createCheckout.isPending;
-
 	const handleManageBilling = async () => {
-		const websiteUrl = process.env.EXPO_PUBLIC_WEBSITE_URL;
-
 		customerPortal.mutate(
-			{ return_url: `${websiteUrl}/pricing` },
+			{ return_url: "boothiq://settings" },
 			{
 				onSuccess: async (data) => {
 					const portalUrl = data?.portal_url;
@@ -404,18 +269,18 @@ export function SubscriptionStatusCard({
 
 			{/* Message */}
 			<ThemedText style={[styles.message, { color: textSecondary }]}>
-				{isPerBooth
-					? hasSubscription
-						? cancelAtPeriodEnd
-							? "Subscription will not renew"
-							: "This booth has an active subscription"
-						: "Subscribe to activate this booth"
-					: userAccess?.message || "No active subscription"}
+				{hasSubscription
+					? cancelAtPeriodEnd
+						? "Subscription will not renew"
+						: isPerBooth
+							? "This booth has an active subscription"
+							: userAccess?.message || "Subscription is active"
+					: "No active subscription"}
 			</ThemedText>
 
-			{/* Action Buttons */}
-			<View style={styles.actions}>
-				{hasSubscription ? (
+			{/* Manage Billing — only for active subscribers */}
+			{hasSubscription && (
+				<View style={styles.actions}>
 					<TouchableOpacity
 						style={[styles.button, styles.secondaryButton, { borderColor }]}
 						onPress={handleManageBilling}
@@ -434,25 +299,8 @@ export function SubscriptionStatusCard({
 							</>
 						)}
 					</TouchableOpacity>
-				) : (
-					<TouchableOpacity
-						style={[styles.button, { backgroundColor: BRAND_COLOR }]}
-						onPress={handleSubscribe}
-						disabled={isCheckoutPending}
-					>
-						{isCheckoutPending ? (
-							<ActivityIndicator size="small" color="white" />
-						) : (
-							<>
-								<IconSymbol name="star.fill" size={18} color="white" />
-								<ThemedText style={styles.buttonText}>
-									{isPerBooth ? "Subscribe to Booth" : "Subscribe Now"}
-								</ThemedText>
-							</>
-						)}
-					</TouchableOpacity>
-				)}
-			</View>
+				</View>
+			)}
 		</View>
 	);
 }

@@ -135,10 +135,8 @@ export function SubscriptionDetailsModal({
 		: { color: StatusColors.neutral, text: "Unknown" };
 
 	const handleManageBilling = () => {
-		const websiteUrl = process.env.EXPO_PUBLIC_WEBSITE_URL;
-
 		customerPortal.mutate(
-			{ return_url: `${websiteUrl}/pricing` },
+			{ return_url: "boothiq://settings" },
 			{
 				onSuccess: (data) => {
 					Linking.openURL(data.portal_url);

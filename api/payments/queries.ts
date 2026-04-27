@@ -1,7 +1,9 @@
 /**
  * Payments React Query Hooks
  *
- * Hooks for fetching and mutating subscription/payment data.
+ * Hooks for reading subscription state and managing existing subscriptions
+ * (cancel, customer portal). Purchase initiation is intentionally absent —
+ * the iOS app does not initiate purchases per Apple compliance.
  *
  * @see https://tanstack.com/query/latest - React Query docs
  */
@@ -11,19 +13,13 @@ import { queryKeys } from "@/api/utils/query-keys";
 import {
 	cancelBoothSubscription,
 	cancelSubscription,
-	createBoothCheckout,
-	createSubscriptionCheckout,
 	getBoothSubscription,
 	getBoothSubscriptions,
 	getCustomerPortal,
 	getSubscriptionAccess,
 	getSubscriptionDetails,
 } from "./services";
-import type {
-	CreateBoothCheckoutRequest,
-	CreateCheckoutRequest,
-	CustomerPortalRequest,
-} from "./types";
+import type { CustomerPortalRequest } from "./types";
 
 /**
  * Hook to check subscription access
@@ -79,33 +75,6 @@ export function useSubscriptionDetails(enabled = true) {
 			}
 			return failureCount < 3;
 		},
-	});
-}
-
-/**
- * Hook to create subscription checkout session
- *
- * Creates a Stripe checkout session. On success, open the checkout_url
- * in the browser using Linking.openURL().
- *
- * @returns Mutation for creating checkout
- *
- * @example
- * const { mutate, isPending } = useCreateCheckout();
- *
- * const handleSubscribe = () => {
- *   mutate({
- *     success_url: Linking.createURL('payment-success'),
- *     cancel_url: Linking.createURL('payment-cancel'),
- *   }, {
- *     onSuccess: (data) => Linking.openURL(data.checkout_url),
- *   });
- * };
- */
-export function useCreateCheckout() {
-	return useMutation({
-		mutationFn: (data: CreateCheckoutRequest) =>
-			createSubscriptionCheckout(data),
 	});
 }
 
@@ -213,33 +182,6 @@ export function useBoothSubscription(boothId: string | null) {
 		enabled: !!boothId,
 		staleTime: 5 * 60 * 1000,
 		gcTime: 10 * 60 * 1000,
-	});
-}
-
-/**
- * Hook to create booth subscription checkout session
- *
- * Creates a Stripe checkout session for a specific booth.
- * On success, open the checkout_url in the browser.
- *
- * @returns Mutation for creating booth checkout
- *
- * @example
- * const { mutate, isPending } = useCreateBoothCheckout();
- *
- * const handleSubscribe = (boothId: string) => {
- *   mutate({
- *     booth_id: boothId,
- *     success_url: "https://example.com/success",
- *     cancel_url: "https://example.com/cancel",
- *   }, {
- *     onSuccess: (data) => Linking.openURL(data.checkout_url),
- *   });
- * };
- */
-export function useCreateBoothCheckout() {
-	return useMutation({
-		mutationFn: (data: CreateBoothCheckoutRequest) => createBoothCheckout(data),
 	});
 }
 

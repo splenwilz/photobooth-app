@@ -48,7 +48,7 @@ function base64ToUint8Array(base64: string): Uint8Array {
 export async function downloadTemplateAsZip(opts: {
   name: string;
   downloadUrl: string;
-  previewUrl: string;
+  previewUrl: string | null;
   fileType: string;
 }): Promise<void> {
   const folderName = sanitizeName(opts.name);
@@ -63,21 +63,23 @@ export async function downloadTemplateAsZip(opts: {
     }
     baseDir.create();
 
-    // Download both files in parallel
-    const [templateFile, previewFile] = await Promise.all([
-      File.downloadFileAsync(opts.downloadUrl, baseDir),
-      File.downloadFileAsync(opts.previewUrl, baseDir),
-    ]);
+    // Download template; preview is optional.
+    const templateFile = await File.downloadFileAsync(opts.downloadUrl, baseDir);
+    const previewFile = opts.previewUrl
+      ? await File.downloadFileAsync(opts.previewUrl, baseDir)
+      : null;
 
     // Read downloaded files as base64
     const templateBase64 = templateFile.base64Sync();
-    const previewBase64 = previewFile.base64Sync();
+    const previewBase64 = previewFile?.base64Sync() ?? null;
 
     // Create zip with JSZip
     const zip = new JSZip();
     const folder = zip.folder(folderName)!;
     folder.file(`template.${ext}`, base64ToUint8Array(templateBase64));
-    folder.file(`preview.${ext}`, base64ToUint8Array(previewBase64));
+    if (previewBase64) {
+      folder.file(`preview.${ext}`, base64ToUint8Array(previewBase64));
+    }
 
     // Generate zip as binary
     const zipData = await zip.generateAsync({ type: "uint8array" });
