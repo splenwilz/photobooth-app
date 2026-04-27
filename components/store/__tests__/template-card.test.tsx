@@ -1,10 +1,9 @@
 /**
  * TemplateCard tests
  *
- * Apple-compliance contract: the card shows price as informational
- * catalog metadata, NEVER an "Add to Cart" or "Buy" action. Free and
- * previously-purchased templates expose a "Use Template" sync action.
- * Paid-and-not-owned templates show metadata only — no action button.
+ * Validates display-only catalog rendering: prices/badges as informational
+ * metadata, no purchase affordances, graceful handling of the lean
+ * `TemplateListItem` shape returned by `GET /templates`.
  */
 import { readFileSync } from "fs";
 import { join } from "path";

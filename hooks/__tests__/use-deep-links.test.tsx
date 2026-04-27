@@ -143,4 +143,9 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 		await fireDeepLink("boothiq://booths?booth_id=xyz");
 		expect(mockReplace).toHaveBeenCalledWith("/(tabs)/booths");
 	});
+
+	it("alerts navigates to the alerts tab (regression guard)", async () => {
+		await fireDeepLink("boothiq://alerts");
+		expect(mockReplace).toHaveBeenCalledWith("/(tabs)/alerts");
+	});
 });

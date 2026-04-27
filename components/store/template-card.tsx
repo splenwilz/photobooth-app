@@ -104,7 +104,7 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
               <ThemedText style={styles.price}>
                 ${price.toFixed(2)}
               </ThemedText>
-              {isOnSale && originalPrice && (
+              {isOnSale && originalPrice != null && (
                 <ThemedText
                   style={[styles.originalPrice, { color: textSecondary }]}
                 >

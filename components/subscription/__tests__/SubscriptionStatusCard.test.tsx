@@ -22,6 +22,7 @@ const mockUseCustomerPortal = jest.fn(() => ({
 }));
 
 jest.mock("@/api/payments", () => ({
+	...jest.requireActual("@/api/payments"),
 	useBoothSubscription: (id: string | null) => mockUseBoothSubscription(id),
 	useSubscriptionAccess: () => mockUseSubscriptionAccess(),
 	useCustomerPortal: () => mockUseCustomerPortal(),
@@ -137,5 +138,28 @@ describe("SubscriptionStatusCard — Apple-compliance contract", () => {
 		const exports = payments as unknown as Record<string, unknown>;
 		expect(exports.useCreateCheckout).toBeUndefined();
 		expect(exports.useCreateBoothCheckout).toBeUndefined();
+	});
+
+	it("renders Manage Billing for past-due subscriptions (recovery path)", () => {
+		mockUseBoothSubscription.mockReturnValue({
+			data: {
+				booth_id: "booth-1",
+				booth_name: "Main Booth",
+				status: "past_due",
+				is_active: false,
+				current_period_end: "2026-12-31T00:00:00Z",
+				cancel_at_period_end: false,
+				price_id: "price_x",
+				subscription_id: "sub_x",
+			},
+			isLoading: false,
+		});
+
+		const { getByText } = renderWithProviders(
+			<SubscriptionStatusCard boothId="booth-1" />,
+		);
+
+		expect(getByText("Past Due")).toBeTruthy();
+		expect(getByText("Manage Billing")).toBeTruthy();
 	});
 });

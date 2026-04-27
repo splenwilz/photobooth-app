@@ -1,7 +1,8 @@
 /**
  * Template Detail Screen
  *
- * Shows full template details, reviews, and add-to-cart functionality.
+ * Shows full template details and reviews. Read-only — no purchase
+ * affordances (Apple compliance).
  *
  * @see /api/templates/queries.ts - useTemplateById, useTemplateReviews
  */

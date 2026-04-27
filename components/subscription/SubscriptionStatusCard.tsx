@@ -139,6 +139,10 @@ export function SubscriptionStatusCard({
 	const cancelAtPeriodEnd = isPerBooth
 		? boothSubscription?.cancel_at_period_end ?? false
 		: false;
+	// A Stripe-tracked subscription exists for any non-null status — covers
+	// active/trialing AND past_due/unpaid/incomplete so users in those
+	// recovery states can still reach the Stripe portal to fix billing.
+	const subscriptionExists = status !== null;
 
 	const statusColor = getStatusColor(status);
 	const statusText = getStatusText(status);
@@ -278,8 +282,8 @@ export function SubscriptionStatusCard({
 					: "No active subscription"}
 			</ThemedText>
 
-			{/* Manage Billing — only for active subscribers */}
-			{hasSubscription && (
+			{/* Manage Billing — any user with a subscription record (incl. past_due/unpaid recovery) */}
+			{subscriptionExists && (
 				<View style={styles.actions}>
 					<TouchableOpacity
 						style={[styles.button, styles.secondaryButton, { borderColor }]}
