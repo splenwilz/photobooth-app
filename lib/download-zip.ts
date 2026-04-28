@@ -68,11 +68,13 @@ export async function downloadTemplateAsZip(opts: {
     }
     baseDir.create();
 
-    // Download template; preview is optional.
-    const templateFile = await File.downloadFileAsync(opts.downloadUrl, baseDir);
-    const previewFile = opts.previewUrl
-      ? await File.downloadFileAsync(opts.previewUrl, baseDir)
-      : null;
+    // Download template and (optional) preview in parallel to halve latency.
+    const [templateFile, previewFile] = await Promise.all([
+      File.downloadFileAsync(opts.downloadUrl, baseDir),
+      opts.previewUrl
+        ? File.downloadFileAsync(opts.previewUrl, baseDir)
+        : Promise.resolve(null),
+    ]);
 
     // Read downloaded files as base64
     const templateBase64 = templateFile.base64Sync();

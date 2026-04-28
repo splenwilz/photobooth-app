@@ -352,14 +352,18 @@ export default function SettingsScreen() {
 	const {
 		data: boothSubscription,
 		isLoading: isBoothSubscriptionLoading,
+		isError: isBoothSubscriptionError,
 		refetch: refetchSubscription,
 	} = useBoothSubscription(effectiveBoothId);
 	// `isLoading` from React Query is only true while the query is enabled and
-	// a response hasn't arrived yet. We treat "no booth selected" the same as
-	// "resolved" (no fetch in flight) so the activate-license row stays
-	// interactive in All-Booths mode.
+	// a response hasn't arrived yet. Treat "no booth selected" the same as
+	// "resolved" (no fetch in flight). Treat an errored fetch as "known" too —
+	// otherwise a failed network call leaves the row stuck on "Checking…"
+	// forever; the user can retry by pulling to refresh.
 	const isSubscriptionStatusKnown =
-		!effectiveBoothId || (!isBoothSubscriptionLoading && boothSubscription !== undefined);
+		!effectiveBoothId ||
+		(!isBoothSubscriptionLoading &&
+			(boothSubscription !== undefined || isBoothSubscriptionError));
 
 	// Pull-to-refresh state
 	const [isRefreshing, setIsRefreshing] = useState(false);
