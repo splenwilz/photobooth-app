@@ -1,8 +1,12 @@
 /**
  * TemplateCard Component
  *
- * Displays a template in the store grid with preview image,
- * name, price, rating, and add-to-cart button.
+ * Displays a template in the store grid with preview image, name, price,
+ * and rating. The catalog is read-only — no in-app purchase action. Users
+ * sync their already-purchased templates from /store/purchased.
+ *
+ * Consumes the lean `TemplateListItem` shape returned by `GET /templates`
+ * (no nested category/layout/photo_areas, no `is_featured`).
  */
 
 import { Image } from "expo-image";
@@ -11,20 +15,13 @@ import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import {
-  BorderRadius,
-  BRAND_COLOR,
-  Spacing,
-  StatusColors,
-  withAlpha,
-} from "@/constants/theme";
+import { BorderRadius, Spacing, StatusColors } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import { useCartStore } from "@/stores/cart-store";
-import type { Template } from "@/api/templates/types";
+import type { TemplateListItem } from "@/api/templates/types";
 
 interface TemplateCardProps {
-  template: Template;
-  onPress: (template: Template) => void;
+  template: TemplateListItem;
+  onPress: (template: TemplateListItem) => void;
 }
 
 export const TemplateCard: React.FC<TemplateCardProps> = ({
@@ -34,9 +31,6 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
   const cardBg = useThemeColor({}, "card");
   const borderColor = useThemeColor({}, "border");
   const textSecondary = useThemeColor({}, "textSecondary");
-
-  const addItem = useCartStore((s) => s.addItem);
-  const isInCart = useCartStore((s) => s.isInCart(template.id));
 
   const price = parseFloat(template.price);
   const isFree = price === 0;
@@ -53,18 +47,13 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
       {/* Preview Image */}
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: template.preview_url }}
+          source={template.preview_url ? { uri: template.preview_url } : null}
           style={styles.image}
           contentFit="cover"
           transition={200}
         />
         {/* Badges */}
         <View style={styles.badgeRow}>
-          {template.is_featured && (
-            <View style={[styles.badge, { backgroundColor: BRAND_COLOR }]}>
-              <ThemedText style={styles.badgeText}>Featured</ThemedText>
-            </View>
-          )}
           {template.is_new && (
             <View
               style={[
@@ -104,50 +93,26 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
           </View>
         )}
 
-        {/* Price + Cart */}
-        <View style={styles.priceRow}>
-          <View style={styles.priceContainer}>
-            {isFree ? (
-              <ThemedText style={[styles.price, { color: StatusColors.success }]}>
-                Free
+        {/* Price (informational only — no purchase action) */}
+        <View style={styles.priceContainer}>
+          {isFree ? (
+            <ThemedText style={[styles.price, { color: StatusColors.success }]}>
+              Free
+            </ThemedText>
+          ) : (
+            <>
+              <ThemedText style={styles.price}>
+                ${price.toFixed(2)}
               </ThemedText>
-            ) : (
-              <>
-                <ThemedText style={styles.price}>
-                  ${price.toFixed(2)}
+              {isOnSale && originalPrice != null && (
+                <ThemedText
+                  style={[styles.originalPrice, { color: textSecondary }]}
+                >
+                  ${originalPrice.toFixed(2)}
                 </ThemedText>
-                {isOnSale && originalPrice && (
-                  <ThemedText
-                    style={[styles.originalPrice, { color: textSecondary }]}
-                  >
-                    ${originalPrice.toFixed(2)}
-                  </ThemedText>
-                )}
-              </>
-            )}
-          </View>
-
-          <TouchableOpacity
-            style={[
-              styles.cartButton,
-              {
-                backgroundColor: isInCart
-                  ? withAlpha(BRAND_COLOR, 0.15)
-                  : BRAND_COLOR,
-              },
-            ]}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              if (!isInCart) addItem(template);
-            }}
-            disabled={isInCart}
-          >
-            <IconSymbol
-              name={isInCart ? "checkmark" : "plus"}
-              size={16}
-              color={isInCart ? BRAND_COLOR : "#FFFFFF"}
-            />
-          </TouchableOpacity>
+              )}
+            </>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -204,16 +169,11 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 12,
   },
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 2,
-  },
   priceContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    marginTop: 2,
   },
   price: {
     fontSize: 16,
@@ -222,12 +182,5 @@ const styles = StyleSheet.create({
   originalPrice: {
     fontSize: 12,
     textDecorationLine: "line-through",
-  },
-  cartButton: {
-    width: 32,
-    height: 32,
-    borderRadius: BorderRadius.full,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

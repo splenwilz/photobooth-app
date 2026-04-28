@@ -282,17 +282,6 @@ export const queryKeys = {
   },
 
   /**
-   * Pricing-related query keys
-   * @see GET /api/v1/pricing/plans
-   */
-  pricing: {
-    /**
-     * Get all pricing plans
-     */
-    plans: () => ['pricing', 'plans'] as const,
-  },
-
-  /**
    * Template store query keys
    * @see /api/templates/queries.ts
    */

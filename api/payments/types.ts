@@ -1,11 +1,12 @@
 /**
  * Payments API Types
  *
- * Type definitions for subscription and payment endpoints.
+ * Type definitions for subscription read + manage endpoints. Checkout
+ * (purchase initiation) types are deliberately absent — the iOS app does
+ * not initiate purchases per Apple compliance.
  *
  * @see GET /api/v1/payments/access - Check subscription access
  * @see GET /api/v1/payments/subscription - Get subscription details
- * @see POST /api/v1/payments/checkout/subscription - Create checkout session
  * @see POST /api/v1/payments/subscription/cancel - Cancel subscription
  * @see POST /api/v1/payments/portal - Get customer portal URL
  */
@@ -68,36 +69,6 @@ export interface SubscriptionDetailsResponse {
 	cancel_at_period_end: boolean;
 	/** Stripe price ID */
 	price_id: string;
-}
-
-// ============================================================================
-// CHECKOUT
-// ============================================================================
-
-/**
- * POST /api/v1/payments/checkout/subscription request body
- */
-export interface CreateCheckoutRequest {
-	/** Stripe price ID (optional - uses default if not provided) */
-	price_id?: string;
-	/** URL to redirect to on successful payment */
-	success_url: string;
-	/** URL to redirect to if payment is cancelled */
-	cancel_url: string;
-	/** Optional trial period in days */
-	trial_period_days?: number;
-}
-
-/**
- * POST /api/v1/payments/checkout/subscription response
- */
-export interface CreateCheckoutResponse {
-	/** Whether checkout session was created successfully */
-	success: boolean;
-	/** Stripe checkout URL to redirect user to */
-	checkout_url: string;
-	/** Stripe checkout session ID */
-	session_id: string;
 }
 
 // ============================================================================
@@ -187,20 +158,4 @@ export interface BoothSubscriptionsListResponse {
 	items: BoothSubscriptionItem[];
 	/** Total number of booths */
 	total: number;
-}
-
-/**
- * POST /api/v1/booths/{booth_id}/subscription/checkout request body
- */
-export interface CreateBoothCheckoutRequest {
-	/** Booth ID to create subscription for */
-	booth_id: string;
-	/** Stripe price ID (optional - uses default if not provided) */
-	price_id?: string;
-	/** URL to redirect to on successful payment */
-	success_url: string;
-	/** URL to redirect to if payment is cancelled */
-	cancel_url: string;
-	/** Optional trial period in days */
-	trial_period_days?: number;
 }

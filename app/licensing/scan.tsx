@@ -64,6 +64,12 @@ function isValidFingerprint(data: string): boolean {
 	return /^[A-Fa-f0-9]{64}$/.test(data);
 }
 
+/** Copy shown when a booth has no active subscription — kept neutral and CTA-free per Apple compliance. */
+const ACTIVATION_UNAVAILABLE_TITLE = "Activation Unavailable";
+function activationUnavailableMessage(boothName: string): string {
+	return `"${boothName}" doesn't have an active subscription, so it can't be activated.`;
+}
+
 export default function ScanScreen() {
 	// Get route params for pre-selected booth (from Settings)
 	const { boothId: preSelectedBoothId, boothName: preSelectedBoothName } =
@@ -119,8 +125,8 @@ export default function ScanScreen() {
 
 			switch (errorCode) {
 				case "NO_SUBSCRIPTION":
-					title = "Subscription Required";
-					alertMessage = `"${boothName}" doesn't have an active subscription. Please subscribe first.`;
+					title = ACTIVATION_UNAVAILABLE_TITLE;
+					alertMessage = activationUnavailableMessage(boothName);
 					break;
 				case "SESSION_EXPIRED":
 					title = "QR Code Expired";
@@ -287,8 +293,8 @@ export default function ScanScreen() {
 							if (!result.can_proceed) {
 								// No subscription - show error
 								Alert.alert(
-									"Subscription Required",
-									`"${preSelectedBoothName}" doesn't have an active subscription. Please subscribe to this booth first.`,
+									ACTIVATION_UNAVAILABLE_TITLE,
+									activationUnavailableMessage(preSelectedBoothName),
 									[
 										{
 											text: "OK",
@@ -364,8 +370,8 @@ export default function ScanScreen() {
 							// No subscription - show error
 							setShowBoothSelection(false);
 							Alert.alert(
-								"Subscription Required",
-								`"${boothName}" doesn't have an active subscription. Please subscribe to this booth first.`,
+								ACTIVATION_UNAVAILABLE_TITLE,
+								activationUnavailableMessage(boothName),
 								[
 									{
 										text: "OK",

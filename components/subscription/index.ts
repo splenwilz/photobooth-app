@@ -1,14 +1,12 @@
 /**
  * Subscription Components Index
  *
- * Components for subscription management.
+ * Read-only subscription state surface. Purchase initiation has been removed
+ * for Apple App Store compliance — users subscribe on the web.
  *
  * @example
- * import { SubscriptionStatusCard, SubscriptionDetailsModal, PricingPlansSelector } from "@/components/subscription";
+ * import { SubscriptionStatusCard, SubscriptionDetailsModal } from "@/components/subscription";
  */
 
 export { SubscriptionStatusCard } from "./SubscriptionStatusCard";
 export { SubscriptionDetailsModal } from "./SubscriptionDetailsModal";
-export { BillingIntervalToggle, type BillingInterval } from "./BillingIntervalToggle";
-export { PlanCard } from "./PlanCard";
-export { PricingPlansSelector } from "./PricingPlansSelector";

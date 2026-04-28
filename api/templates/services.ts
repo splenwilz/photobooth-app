@@ -9,13 +9,10 @@
 import { apiClient } from "../client";
 import type {
   CategoriesResponse,
-  CheckoutSessionResponse,
   LayoutsResponse,
   PurchasesResponse,
   ReviewsResponse,
   Template,
-  TemplateCheckoutRequest,
-  TemplateCheckoutResponse,
   TemplateReview,
   TemplatesQueryParams,
   TemplatesResponse,
@@ -157,30 +154,3 @@ export async function getPurchasedTemplates(
   return apiClient<PurchasesResponse>(`${BASE}/purchased${qs}`);
 }
 
-/**
- * Create a Stripe checkout session for template purchases
- * @see POST /api/v1/payments/checkout/templates
- */
-export async function createTemplateCheckout(
-  data: TemplateCheckoutRequest,
-): Promise<TemplateCheckoutResponse> {
-  return apiClient<TemplateCheckoutResponse>(
-    "/api/v1/payments/checkout/templates",
-    {
-      method: "POST",
-      body: JSON.stringify(data),
-    },
-  );
-}
-
-/**
- * Get checkout session status after payment
- * @see GET /api/v1/payments/checkout/{session_id}
- */
-export async function getCheckoutSession(
-  sessionId: string,
-): Promise<CheckoutSessionResponse> {
-  return apiClient<CheckoutSessionResponse>(
-    `/api/v1/payments/checkout/${sessionId}`,
-  );
-}

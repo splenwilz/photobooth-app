@@ -37,18 +37,23 @@ function base64ToUint8Array(base64: string): Uint8Array {
 }
 
 /**
- * Download a template and its preview, zip them, and share.
+ * Download a template (and optionally its preview), zip them, and share.
  *
  * Creates a zip with a folder named after the template containing:
- * - template.{ext} — the template file
- * - preview.{ext} — the preview image
+ * - template.{ext} — the template file (always included)
+ * - preview.{ext} — the preview image (only when `previewUrl` is non-null)
+ *
+ * `previewUrl` is nullable because the catalog may serve templates without
+ * a separate preview asset; in that case the preview download and zip
+ * entry are skipped and the resulting archive contains only the template.
  *
  * Then opens the share sheet so the user can save/send the zip.
  */
 export async function downloadTemplateAsZip(opts: {
   name: string;
   downloadUrl: string;
-  previewUrl: string;
+  /** Signed S3 URL for the preview image, or `null` if the template has no preview. */
+  previewUrl: string | null;
   fileType: string;
 }): Promise<void> {
   const folderName = sanitizeName(opts.name);
@@ -63,21 +68,27 @@ export async function downloadTemplateAsZip(opts: {
     }
     baseDir.create();
 
-    // Download both files in parallel
+    // Download template and (optional) preview in parallel to halve latency.
     const [templateFile, previewFile] = await Promise.all([
       File.downloadFileAsync(opts.downloadUrl, baseDir),
-      File.downloadFileAsync(opts.previewUrl, baseDir),
+      opts.previewUrl
+        ? File.downloadFileAsync(opts.previewUrl, baseDir)
+        : Promise.resolve(null),
     ]);
 
     // Read downloaded files as base64
     const templateBase64 = templateFile.base64Sync();
-    const previewBase64 = previewFile.base64Sync();
+    const previewBase64 = previewFile?.base64Sync() ?? null;
 
     // Create zip with JSZip
     const zip = new JSZip();
     const folder = zip.folder(folderName)!;
     folder.file(`template.${ext}`, base64ToUint8Array(templateBase64));
-    folder.file(`preview.${ext}`, base64ToUint8Array(previewBase64));
+    // Skip only when there's truly no preview file (null). An empty-string
+    // base64 is still a real (zero-byte) file we should preserve.
+    if (previewBase64 !== null) {
+      folder.file(`preview.${ext}`, base64ToUint8Array(previewBase64));
+    }
 
     // Generate zip as binary
     const zipData = await zip.generateAsync({ type: "uint8array" });

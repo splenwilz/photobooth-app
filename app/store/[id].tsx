@@ -1,7 +1,8 @@
 /**
  * Template Detail Screen
  *
- * Shows full template details, reviews, and add-to-cart functionality.
+ * Shows full template details and reviews. Read-only — no purchase
+ * affordances (Apple compliance).
  *
  * @see /api/templates/queries.ts - useTemplateById, useTemplateReviews
  */
@@ -39,7 +40,6 @@ import {
 } from "@/constants/theme";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import { useCartStore } from "@/stores/cart-store";
 
 export default function TemplateDetailScreen() {
 	const { id } = useLocalSearchParams<{ id: string }>();
@@ -54,11 +54,6 @@ export default function TemplateDetailScreen() {
 
 	const { data: template, isLoading } = useTemplateById(templateId);
 	const { data: reviewsData, isLoading: isLoadingReviews } = useTemplateReviews(templateId);
-
-	const addItem = useCartStore((s) => s.addItem);
-	const isInCart = useCartStore((s) =>
-		template ? s.isInCart(template.id) : false,
-	);
 
 	const { session } = useAuthSession();
 	const submitReview = useSubmitReview();
@@ -214,7 +209,7 @@ export default function TemplateDetailScreen() {
 				{/* Preview Image */}
 				<View style={styles.imageContainer}>
 					<Image
-						source={{ uri: template.preview_url }}
+						source={template.preview_url ? { uri: template.preview_url } : null}
 						style={styles.image}
 						contentFit="contain"
 						transition={200}
@@ -298,47 +293,6 @@ export default function TemplateDetailScreen() {
 						<ThemedText style={[styles.description, { color: textSecondary }]}>
 							{template.description}
 						</ThemedText>
-					)}
-
-					{/* Add to Cart Button */}
-					<TouchableOpacity
-						style={[
-							styles.addToCartButton,
-							{
-								backgroundColor: isInCart
-									? withAlpha(BRAND_COLOR, 0.15)
-									: BRAND_COLOR,
-							},
-						]}
-						onPress={() => {
-							if (!isInCart) addItem(template);
-						}}
-						disabled={isInCart}
-					>
-						<IconSymbol
-							name={isInCart ? "checkmark" : "bag.badge.plus"}
-							size={20}
-							color={isInCart ? BRAND_COLOR : "#FFFFFF"}
-						/>
-						<ThemedText
-							style={[
-								styles.addToCartText,
-								{ color: isInCart ? BRAND_COLOR : "#FFFFFF" },
-							]}
-						>
-							{isInCart ? "In Cart" : "Add to Cart"}
-						</ThemedText>
-					</TouchableOpacity>
-					{isInCart && (
-						<TouchableOpacity
-							style={styles.goToCartLink}
-							onPress={() => router.push("/store/cart")}
-						>
-							<ThemedText style={[styles.goToCartText, { color: BRAND_COLOR }]}>
-								Go to Cart
-							</ThemedText>
-							<IconSymbol name="chevron.right" size={14} color={BRAND_COLOR} />
-						</TouchableOpacity>
 					)}
 				</View>
 
@@ -555,29 +509,6 @@ const styles = StyleSheet.create({
 	description: {
 		fontSize: 14,
 		lineHeight: 20,
-	},
-	addToCartButton: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		paddingVertical: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		gap: Spacing.sm,
-		marginTop: Spacing.xs,
-	},
-	addToCartText: {
-		fontSize: 16,
-		fontWeight: "700",
-	},
-	goToCartLink: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 4,
-	},
-	goToCartText: {
-		fontSize: 14,
-		fontWeight: "600",
 	},
 
 	// Review form

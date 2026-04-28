@@ -1,10 +1,11 @@
 /**
  * Payments API Index
  *
- * Subscription and payment management APIs.
+ * Subscription state read + manage-existing-subscription APIs. Purchase
+ * initiation is intentionally absent (Apple compliance).
  *
  * @example
- * import { useSubscriptionAccess, useCreateCheckout } from "@/api/payments";
+ * import { useSubscriptionAccess, useCustomerPortal } from "@/api/payments";
  */
 
 export * from "./types";
