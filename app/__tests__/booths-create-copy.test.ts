@@ -34,4 +34,11 @@ describe("app/booths/create.tsx — Apple-compliance copy", () => {
 		expect(CREATE_SOURCE).toMatch(/registration_code/);
 		expect(CREATE_SOURCE).toMatch(/Registration Code/);
 	});
+
+	it('renders the replacement "Booth Connection Steps" info card', () => {
+		// Positive assertion locks in the new copy that took the place of the
+		// removed "Subscribe to This Booth" CTA — fails if the heading is
+		// renamed or the info card is dropped.
+		expect(CREATE_SOURCE).toMatch(/Booth Connection Steps/);
+	});
 });

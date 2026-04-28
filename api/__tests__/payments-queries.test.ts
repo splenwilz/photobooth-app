@@ -29,39 +29,39 @@ describe("api/payments — Apple-compliance contract", () => {
 	});
 
 	describe("kept (read state + manage existing subscription)", () => {
-		it("still paymentsExports useSubscriptionAccess", () => {
+		it("still exports useSubscriptionAccess", () => {
 			expect(typeof paymentsExports.useSubscriptionAccess).toBe("function");
 		});
 
-		it("still paymentsExports useSubscriptionDetails", () => {
+		it("still exports useSubscriptionDetails", () => {
 			expect(typeof paymentsExports.useSubscriptionDetails).toBe("function");
 		});
 
-		it("still paymentsExports useBoothSubscription", () => {
+		it("still exports useBoothSubscription", () => {
 			expect(typeof paymentsExports.useBoothSubscription).toBe("function");
 		});
 
-		it("still paymentsExports useBoothSubscriptions", () => {
+		it("still exports useBoothSubscriptions", () => {
 			expect(typeof paymentsExports.useBoothSubscriptions).toBe("function");
 		});
 
-		it("still paymentsExports useCancelSubscription", () => {
+		it("still exports useCancelSubscription", () => {
 			expect(typeof paymentsExports.useCancelSubscription).toBe("function");
 		});
 
-		it("still paymentsExports useCancelBoothSubscription", () => {
+		it("still exports useCancelBoothSubscription", () => {
 			expect(typeof paymentsExports.useCancelBoothSubscription).toBe("function");
 		});
 
-		it("still paymentsExports useCustomerPortal (Stripe portal access)", () => {
+		it("still exports useCustomerPortal (Stripe portal access)", () => {
 			expect(typeof paymentsExports.useCustomerPortal).toBe("function");
 		});
 
-		it("still paymentsExports getSubscriptionAccess service", () => {
+		it("still exports getSubscriptionAccess service", () => {
 			expect(typeof paymentsExports.getSubscriptionAccess).toBe("function");
 		});
 
-		it("still paymentsExports getCustomerPortal service", () => {
+		it("still exports getCustomerPortal service", () => {
 			expect(typeof paymentsExports.getCustomerPortal).toBe("function");
 		});
 	});

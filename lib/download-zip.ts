@@ -82,7 +82,9 @@ export async function downloadTemplateAsZip(opts: {
     const zip = new JSZip();
     const folder = zip.folder(folderName)!;
     folder.file(`template.${ext}`, base64ToUint8Array(templateBase64));
-    if (previewBase64) {
+    // Skip only when there's truly no preview file (null). An empty-string
+    // base64 is still a real (zero-byte) file we should preserve.
+    if (previewBase64 !== null) {
       folder.file(`preview.${ext}`, base64ToUint8Array(previewBase64));
     }
 

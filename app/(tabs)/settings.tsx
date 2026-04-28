@@ -349,7 +349,17 @@ export default function SettingsScreen() {
 	const { data: pricingData, refetch: refetchPricing } = useBoothPricing(effectiveBoothId);
 
 	// Booth subscription check (per-booth subscription model)
-	const { data: boothSubscription, refetch: refetchSubscription } = useBoothSubscription(effectiveBoothId);
+	const {
+		data: boothSubscription,
+		isLoading: isBoothSubscriptionLoading,
+		refetch: refetchSubscription,
+	} = useBoothSubscription(effectiveBoothId);
+	// `isLoading` from React Query is only true while the query is enabled and
+	// a response hasn't arrived yet. We treat "no booth selected" the same as
+	// "resolved" (no fetch in flight) so the activate-license row stays
+	// interactive in All-Booths mode.
+	const isSubscriptionStatusKnown =
+		!effectiveBoothId || (!isBoothSubscriptionLoading && boothSubscription !== undefined);
 
 	// Pull-to-refresh state
 	const [isRefreshing, setIsRefreshing] = useState(false);
@@ -813,11 +823,18 @@ export default function SettingsScreen() {
 						icon="qrcode.viewfinder"
 						title="Activate Booth License"
 						subtitle={
-							boothSubscription?.is_active
-								? "Scan QR code to activate"
-								: "Requires active subscription"
+							!isSubscriptionStatusKnown
+								? "Checking subscription…"
+								: boothSubscription?.is_active
+									? "Scan QR code to activate"
+									: "Requires active subscription"
 						}
 						onPress={() => {
+							// Don't fire the alert before the subscription query has resolved —
+							// otherwise the user sees "Activation Unavailable" during the
+							// brief load even when they actually have an active subscription.
+							if (!isSubscriptionStatusKnown) return;
+
 							if (boothSubscription?.is_active) {
 								router.push({
 									pathname: "/licensing/scan",

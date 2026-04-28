@@ -10,41 +10,44 @@ const templatesExports = templates as unknown as Record<string, unknown>;
 
 describe("api/templates — Apple-compliance contract", () => {
 	describe("removed (purchase initiation)", () => {
+		// Use `not.toHaveProperty` rather than `toBeUndefined` so the assertion
+		// fails even if the symbol is re-introduced as a stub like
+		// `export const useTemplateCheckout = undefined`.
 		it("does not export useTemplateCheckout", () => {
-			expect(templatesExports.useTemplateCheckout).toBeUndefined();
+			expect(templatesExports).not.toHaveProperty("useTemplateCheckout");
 		});
 
 		it("does not export createTemplateCheckout", () => {
-			expect(templatesExports.createTemplateCheckout).toBeUndefined();
+			expect(templatesExports).not.toHaveProperty("createTemplateCheckout");
 		});
 	});
 
 	describe("kept (catalog + downloads)", () => {
-		it("still templatesExports useTemplates", () => {
+		it("still exports useTemplates", () => {
 			expect(typeof templatesExports.useTemplates).toBe("function");
 		});
 
-		it("still templatesExports useTemplateById", () => {
+		it("still exports useTemplateById", () => {
 			expect(typeof templatesExports.useTemplateById).toBe("function");
 		});
 
-		it("still templatesExports usePurchasedTemplates", () => {
+		it("still exports usePurchasedTemplates", () => {
 			expect(typeof templatesExports.usePurchasedTemplates).toBe("function");
 		});
 
-		it("still templatesExports useDownloadTemplate", () => {
+		it("still exports useDownloadTemplate", () => {
 			expect(typeof templatesExports.useDownloadTemplate).toBe("function");
 		});
 
-		it("still templatesExports getTemplates service", () => {
+		it("still exports getTemplates service", () => {
 			expect(typeof templatesExports.getTemplates).toBe("function");
 		});
 
-		it("still templatesExports getPurchasedTemplates service", () => {
+		it("still exports getPurchasedTemplates service", () => {
 			expect(typeof templatesExports.getPurchasedTemplates).toBe("function");
 		});
 
-		it("still templatesExports downloadTemplate service", () => {
+		it("still exports downloadTemplate service", () => {
 			expect(typeof templatesExports.downloadTemplate).toBe("function");
 		});
 	});

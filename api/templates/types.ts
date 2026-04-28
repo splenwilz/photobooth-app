@@ -52,27 +52,11 @@ export interface TemplatePhotoArea {
 }
 
 /**
- * Lean projection returned by `GET /templates` (catalog list).
- *
- * Per the API docs, the list endpoint omits nested `category` / `layout`
- * objects, `photo_areas`, and admin/upload metadata to reduce response
- * size. Use the detail endpoints (`GET /templates/{id}`,
- * `GET /templates/by-slug/{slug}`) when the full `Template` shape is
- * required.
+ * Signed S3 URLs returned for template asset files. Shared between the
+ * lean catalog projection and the full detail/purchased response so the
+ * URL contract is defined in one place.
  */
-export interface TemplateListItem {
-  id: number;
-  slug: string;
-  name: string;
-  description: string | null;
-  template_type: TemplateType;
-  price: string;
-  original_price: string | null;
-  tags: string | null;
-  is_new: boolean;
-  rating_average: string;
-  review_count: number;
-  download_count: number;
+export interface TemplateAssetUrls {
   /**
    * Signed S3 URL for the template file. Per API docs:
    * - `null` for anonymous viewers, even free templates
@@ -85,6 +69,30 @@ export interface TemplateListItem {
   preview_url: string | null;
   /** Signed S3 URL for the overlay asset (decorations layered atop photos). `null` if no overlay. */
   overlay_url: string | null;
+}
+
+/**
+ * Lean projection returned by `GET /templates` (catalog list).
+ *
+ * Per the API docs, the list endpoint omits nested `category` / `layout`
+ * objects, `photo_areas`, and admin/upload metadata to reduce response
+ * size. Use the detail endpoints (`GET /templates/{id}`,
+ * `GET /templates/by-slug/{slug}`) when the full `Template` shape is
+ * required.
+ */
+export interface TemplateListItem extends TemplateAssetUrls {
+  id: number;
+  slug: string;
+  name: string;
+  description: string | null;
+  template_type: TemplateType;
+  price: string;
+  original_price: string | null;
+  tags: string | null;
+  is_new: boolean;
+  rating_average: string;
+  review_count: number;
+  download_count: number;
   category_id: number | null;
   layout_id: string | null;
 }
@@ -94,7 +102,7 @@ export interface TemplateListItem {
  * (`GET /templates/{id}`, `GET /templates/by-slug/{slug}`) and embedded
  * in `TemplatePurchase.template`.
  */
-export interface Template {
+export interface Template extends TemplateAssetUrls {
   id: number;
   name: string;
   slug: string;
@@ -120,12 +128,6 @@ export interface Template {
   download_count: number;
   rating_average: string;
   review_count: number;
-  /** See note on `TemplateListItem.download_url` — same ownership semantics. */
-  download_url: string | null;
-  /** Signed S3 URL for the preview image. `null` if the template has no preview asset. */
-  preview_url: string | null;
-  /** Signed S3 URL for the overlay asset (decorations layered atop photos). `null` if no overlay. */
-  overlay_url: string | null;
   color_config: unknown;
   created_by: string | null;
   created_at: string;
