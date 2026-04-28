@@ -847,6 +847,14 @@ export default function SettingsScreen() {
 										boothName: boothDetail?.booth_name ?? "Booth",
 									},
 								});
+							} else if (isBoothSubscriptionError) {
+								// Be honest with the user: don't claim there's no subscription
+								// when we actually couldn't reach the API to check.
+								Alert.alert(
+									"Couldn't check subscription",
+									"We couldn't verify this booth's subscription status. Pull down on Settings to refresh and try again.",
+									[{ text: "OK" }],
+								);
 							} else {
 								Alert.alert(
 									"Activation Unavailable",
