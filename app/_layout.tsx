@@ -101,8 +101,15 @@ export default function RootLayout() {
   // Hydrate stores from SecureStore on app start
   useEffect(() => {
     async function prepare() {
-      await hydrateBooth();
-      setAppReady(true);
+      try {
+        await hydrateBooth();
+      } catch (error) {
+        // Don't block app startup on a hydration failure — fall back to
+        // empty store state and surface the error for diagnostics.
+        console.error("[RootLayout] booth hydration failed:", error);
+      } finally {
+        setAppReady(true);
+      }
     }
     prepare();
   }, [hydrateBooth]);

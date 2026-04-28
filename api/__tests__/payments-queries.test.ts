@@ -7,62 +7,62 @@
  */
 import * as payments from "@/api/payments";
 
-const exports = payments as unknown as Record<string, unknown>;
+const paymentsExports = payments as unknown as Record<string, unknown>;
 
 describe("api/payments — Apple-compliance contract", () => {
 	describe("removed (purchase initiation)", () => {
 		it("does not export useCreateCheckout", () => {
-			expect(exports.useCreateCheckout).toBeUndefined();
+			expect(paymentsExports.useCreateCheckout).toBeUndefined();
 		});
 
 		it("does not export useCreateBoothCheckout", () => {
-			expect(exports.useCreateBoothCheckout).toBeUndefined();
+			expect(paymentsExports.useCreateBoothCheckout).toBeUndefined();
 		});
 
 		it("does not export createSubscriptionCheckout", () => {
-			expect(exports.createSubscriptionCheckout).toBeUndefined();
+			expect(paymentsExports.createSubscriptionCheckout).toBeUndefined();
 		});
 
 		it("does not export createBoothCheckout", () => {
-			expect(exports.createBoothCheckout).toBeUndefined();
+			expect(paymentsExports.createBoothCheckout).toBeUndefined();
 		});
 	});
 
 	describe("kept (read state + manage existing subscription)", () => {
-		it("still exports useSubscriptionAccess", () => {
-			expect(typeof exports.useSubscriptionAccess).toBe("function");
+		it("still paymentsExports useSubscriptionAccess", () => {
+			expect(typeof paymentsExports.useSubscriptionAccess).toBe("function");
 		});
 
-		it("still exports useSubscriptionDetails", () => {
-			expect(typeof exports.useSubscriptionDetails).toBe("function");
+		it("still paymentsExports useSubscriptionDetails", () => {
+			expect(typeof paymentsExports.useSubscriptionDetails).toBe("function");
 		});
 
-		it("still exports useBoothSubscription", () => {
-			expect(typeof exports.useBoothSubscription).toBe("function");
+		it("still paymentsExports useBoothSubscription", () => {
+			expect(typeof paymentsExports.useBoothSubscription).toBe("function");
 		});
 
-		it("still exports useBoothSubscriptions", () => {
-			expect(typeof exports.useBoothSubscriptions).toBe("function");
+		it("still paymentsExports useBoothSubscriptions", () => {
+			expect(typeof paymentsExports.useBoothSubscriptions).toBe("function");
 		});
 
-		it("still exports useCancelSubscription", () => {
-			expect(typeof exports.useCancelSubscription).toBe("function");
+		it("still paymentsExports useCancelSubscription", () => {
+			expect(typeof paymentsExports.useCancelSubscription).toBe("function");
 		});
 
-		it("still exports useCancelBoothSubscription", () => {
-			expect(typeof exports.useCancelBoothSubscription).toBe("function");
+		it("still paymentsExports useCancelBoothSubscription", () => {
+			expect(typeof paymentsExports.useCancelBoothSubscription).toBe("function");
 		});
 
-		it("still exports useCustomerPortal (Stripe portal access)", () => {
-			expect(typeof exports.useCustomerPortal).toBe("function");
+		it("still paymentsExports useCustomerPortal (Stripe portal access)", () => {
+			expect(typeof paymentsExports.useCustomerPortal).toBe("function");
 		});
 
-		it("still exports getSubscriptionAccess service", () => {
-			expect(typeof exports.getSubscriptionAccess).toBe("function");
+		it("still paymentsExports getSubscriptionAccess service", () => {
+			expect(typeof paymentsExports.getSubscriptionAccess).toBe("function");
 		});
 
-		it("still exports getCustomerPortal service", () => {
-			expect(typeof exports.getCustomerPortal).toBe("function");
+		it("still paymentsExports getCustomerPortal service", () => {
+			expect(typeof paymentsExports.getCustomerPortal).toBe("function");
 		});
 	});
 });

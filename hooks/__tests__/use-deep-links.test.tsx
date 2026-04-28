@@ -88,38 +88,56 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 	});
 
 	async function fireDeepLink(url: string) {
-		mountHarness();
+		const { qc } = mountHarness();
+		const invalidateSpy = jest.spyOn(qc, "invalidateQueries");
 		await waitFor(() => expect(capturedHandler).not.toBeNull());
 		capturedHandler!({ url });
+		return { invalidateSpy };
 	}
 
-	it("payment-success is a no-op (no alert, no navigation)", async () => {
-		await fireDeepLink("boothiq://payment-success?booth_id=abc");
+	it("payment-success is a no-op (no alert, no navigation, no cache/store mutation)", async () => {
+		const { invalidateSpy } = await fireDeepLink(
+			"boothiq://payment-success?booth_id=abc",
+		);
 		expect(alertSpy).not.toHaveBeenCalled();
 		expect(mockReplace).not.toHaveBeenCalled();
+		expect(invalidateSpy).not.toHaveBeenCalled();
+		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
 	});
 
 	it("payment-cancel is a no-op", async () => {
-		await fireDeepLink("boothiq://payment-cancel");
+		const { invalidateSpy } = await fireDeepLink("boothiq://payment-cancel");
 		expect(alertSpy).not.toHaveBeenCalled();
 		expect(mockReplace).not.toHaveBeenCalled();
+		expect(invalidateSpy).not.toHaveBeenCalled();
+		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
 	});
 
 	it("pricing is a no-op", async () => {
-		await fireDeepLink("boothiq://pricing");
+		const { invalidateSpy } = await fireDeepLink("boothiq://pricing");
 		expect(mockReplace).not.toHaveBeenCalled();
+		expect(invalidateSpy).not.toHaveBeenCalled();
+		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
 	});
 
 	it("template-purchase-success is a no-op", async () => {
-		await fireDeepLink("boothiq://template-purchase-success");
+		const { invalidateSpy } = await fireDeepLink(
+			"boothiq://template-purchase-success",
+		);
 		expect(alertSpy).not.toHaveBeenCalled();
 		expect(mockReplace).not.toHaveBeenCalled();
+		expect(invalidateSpy).not.toHaveBeenCalled();
+		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
 	});
 
 	it("template-purchase-cancel is a no-op", async () => {
-		await fireDeepLink("boothiq://template-purchase-cancel");
+		const { invalidateSpy } = await fireDeepLink(
+			"boothiq://template-purchase-cancel",
+		);
 		expect(alertSpy).not.toHaveBeenCalled();
 		expect(mockReplace).not.toHaveBeenCalled();
+		expect(invalidateSpy).not.toHaveBeenCalled();
+		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
 	});
 
 	it("settings still triggers query invalidation (regression guard)", async () => {

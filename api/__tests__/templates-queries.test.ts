@@ -6,46 +6,46 @@
  */
 import * as templates from "@/api/templates";
 
-const exports = templates as unknown as Record<string, unknown>;
+const templatesExports = templates as unknown as Record<string, unknown>;
 
 describe("api/templates — Apple-compliance contract", () => {
 	describe("removed (purchase initiation)", () => {
 		it("does not export useTemplateCheckout", () => {
-			expect(exports.useTemplateCheckout).toBeUndefined();
+			expect(templatesExports.useTemplateCheckout).toBeUndefined();
 		});
 
 		it("does not export createTemplateCheckout", () => {
-			expect(exports.createTemplateCheckout).toBeUndefined();
+			expect(templatesExports.createTemplateCheckout).toBeUndefined();
 		});
 	});
 
 	describe("kept (catalog + downloads)", () => {
-		it("still exports useTemplates", () => {
-			expect(typeof exports.useTemplates).toBe("function");
+		it("still templatesExports useTemplates", () => {
+			expect(typeof templatesExports.useTemplates).toBe("function");
 		});
 
-		it("still exports useTemplateById", () => {
-			expect(typeof exports.useTemplateById).toBe("function");
+		it("still templatesExports useTemplateById", () => {
+			expect(typeof templatesExports.useTemplateById).toBe("function");
 		});
 
-		it("still exports usePurchasedTemplates", () => {
-			expect(typeof exports.usePurchasedTemplates).toBe("function");
+		it("still templatesExports usePurchasedTemplates", () => {
+			expect(typeof templatesExports.usePurchasedTemplates).toBe("function");
 		});
 
-		it("still exports useDownloadTemplate", () => {
-			expect(typeof exports.useDownloadTemplate).toBe("function");
+		it("still templatesExports useDownloadTemplate", () => {
+			expect(typeof templatesExports.useDownloadTemplate).toBe("function");
 		});
 
-		it("still exports getTemplates service", () => {
-			expect(typeof exports.getTemplates).toBe("function");
+		it("still templatesExports getTemplates service", () => {
+			expect(typeof templatesExports.getTemplates).toBe("function");
 		});
 
-		it("still exports getPurchasedTemplates service", () => {
-			expect(typeof exports.getPurchasedTemplates).toBe("function");
+		it("still templatesExports getPurchasedTemplates service", () => {
+			expect(typeof templatesExports.getPurchasedTemplates).toBe("function");
 		});
 
-		it("still exports downloadTemplate service", () => {
-			expect(typeof exports.downloadTemplate).toBe("function");
+		it("still templatesExports downloadTemplate service", () => {
+			expect(typeof templatesExports.downloadTemplate).toBe("function");
 		});
 	});
 });

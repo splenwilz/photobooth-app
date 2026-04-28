@@ -163,9 +163,10 @@ export function SubscriptionStatusCard({
 						return;
 					}
 
-					// Validate URL is http(s)
+					// Validate URL is http(s) — never log the URL itself; it grants
+					// access to the customer's billing session.
 					if (!portalUrl.startsWith("http://") && !portalUrl.startsWith("https://")) {
-						console.error("[Billing] Invalid portal URL format:", portalUrl);
+						console.error("[Billing] Invalid portal URL format");
 						Alert.alert(
 							"Error",
 							"Invalid billing portal URL. Please try again.",
@@ -179,14 +180,14 @@ export function SubscriptionStatusCard({
 						if (canOpen) {
 							Linking.openURL(portalUrl);
 						} else {
-							console.error("[Billing] Cannot open portal URL:", portalUrl);
+							console.error("[Billing] Cannot open portal URL");
 							Alert.alert(
 								"Error",
 								"Unable to open billing portal. Please try again.",
 							);
 						}
-					} catch (error) {
-						console.error("[Billing] Error checking URL:", error);
+					} catch {
+						console.error("[Billing] Error opening portal");
 						Alert.alert(
 							"Error",
 							"Failed to open billing portal. Please try again.",
@@ -279,7 +280,14 @@ export function SubscriptionStatusCard({
 						: isPerBooth
 							? "This booth has an active subscription"
 							: userAccess?.message || "Subscription is active"
-					: "No active subscription"}
+					: status === "past_due" ||
+						  status === "unpaid" ||
+						  status === "incomplete"
+						? userAccess?.message ||
+							"Payment required — manage billing to continue"
+						: status === "canceled"
+							? "Subscription canceled"
+							: "No active subscription"}
 			</ThemedText>
 
 			{/* Manage Billing — any user with a subscription record (incl. past_due/unpaid recovery) */}

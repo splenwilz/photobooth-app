@@ -37,17 +37,22 @@ function base64ToUint8Array(base64: string): Uint8Array {
 }
 
 /**
- * Download a template and its preview, zip them, and share.
+ * Download a template (and optionally its preview), zip them, and share.
  *
  * Creates a zip with a folder named after the template containing:
- * - template.{ext} — the template file
- * - preview.{ext} — the preview image
+ * - template.{ext} — the template file (always included)
+ * - preview.{ext} — the preview image (only when `previewUrl` is non-null)
+ *
+ * `previewUrl` is nullable because the catalog may serve templates without
+ * a separate preview asset; in that case the preview download and zip
+ * entry are skipped and the resulting archive contains only the template.
  *
  * Then opens the share sheet so the user can save/send the zip.
  */
 export async function downloadTemplateAsZip(opts: {
   name: string;
   downloadUrl: string;
+  /** Signed S3 URL for the preview image, or `null` if the template has no preview. */
   previewUrl: string | null;
   fileType: string;
 }): Promise<void> {

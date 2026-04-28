@@ -148,6 +148,10 @@ export default function StoreScreen() {
           <TouchableOpacity
             style={styles.headerIconButton}
             onPress={() => router.push("/store/purchased")}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Purchased templates"
+            accessibilityHint="Opens your purchased templates"
           >
             <IconSymbol name="arrow.down.circle" size={22} color={textColor} />
           </TouchableOpacity>
