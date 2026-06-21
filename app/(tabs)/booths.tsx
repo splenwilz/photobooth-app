@@ -15,7 +15,7 @@
  * @see /api/booths/queries.ts - useBoothOverview hook
  */
 
-import { useIsFocused } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -114,7 +114,19 @@ export default function BoothsScreen() {
 
 	// Fetch booth subscriptions
 	// @see GET /api/v1/payments/booths/subscriptions
-	const { data: subscriptionsData } = useBoothSubscriptions();
+	const { data: subscriptionsData, refetch: refetchSubscriptions } =
+		useBoothSubscriptions();
+
+	// The subscriptions list has a 5-min staleTime and is only invalidated by
+	// in-app cancellation. New booths and subscriptions purchased outside the app
+	// (Stripe) won't appear until the cache goes stale. Refetch whenever the
+	// screen regains focus (e.g. returning from the create/subscribe flow) so the
+	// badges reflect reality without forcing a full app reload.
+	useFocusEffect(
+		useCallback(() => {
+			refetchSubscriptions();
+		}, [refetchSubscriptions]),
+	);
 
 	// Create map of boothId → subscription status for quick lookup
 	const subscriptionMap = useMemo(() => {
@@ -221,8 +233,8 @@ export default function BoothsScreen() {
 
 	// Pull to refresh
 	const handleRefresh = useCallback(async () => {
-		await refetch();
-	}, [refetch]);
+		await Promise.all([refetch(), refetchSubscriptions()]);
+	}, [refetch, refetchSubscriptions]);
 
 	// Loading state
 	// Loading state - show skeleton instead of spinner

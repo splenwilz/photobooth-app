@@ -87,6 +87,12 @@ export function useCreateBooth() {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.dashboard.overview(),
 			});
+			// Invalidate the per-booth subscriptions list so the new booth appears
+			// on the Booths screen with the correct status without waiting for the
+			// list's staleTime to elapse.
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.payments.boothSubscriptions(),
+			});
 		},
 	});
 }

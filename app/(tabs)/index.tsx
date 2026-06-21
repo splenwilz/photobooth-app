@@ -593,7 +593,7 @@ export default function DashboardScreen() {
 										<AlertCard
 											key={alert.id}
 											alert={mapDashboardAlertToAppAlert(alert)}
-											onPress={() => console.log("Alert pressed:", alert.id)}
+											onPress={() => router.push("/(tabs)/alerts")}
 										/>
 									))
 							) : isAllMode ? (
@@ -624,7 +624,7 @@ export default function DashboardScreen() {
 										<AlertCard
 											key={alert.id}
 											alert={mapBoothAlertToAppAlert(alert)}
-											onPress={() => console.log("Alert pressed:", alert.id)}
+											onPress={() => router.push("/(tabs)/alerts")}
 										/>
 									))
 							) : !isAllMode && boothDetail ? (

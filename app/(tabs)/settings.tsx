@@ -14,6 +14,7 @@
  */
 
 import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import React, { useCallback, useEffect, useState } from "react";
@@ -49,6 +50,7 @@ import {
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
 import { useBoothSubscription } from "@/api/payments";
+import { useDeleteAccount } from "@/api/users";
 import {
   BusinessSettingsModal,
   ConnectionDetailsModal,
@@ -67,6 +69,7 @@ import { EditProductModal } from "@/components/products";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SectionHeader } from "@/components/ui/section-header";
+import { WEB_URLS } from "@/constants/config";
 import {
   BorderRadius,
   BRAND_COLOR,
@@ -82,6 +85,11 @@ import {
   useBoothStore,
 } from "@/stores/booth-store";
 import type { Product } from "@/types/photobooth";
+
+/** Copy for the destructive account-deletion confirmation (Apple Guideline 5.1.1(v)). */
+const DELETE_ACCOUNT_TITLE = "Delete Account";
+const DELETE_ACCOUNT_MESSAGE =
+	"This permanently deletes your BoothIQ account and all associated data. This cannot be undone.";
 
 /**
  * Map API product key to display info
@@ -136,6 +144,8 @@ interface SettingsItemProps {
 	onPress?: () => void;
 	/** Show item in red/destructive style */
 	destructive?: boolean;
+	/** Disable taps and dim the row (e.g. while an action is in flight) */
+	disabled?: boolean;
 }
 
 const SettingsItem: React.FC<SettingsItemProps> = ({
@@ -149,6 +159,7 @@ const SettingsItem: React.FC<SettingsItemProps> = ({
 	onSwitchChange,
 	onPress,
 	destructive = false,
+	disabled = false,
 }) => {
 	const cardBg = useThemeColor({}, "card");
 	const borderColor = useThemeColor({}, "border");
@@ -207,7 +218,12 @@ const SettingsItem: React.FC<SettingsItemProps> = ({
 
 	if (onPress && !showSwitch) {
 		return (
-			<TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+			<TouchableOpacity
+				onPress={onPress}
+				activeOpacity={0.7}
+				disabled={disabled}
+				style={disabled ? styles.settingsItemDisabled : undefined}
+			>
 				{content}
 			</TouchableOpacity>
 		);
@@ -297,6 +313,9 @@ export default function SettingsScreen() {
 	// Signout mutation
 	const signoutMutation = useSignout();
 
+	// Account deletion mutation (Apple Guideline 5.1.1(v))
+	const deleteAccountMutation = useDeleteAccount();
+
 	/**
 	 * Handle logout with confirmation
 	 * Calls POST /api/v1/auth/logout, clears tokens, and redirects to signin
@@ -320,6 +339,64 @@ export default function SettingsScreen() {
 			},
 		]);
 	};
+
+	/**
+	 * Handle permanent account deletion with confirmation (Apple Guideline 5.1.1(v)).
+	 * Calls DELETE /api/v1/users/{user_id}; the service clears tokens/cache on
+	 * success, then we redirect to signin.
+	 */
+	const handleDeleteAccount = () => {
+		// Ignore taps while a deletion is already in flight (prevents a second
+		// confirm dialog / duplicate DELETE against an already-cleared session).
+		if (deleteAccountMutation.isPending) return;
+		if (!userProfile.userId) {
+			Alert.alert(
+				"Account not ready",
+				"We're still loading your account. Please try again in a moment.",
+			);
+			return;
+		}
+		Alert.alert(DELETE_ACCOUNT_TITLE, DELETE_ACCOUNT_MESSAGE, [
+			{ text: "Cancel", style: "cancel" },
+			{
+				text: "Delete Account",
+				style: "destructive",
+				onPress: async () => {
+					try {
+						await deleteAccountMutation.mutateAsync({
+							userId: userProfile.userId,
+						});
+						router.replace("/auth/signin");
+					} catch (error) {
+						console.error("[Settings] Delete account error:", error);
+						Alert.alert(
+							"Could not delete account",
+							"Something went wrong and your account was not deleted. Please try again or contact support@boothiq.com.",
+						);
+					}
+				},
+			},
+		]);
+	};
+
+	/**
+	 * Open a hosted page (Privacy Policy / Terms) in the system browser.
+	 * Validates the scheme is https before opening (defense-in-depth).
+	 */
+	const openExternalUrl = useCallback(async (url: string) => {
+		if (!url.startsWith("https://")) return;
+		try {
+			const canOpen = await Linking.canOpenURL(url);
+			if (canOpen) {
+				await Linking.openURL(url);
+			} else {
+				Alert.alert("Couldn't open link", "Please visit boothiq.com.");
+			}
+		} catch (error) {
+			console.error("[Settings] Failed to open URL:", error);
+			Alert.alert("Couldn't open link", "Please visit boothiq.com.");
+		}
+	}, []);
 
 	// Global booth selection from Zustand store
 	const { selectedBoothId } = useBoothStore();
@@ -949,10 +1026,7 @@ export default function SettingsScreen() {
 						icon="questionmark.circle"
 						title="Help Center"
 						subtitle="Browse FAQs and guides"
-						onPress={() => {
-							// TODO: Open help center
-							console.log("Open help center");
-						}}
+						onPress={() => openExternalUrl(WEB_URLS.HELP_CENTER)}
 					/>
 				</View>
 
@@ -970,13 +1044,13 @@ export default function SettingsScreen() {
 					<SettingsItem
 						icon="doc.text"
 						title="Terms of Service"
-						onPress={() => router.push("/legal/terms")}
+						onPress={() => openExternalUrl(WEB_URLS.TERMS_OF_SERVICE)}
 					/>
 
 					<SettingsItem
 						icon="lock.shield"
 						title="Privacy Policy"
-						onPress={() => router.push("/legal/privacy")}
+						onPress={() => openExternalUrl(WEB_URLS.PRIVACY_POLICY)}
 					/>
 
 					<SettingsItem
@@ -989,6 +1063,19 @@ export default function SettingsScreen() {
 						}
 						onPress={handleLogout}
 						destructive
+					/>
+
+					<SettingsItem
+						icon="trash"
+						title="Delete Account"
+						subtitle={
+							deleteAccountMutation.isPending
+								? "Deleting account..."
+								: "Permanently delete your account and data"
+						}
+						onPress={handleDeleteAccount}
+						destructive
+						disabled={deleteAccountMutation.isPending}
 					/>
 				</View>
 
@@ -1105,6 +1192,9 @@ const styles = StyleSheet.create({
 		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
 		marginBottom: Spacing.sm,
+	},
+	settingsItemDisabled: {
+		opacity: 0.5,
 	},
 	settingsIconContainer: {
 		width: 40,

@@ -58,3 +58,11 @@ export interface LogoUploadResponse {
 export interface LogoDeleteResponse {
 	message: string;
 }
+
+/**
+ * Response from account deletion
+ * @see DELETE /api/v1/users/{user_id}
+ */
+export interface AccountDeleteResponse {
+	message: string;
+}
