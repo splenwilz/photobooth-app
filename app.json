@@ -1,7 +1,7 @@
 {
   "expo": {
     "owner": "photoboothx",
-    "name": "photobooth-app",
+    "name": "BoothIQ",
     "slug": "photobooth-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -48,11 +48,25 @@
           }
         }
       ],
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow BoothIQ to scan QR codes for booth activation."
+          "cameraPermission": "Allow BoothIQ to scan QR codes for booth activation.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BoothIQ uses your photo library so you can attach images to support requests and upload your business and booth logos.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ],
       "expo-font"

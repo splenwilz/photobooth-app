@@ -8,6 +8,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../utils/query-keys";
 import {
+	deleteAccount,
 	deleteAccountLogo,
 	getUserProfile,
 	updateBusinessName,
@@ -131,5 +132,20 @@ export function useDeleteAccountLogo() {
 				queryKey: ["booths", "businessSettings"],
 			});
 		},
+	});
+}
+
+/**
+ * Hook to permanently delete the user's account (Apple Guideline 5.1.1(v)).
+ * The service tears down the local session (tokens, pending reset data, and the
+ * React Query cache) on success — so no onSuccess cache work is needed here. The
+ * caller is responsible for navigating the user back to the auth flow.
+ *
+ * @returns React Query mutation for account deletion
+ * @see DELETE /api/v1/users/{user_id}
+ */
+export function useDeleteAccount() {
+	return useMutation({
+		mutationFn: ({ userId }: { userId: string }) => deleteAccount(userId),
 	});
 }

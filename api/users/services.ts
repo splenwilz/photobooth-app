@@ -5,8 +5,14 @@
  * @see /api/v1/users endpoints
  */
 
-import { apiClient } from "../client";
+import {
+	apiClient,
+	clearPendingResetData,
+	clearQueryCache,
+	clearTokens,
+} from "../client";
 import type {
+	AccountDeleteResponse,
 	LogoDeleteResponse,
 	LogoUploadResponse,
 	UpdateBusinessNameRequest,
@@ -97,5 +103,32 @@ export async function deleteAccountLogo(
 		`/api/v1/users/${userId}/logo`,
 		{ method: "DELETE" },
 	);
+	return response;
+}
+
+/**
+ * Permanently delete the user's account and all associated data.
+ * Required by Apple Guideline 5.1.1(v) for any app supporting account creation.
+ *
+ * The local session (tokens, pending reset flow data, React Query cache) is
+ * torn down only AFTER the server confirms deletion — if the request fails the
+ * account still exists, so the user stays signed in.
+ * @param userId - The user ID to delete
+ * @returns Promise resolving to confirmation message
+ * @see DELETE /api/v1/users/{user_id}
+ */
+export async function deleteAccount(
+	userId: string,
+): Promise<AccountDeleteResponse> {
+	const response = await apiClient<AccountDeleteResponse>(
+		`/api/v1/users/${userId}`,
+		{ method: "DELETE" },
+	);
+
+	// Account is gone server-side — clear all local state.
+	await clearTokens();
+	await clearPendingResetData();
+	clearQueryCache();
+
 	return response;
 }
