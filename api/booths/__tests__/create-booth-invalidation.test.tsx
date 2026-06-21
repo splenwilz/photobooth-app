@@ -24,9 +24,11 @@ jest.mock("../services", () => ({
 const mockCreateBooth = createBooth as jest.MockedFunction<typeof createBooth>;
 
 function createWrapper(qc: QueryClient) {
-	return ({ children }: { children: React.ReactNode }) => (
+	const QueryClientWrapper = ({ children }: { children: React.ReactNode }) => (
 		<QueryClientProvider client={qc}>{children}</QueryClientProvider>
 	);
+	QueryClientWrapper.displayName = "QueryClientWrapper";
+	return QueryClientWrapper;
 }
 
 describe("useCreateBooth — cache invalidation", () => {

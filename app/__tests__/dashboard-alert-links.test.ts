@@ -19,6 +19,11 @@ describe("Home dashboard recent-alert cards", () => {
 	});
 
 	it("navigate to the Alerts screen on press", () => {
-		expect(INDEX_SOURCE).toContain('router.push("/(tabs)/alerts")');
+		// Both recent-alert card handlers (all-booths mode and single-booth mode)
+		// must navigate — a bare toContain() would still pass if only one did.
+		const navHandlers = INDEX_SOURCE.match(
+			/onPress=\{\(\) => router\.push\("\/\(tabs\)\/alerts"\)\}/g,
+		);
+		expect(navHandlers).toHaveLength(2);
 	});
 });
