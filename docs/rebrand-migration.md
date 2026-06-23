@@ -26,10 +26,10 @@ the old scheme.
 
 ## App Store identity
 
-- The shipping bundle id / package is **`com.boothiq.app`** (iOS and Android).
+- The shipping bundle id / package is **`com.boothiq.manager`** (iOS and Android).
 - The previous id `com.splenwilz.photoboothapp` was **never published** to the App
   Store or Play Store, so there is **no prior app to sunset or run in parallel** —
-  `com.boothiq.app` is the initial public release. (A bundle id is permanent once a
+  `com.boothiq.manager` is the initial public release. (A bundle id is permanent once a
   build is uploaded under an App Store Connect record, so this was set before the
   first build.)
 
