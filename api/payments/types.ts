@@ -72,52 +72,6 @@ export interface SubscriptionDetailsResponse {
 }
 
 // ============================================================================
-// CANCEL SUBSCRIPTION
-// ============================================================================
-
-/**
- * POST /api/v1/payments/subscription/cancel response
- *
- * Returns updated subscription state after cancellation request
- */
-export interface CancelSubscriptionResponse {
-	/** Stripe subscription ID */
-	subscription_id: string;
-	/** Current subscription status */
-	status: SubscriptionStatus;
-	/** Whether subscription is still active */
-	is_active: boolean;
-	/** End of current billing period (ISO 8601) */
-	current_period_end: string;
-	/** Whether subscription will cancel at period end (usually true after cancel) */
-	cancel_at_period_end: boolean;
-	/** Stripe price ID */
-	price_id: string;
-}
-
-// ============================================================================
-// CUSTOMER PORTAL
-// ============================================================================
-
-/**
- * POST /api/v1/payments/portal request body
- */
-export interface CustomerPortalRequest {
-	/** URL to return to after portal session */
-	return_url: string;
-}
-
-/**
- * POST /api/v1/payments/portal response
- */
-export interface CustomerPortalResponse {
-	/** Whether portal session was created successfully */
-	success: boolean;
-	/** Stripe customer portal URL */
-	portal_url: string;
-}
-
-// ============================================================================
 // PER-BOOTH SUBSCRIPTIONS
 // ============================================================================
 

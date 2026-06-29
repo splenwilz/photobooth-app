@@ -2,16 +2,12 @@
  * Subscription Status Card
  *
  * Read-only display of subscription state. Shows status, plan name, and
- * expiry date. For active subscriptions, exposes a "Manage Billing" button
- * that opens the Stripe customer portal — managing an existing subscription
- * is allowed by Apple. There is no in-app purchase initiation.
+ * renewal/expiry date. There are NO management actions and NO purchase
+ * initiation — managing or canceling a subscription happens on the web
+ * (Apple App Store compliance).
  */
 
-import {
-	useBoothSubscription,
-	useCustomerPortal,
-	useSubscriptionAccess,
-} from "@/api/payments";
+import { useBoothSubscription, useSubscriptionAccess } from "@/api/payments";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
@@ -22,10 +18,8 @@ import {
 	withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import * as Linking from "expo-linking";
 import {
 	ActivityIndicator,
-	Alert,
 	StyleSheet,
 	TouchableOpacity,
 	View,
@@ -124,8 +118,6 @@ export function SubscriptionStatusCard({
 	const isPerBooth = !!boothId;
 	const isLoading = isPerBooth ? isBoothLoading : isUserLoading;
 
-	const customerPortal = useCustomerPortal();
-
 	// Normalize subscription data from either source
 	const hasSubscription = isPerBooth
 		? boothSubscription?.is_active ?? false
@@ -139,70 +131,9 @@ export function SubscriptionStatusCard({
 	const cancelAtPeriodEnd = isPerBooth
 		? boothSubscription?.cancel_at_period_end ?? false
 		: false;
-	// A Stripe-tracked subscription exists for any non-null status — covers
-	// active/trialing AND past_due/unpaid/incomplete so users in those
-	// recovery states can still reach the Stripe portal to fix billing.
-	const subscriptionExists = status !== null;
 
 	const statusColor = getStatusColor(status);
 	const statusText = getStatusText(status);
-
-	const handleManageBilling = async () => {
-		customerPortal.mutate(
-			{ return_url: "boothiq://settings" },
-			{
-				onSuccess: async (data) => {
-					const portalUrl = data?.portal_url;
-
-					// Validate URL exists and is well-formed
-					if (!portalUrl || typeof portalUrl !== "string") {
-						Alert.alert(
-							"Error",
-							"Could not get billing portal URL. Please try again.",
-						);
-						return;
-					}
-
-					// Validate URL is http(s) — never log the URL itself; it grants
-					// access to the customer's billing session.
-					if (!portalUrl.startsWith("http://") && !portalUrl.startsWith("https://")) {
-						console.error("[Billing] Invalid portal URL format");
-						Alert.alert(
-							"Error",
-							"Invalid billing portal URL. Please try again.",
-						);
-						return;
-					}
-
-					// Check if URL can be opened
-					try {
-						const canOpen = await Linking.canOpenURL(portalUrl);
-						if (canOpen) {
-							Linking.openURL(portalUrl);
-						} else {
-							console.error("[Billing] Cannot open portal URL");
-							Alert.alert(
-								"Error",
-								"Unable to open billing portal. Please try again.",
-							);
-						}
-					} catch {
-						console.error("[Billing] Error opening portal");
-						Alert.alert(
-							"Error",
-							"Failed to open billing portal. Please try again.",
-						);
-					}
-				},
-				onError: (error) => {
-					Alert.alert(
-						"Error",
-						error.message || "Failed to open billing portal. Please try again.",
-					);
-				},
-			},
-		);
-	};
 
 	if (isLoading) {
 		return (
@@ -283,36 +214,11 @@ export function SubscriptionStatusCard({
 					: status === "past_due" ||
 						  status === "unpaid" ||
 						  status === "incomplete"
-						? userAccess?.message ||
-							"Payment required — manage billing to continue"
+						? userAccess?.message || "Payment required"
 						: status === "canceled"
 							? "Subscription canceled"
 							: "No active subscription"}
 			</ThemedText>
-
-			{/* Manage Billing — any user with a subscription record (incl. past_due/unpaid recovery) */}
-			{subscriptionExists && (
-				<View style={styles.actions}>
-					<TouchableOpacity
-						style={[styles.button, styles.secondaryButton, { borderColor }]}
-						onPress={handleManageBilling}
-						disabled={customerPortal.isPending}
-					>
-						{customerPortal.isPending ? (
-							<ActivityIndicator size="small" color={BRAND_COLOR} />
-						) : (
-							<>
-								<IconSymbol name="creditcard" size={18} color={BRAND_COLOR} />
-								<ThemedText
-									style={[styles.buttonText, { color: BRAND_COLOR }]}
-								>
-									Manage Billing
-								</ThemedText>
-							</>
-						)}
-					</TouchableOpacity>
-				</View>
-			)}
 		</View>
 	);
 }
@@ -376,29 +282,5 @@ const styles = StyleSheet.create({
 	},
 	message: {
 		fontSize: 14,
-		marginBottom: Spacing.md,
-	},
-	actions: {
-		flexDirection: "row",
-		gap: Spacing.sm,
-	},
-	button: {
-		flex: 1,
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		paddingVertical: Spacing.sm,
-		paddingHorizontal: Spacing.md,
-		borderRadius: BorderRadius.md,
-		gap: Spacing.xs,
-	},
-	secondaryButton: {
-		backgroundColor: "transparent",
-		borderWidth: 1,
-	},
-	buttonText: {
-		color: "white",
-		fontSize: 14,
-		fontWeight: "600",
 	},
 });

@@ -1,10 +1,10 @@
 /**
  * SubscriptionStatusCard tests
  *
- * Apple-compliance contract: the card MUST NOT render any "Subscribe" CTA
- * for unsubscribed users. It may show a "Manage Billing" button only when
- * the user has an active subscription (Stripe customer portal access is
- * allowed for managing existing subscriptions).
+ * Apple-compliance contract: the card is READ-ONLY. It MUST NOT render any
+ * "Subscribe" CTA for unsubscribed users, and MUST NOT render any subscription
+ * management action ("Manage Billing"). Managing/canceling a subscription
+ * happens on the web. The card only displays status, plan and renewal/expiry.
  */
 import React from "react";
 import { render } from "@testing-library/react-native";
@@ -16,16 +16,11 @@ import * as payments from "@/api/payments";
 // Mocks for hooks the card consumes
 const mockUseBoothSubscription = jest.fn();
 const mockUseSubscriptionAccess = jest.fn();
-const mockUseCustomerPortal = jest.fn(() => ({
-	mutate: jest.fn(),
-	isPending: false,
-}));
 
 jest.mock("@/api/payments", () => ({
 	...jest.requireActual("@/api/payments"),
 	useBoothSubscription: (id: string | null) => mockUseBoothSubscription(id),
 	useSubscriptionAccess: () => mockUseSubscriptionAccess(),
-	useCustomerPortal: () => mockUseCustomerPortal(),
 }));
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -44,7 +39,7 @@ describe("SubscriptionStatusCard — Apple-compliance contract", () => {
 		});
 	});
 
-	it("renders status, plan name, expiry, and Manage Billing when active", () => {
+	it("renders status, plan name and expiry — and no management action — when active", () => {
 		mockUseBoothSubscription.mockReturnValue({
 			data: {
 				booth_id: "booth-1",
@@ -59,13 +54,14 @@ describe("SubscriptionStatusCard — Apple-compliance contract", () => {
 			isLoading: false,
 		});
 
-		const { getByText } = renderWithProviders(
+		const { getByText, queryByText } = renderWithProviders(
 			<SubscriptionStatusCard boothId="booth-1" planName="Pro" />,
 		);
 
 		expect(getByText("Active")).toBeTruthy();
 		expect(getByText("Pro")).toBeTruthy();
-		expect(getByText("Manage Billing")).toBeTruthy();
+		// No in-app subscription management (Apple compliance)
+		expect(queryByText("Manage Billing")).toBeNull();
 	});
 
 	it("renders no Subscribe button when unsubscribed (per-booth)", () => {
@@ -140,7 +136,7 @@ describe("SubscriptionStatusCard — Apple-compliance contract", () => {
 		expect(exports.useCreateBoothCheckout).toBeUndefined();
 	});
 
-	it("renders Manage Billing for past-due subscriptions (recovery path)", () => {
+	it("renders no management action for past-due subscriptions", () => {
 		mockUseBoothSubscription.mockReturnValue({
 			data: {
 				booth_id: "booth-1",
@@ -155,11 +151,11 @@ describe("SubscriptionStatusCard — Apple-compliance contract", () => {
 			isLoading: false,
 		});
 
-		const { getByText } = renderWithProviders(
+		const { getByText, queryByText } = renderWithProviders(
 			<SubscriptionStatusCard boothId="booth-1" />,
 		);
 
 		expect(getByText("Past Due")).toBeTruthy();
-		expect(getByText("Manage Billing")).toBeTruthy();
+		expect(queryByText("Manage Billing")).toBeNull();
 	});
 });

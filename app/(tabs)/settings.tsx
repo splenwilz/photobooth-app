@@ -771,7 +771,7 @@ export default function SettingsScreen() {
 			{/* Subscription & Billing Section */}
 				{!isAllBoothsMode && (
 					<View style={styles.section}>
-						<SectionHeader title="Subscription & Billing" subtitle="Manage booth subscription" />
+						<SectionHeader title="Subscription & Billing" subtitle="View booth subscription status" />
 						<SubscriptionStatusCard
 							boothId={effectiveBoothId}
 							onViewDetails={() => setShowSubscriptionModal(true)}

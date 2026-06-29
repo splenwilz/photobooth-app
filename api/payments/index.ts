@@ -1,11 +1,12 @@
 /**
  * Payments API Index
  *
- * Subscription state read + manage-existing-subscription APIs. Purchase
- * initiation is intentionally absent (Apple compliance).
+ * Read-only subscription state APIs. Purchase initiation AND subscription
+ * management (cancel, billing portal) are intentionally absent — users manage
+ * subscriptions on the web (Apple compliance).
  *
  * @example
- * import { useSubscriptionAccess, useCustomerPortal } from "@/api/payments";
+ * import { useSubscriptionAccess, useBoothSubscription } from "@/api/payments";
  */
 
 export * from "./types";
