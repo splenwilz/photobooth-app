@@ -12,6 +12,12 @@
       },
       "channel": "development"
     },
+    "development-device": {
+      "extends": "development",
+      "ios": {
+        "simulator": false
+      }
+    },
     "preview": {
       "distribution": "internal",
       "ios": {
@@ -25,6 +31,14 @@
     "production": {
       "autoIncrement": true,
       "channel": "production"
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6783490814",
+        "appleTeamId": "VHFF2JPUSU"
+      }
     }
   }
 }

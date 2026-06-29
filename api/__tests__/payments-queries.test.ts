@@ -1,9 +1,9 @@
 /**
  * Payments API surface contract
  *
- * Asserts that subscription PURCHASE hooks/services have been removed
- * (Apple compliance) while subscription READ + MANAGE-EXISTING surface
- * remains exported.
+ * Asserts that subscription PURCHASE hooks/services and subscription
+ * MANAGEMENT hooks/services (billing portal + cancel) have been removed
+ * (Apple compliance), while the subscription READ surface remains exported.
  */
 import * as payments from "@/api/payments";
 
@@ -28,7 +28,33 @@ describe("api/payments — Apple-compliance contract", () => {
 		});
 	});
 
-	describe("kept (read state + manage existing subscription)", () => {
+	describe("removed (subscription management)", () => {
+		it("does not export useCustomerPortal", () => {
+			expect(paymentsExports.useCustomerPortal).toBeUndefined();
+		});
+
+		it("does not export useCancelSubscription", () => {
+			expect(paymentsExports.useCancelSubscription).toBeUndefined();
+		});
+
+		it("does not export useCancelBoothSubscription", () => {
+			expect(paymentsExports.useCancelBoothSubscription).toBeUndefined();
+		});
+
+		it("does not export getCustomerPortal", () => {
+			expect(paymentsExports.getCustomerPortal).toBeUndefined();
+		});
+
+		it("does not export cancelSubscription", () => {
+			expect(paymentsExports.cancelSubscription).toBeUndefined();
+		});
+
+		it("does not export cancelBoothSubscription", () => {
+			expect(paymentsExports.cancelBoothSubscription).toBeUndefined();
+		});
+	});
+
+	describe("kept (read subscription state)", () => {
 		it("still exports useSubscriptionAccess", () => {
 			expect(typeof paymentsExports.useSubscriptionAccess).toBe("function");
 		});
@@ -45,24 +71,12 @@ describe("api/payments — Apple-compliance contract", () => {
 			expect(typeof paymentsExports.useBoothSubscriptions).toBe("function");
 		});
 
-		it("still exports useCancelSubscription", () => {
-			expect(typeof paymentsExports.useCancelSubscription).toBe("function");
-		});
-
-		it("still exports useCancelBoothSubscription", () => {
-			expect(typeof paymentsExports.useCancelBoothSubscription).toBe("function");
-		});
-
-		it("still exports useCustomerPortal (Stripe portal access)", () => {
-			expect(typeof paymentsExports.useCustomerPortal).toBe("function");
-		});
-
 		it("still exports getSubscriptionAccess service", () => {
 			expect(typeof paymentsExports.getSubscriptionAccess).toBe("function");
 		});
 
-		it("still exports getCustomerPortal service", () => {
-			expect(typeof paymentsExports.getCustomerPortal).toBe("function");
+		it("still exports getSubscriptionDetails service", () => {
+			expect(typeof paymentsExports.getSubscriptionDetails).toBe("function");
 		});
 	});
 });

@@ -45,3 +45,6 @@ app-example
 
 .env
 /web
+
+# Python cache from icon generator
+scripts/__pycache__/

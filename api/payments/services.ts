@@ -1,23 +1,21 @@
 /**
  * Payments API Services
  *
- * Service functions for reading subscription state and managing existing
- * subscriptions. Purchase initiation (checkout creation) is deliberately
- * absent — the iOS app does not initiate purchases per Apple compliance.
+ * Service functions for READING subscription state only. Purchase initiation
+ * (checkout creation) AND subscription management (cancel, customer portal) are
+ * deliberately absent — the iOS app neither initiates purchases nor manages
+ * subscriptions per Apple compliance. Users manage/cancel on the web.
  *
  * @see GET /api/v1/payments/access - Check subscription access
  * @see GET /api/v1/payments/subscription - Get subscription details
- * @see POST /api/v1/payments/subscription/cancel - Cancel subscription
- * @see POST /api/v1/payments/portal - Get customer portal URL
+ * @see GET /api/v1/payments/booths/subscriptions - List booth subscriptions
+ * @see GET /api/v1/booths/{boothId}/subscription - Get booth subscription
  */
 
 import { apiClient } from "../client";
 import type {
 	BoothSubscriptionItem,
 	BoothSubscriptionsListResponse,
-	CancelSubscriptionResponse,
-	CustomerPortalRequest,
-	CustomerPortalResponse,
 	SubscriptionAccessResponse,
 	SubscriptionDetailsResponse,
 } from "./types";
@@ -59,58 +57,6 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetailsRespo
 	const response = await apiClient<SubscriptionDetailsResponse>(
 		"/api/v1/payments/subscription",
 		{ method: "GET" },
-	);
-	return response;
-}
-
-/**
- * Cancel subscription
- *
- * Cancels the user's subscription. By default, cancels at end of billing period.
- * Set cancel_immediately=true to cancel right away.
- *
- * @param cancelImmediately - If true, cancels immediately instead of at period end
- * @returns Updated subscription state
- *
- * @example
- * // Cancel at end of period (default)
- * const result = await cancelSubscription();
- *
- * // Cancel immediately
- * const result = await cancelSubscription(true);
- */
-export async function cancelSubscription(
-	cancelImmediately = false,
-): Promise<CancelSubscriptionResponse> {
-	const url = `/api/v1/payments/subscription/cancel${cancelImmediately ? "?cancel_immediately=true" : ""}`;
-	const response = await apiClient<CancelSubscriptionResponse>(url, {
-		method: "POST",
-	});
-	return response;
-}
-
-/**
- * Get customer portal URL
- *
- * Creates a Stripe customer portal session where users can manage
- * their payment methods, view invoices, and update billing info.
- *
- * @param data - Portal configuration with return URL
- * @returns Portal session with URL
- *
- * @example
- * const portal = await getCustomerPortal({ return_url: "boothiq://settings" });
- * Linking.openURL(portal.portal_url);
- */
-export async function getCustomerPortal(
-	data: CustomerPortalRequest,
-): Promise<CustomerPortalResponse> {
-	const response = await apiClient<CustomerPortalResponse>(
-		"/api/v1/payments/portal",
-		{
-			method: "POST",
-			body: JSON.stringify(data),
-		},
 	);
 	return response;
 }
@@ -163,32 +109,5 @@ export async function getBoothSubscription(
 		`/api/v1/booths/${boothId}/subscription`,
 		{ method: "GET" },
 	);
-	return response;
-}
-
-/**
- * Cancel booth subscription
- *
- * Cancels subscription for a specific booth. By default, cancels at end of billing period.
- *
- * @param boothId - Booth ID to cancel subscription for
- * @param cancelImmediately - If true, cancels immediately instead of at period end
- * @returns Updated booth subscription state
- *
- * @example
- * // Cancel at end of period (default)
- * const result = await cancelBoothSubscription("booth-123");
- *
- * // Cancel immediately
- * const result = await cancelBoothSubscription("booth-123", true);
- */
-export async function cancelBoothSubscription(
-	boothId: string,
-	cancelImmediately = false,
-): Promise<BoothSubscriptionItem> {
-	const url = `/api/v1/booths/${boothId}/subscription/cancel${cancelImmediately ? "?cancel_immediately=true" : ""}`;
-	const response = await apiClient<BoothSubscriptionItem>(url, {
-		method: "POST",
-	});
 	return response;
 }

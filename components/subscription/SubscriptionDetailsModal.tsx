@@ -1,17 +1,13 @@
 /**
  * Subscription Details Modal
  *
- * Full-screen modal showing detailed subscription information.
- * Allows managing billing and canceling subscription.
+ * Full-screen, READ-ONLY view of detailed subscription information (status,
+ * billing period, auto-renewal, subscription id). There are no management
+ * actions — managing or canceling a subscription happens on the web
+ * (Apple App Store compliance).
  */
 
-import {
-	useBoothSubscription,
-	useCancelBoothSubscription,
-	useCancelSubscription,
-	useCustomerPortal,
-	useSubscriptionDetails,
-} from "@/api/payments";
+import { useBoothSubscription, useSubscriptionDetails } from "@/api/payments";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
@@ -22,10 +18,8 @@ import {
 	withAlpha,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import * as Linking from "expo-linking";
 import {
 	ActivityIndicator,
-	Alert,
 	Modal,
 	ScrollView,
 	StyleSheet,
@@ -126,93 +120,9 @@ export function SubscriptionDetailsModal({
 			: null
 		: userSubscription;
 
-	const cancelSubscription = useCancelSubscription();
-	const cancelBoothSubscription = useCancelBoothSubscription();
-	const customerPortal = useCustomerPortal();
-
 	const statusInfo = subscription
 		? getStatusInfo(subscription.status)
 		: { color: StatusColors.neutral, text: "Unknown" };
-
-	const handleManageBilling = () => {
-		customerPortal.mutate(
-			{ return_url: "boothiq://settings" },
-			{
-				onSuccess: (data) => {
-					Linking.openURL(data.portal_url);
-					onClose();
-				},
-				onError: (err) => {
-					Alert.alert(
-						"Error",
-						err.message || "Failed to open billing portal.",
-					);
-				},
-			},
-		);
-	};
-
-	const handleCancelSubscription = () => {
-		const boothName =
-			isPerBooth && subscription && "booth_name" in subscription
-				? subscription.booth_name
-				: null;
-		const message = boothName
-			? `Are you sure you want to cancel the subscription for "${boothName}"? You'll still have access until the end of your billing period.`
-			: "Are you sure you want to cancel your subscription? You'll still have access until the end of your billing period.";
-
-		Alert.alert("Cancel Subscription", message, [
-			{ text: "Keep Subscription", style: "cancel" },
-			{
-				text: "Cancel Subscription",
-				style: "destructive",
-				onPress: () => {
-					if (isPerBooth && boothId) {
-						// Cancel booth subscription
-						cancelBoothSubscription.mutate(
-							{ boothId, immediately: false },
-							{
-								onSuccess: () => {
-									Alert.alert(
-										"Subscription Canceled",
-										"The booth subscription will end at the end of the current billing period.",
-									);
-									onClose();
-								},
-								onError: (err) => {
-									Alert.alert(
-										"Error",
-										err.message || "Failed to cancel subscription.",
-									);
-								},
-							},
-						);
-					} else {
-						// Cancel user subscription
-						cancelSubscription.mutate(false, {
-							onSuccess: () => {
-								Alert.alert(
-									"Subscription Canceled",
-									"Your subscription will end at the end of the current billing period.",
-								);
-								onClose();
-							},
-							onError: (err) => {
-								Alert.alert(
-									"Error",
-									err.message || "Failed to cancel subscription.",
-								);
-							},
-						});
-					}
-				},
-			},
-		]);
-	};
-
-	const isCancelPending = isPerBooth
-		? cancelBoothSubscription.isPending
-		: cancelSubscription.isPending;
 
 	return (
 		<Modal
@@ -370,54 +280,6 @@ export function SubscriptionDetailsModal({
 									</ThemedText>
 								</View>
 							)}
-
-							{/* Actions */}
-							<View style={styles.actions}>
-								<TouchableOpacity
-									style={[styles.actionButton, { backgroundColor: BRAND_COLOR }]}
-									onPress={handleManageBilling}
-									disabled={customerPortal.isPending}
-								>
-									{customerPortal.isPending ? (
-										<ActivityIndicator size="small" color="white" />
-									) : (
-										<>
-											<IconSymbol name="creditcard" size={20} color="white" />
-											<ThemedText style={styles.actionButtonText}>
-												Manage Payment Method
-											</ThemedText>
-										</>
-									)}
-								</TouchableOpacity>
-
-								{!subscription.cancel_at_period_end && (
-									<TouchableOpacity
-										style={[
-											styles.actionButton,
-											styles.cancelButton,
-											{ borderColor: StatusColors.error },
-										]}
-										onPress={handleCancelSubscription}
-										disabled={isCancelPending}
-									>
-										{isCancelPending ? (
-											<ActivityIndicator
-												size="small"
-												color={StatusColors.error}
-											/>
-										) : (
-											<ThemedText
-												style={[
-													styles.actionButtonText,
-													{ color: StatusColors.error },
-												]}
-											>
-												Cancel Subscription
-											</ThemedText>
-										)}
-									</TouchableOpacity>
-								)}
-							</View>
 						</>
 					)}
 				</ScrollView>
@@ -539,26 +401,5 @@ const styles = StyleSheet.create({
 		flex: 1,
 		fontSize: 14,
 		lineHeight: 20,
-	},
-	actions: {
-		gap: Spacing.sm,
-		marginTop: Spacing.md,
-	},
-	actionButton: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		paddingVertical: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		gap: Spacing.sm,
-	},
-	actionButtonText: {
-		color: "white",
-		fontSize: 16,
-		fontWeight: "600",
-	},
-	cancelButton: {
-		backgroundColor: "transparent",
-		borderWidth: 1,
 	},
 });

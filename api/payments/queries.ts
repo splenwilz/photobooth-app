@@ -1,25 +1,26 @@
 /**
  * Payments React Query Hooks
  *
- * Hooks for reading subscription state and managing existing subscriptions
- * (cancel, customer portal). Purchase initiation is intentionally absent —
- * the iOS app does not initiate purchases per Apple compliance.
+ * Hooks for READING subscription state only. Purchase initiation AND
+ * subscription management (cancel, billing portal) are intentionally absent —
+ * the iOS app neither initiates purchases nor manages subscriptions per Apple
+ * compliance. Users manage/cancel on the web.
+ *
+ * Cache note: nothing in-app mutates subscription state, so there are no
+ * invalidations here — these reads intentionally rely on a 5-minute staleTime
+ * to pick up web-side changes (cancel/upgrade reflect within that window).
  *
  * @see https://tanstack.com/query/latest - React Query docs
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/api/utils/query-keys";
 import {
-	cancelBoothSubscription,
-	cancelSubscription,
 	getBoothSubscription,
 	getBoothSubscriptions,
-	getCustomerPortal,
 	getSubscriptionAccess,
 	getSubscriptionDetails,
 } from "./services";
-import type { CustomerPortalRequest } from "./types";
 
 /**
  * Hook to check subscription access
@@ -78,63 +79,6 @@ export function useSubscriptionDetails(enabled = true) {
 	});
 }
 
-/**
- * Hook to cancel subscription
- *
- * Cancels the user's subscription. Invalidates subscription queries on success.
- *
- * @returns Mutation for cancelling subscription
- *
- * @example
- * const { mutate, isPending } = useCancelSubscription();
- *
- * const handleCancel = () => {
- *   mutate(false, { // false = cancel at period end
- *     onSuccess: () => Alert.alert('Subscription will cancel at end of period'),
- *   });
- * };
- */
-export function useCancelSubscription() {
-	const queryClient = useQueryClient();
-
-	return useMutation({
-		mutationFn: (cancelImmediately?: boolean) =>
-			cancelSubscription(cancelImmediately ?? false),
-		onSuccess: () => {
-			// Invalidate subscription queries to refetch updated status
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.payments.access(),
-			});
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.payments.subscription(),
-			});
-		},
-	});
-}
-
-/**
- * Hook to get customer portal URL
- *
- * Creates a Stripe customer portal session. On success, open the portal_url
- * in the browser using Linking.openURL().
- *
- * @returns Mutation for getting portal URL
- *
- * @example
- * const { mutate, isPending } = useCustomerPortal();
- *
- * const handleManageBilling = () => {
- *   mutate({ return_url: Linking.createURL('settings') }, {
- *     onSuccess: (data) => Linking.openURL(data.portal_url),
- *   });
- * };
- */
-export function useCustomerPortal() {
-	return useMutation({
-		mutationFn: (data: CustomerPortalRequest) => getCustomerPortal(data),
-	});
-}
-
 // ============================================================================
 // PER-BOOTH SUBSCRIPTION HOOKS
 // ============================================================================
@@ -182,44 +126,5 @@ export function useBoothSubscription(boothId: string | null) {
 		enabled: !!boothId,
 		staleTime: 5 * 60 * 1000,
 		gcTime: 10 * 60 * 1000,
-	});
-}
-
-/**
- * Hook to cancel booth subscription
- *
- * Cancels subscription for a specific booth. Invalidates subscription queries on success.
- *
- * @returns Mutation for cancelling booth subscription
- *
- * @example
- * const { mutate, isPending } = useCancelBoothSubscription();
- *
- * const handleCancel = (boothId: string) => {
- *   mutate({ boothId, immediately: false }, {
- *     onSuccess: () => Alert.alert('Subscription will cancel at end of period'),
- *   });
- * };
- */
-export function useCancelBoothSubscription() {
-	const queryClient = useQueryClient();
-
-	return useMutation({
-		mutationFn: ({
-			boothId,
-			immediately = false,
-		}: {
-			boothId: string;
-			immediately?: boolean;
-		}) => cancelBoothSubscription(boothId, immediately),
-		onSuccess: (_, variables) => {
-			// Invalidate booth subscription queries to refetch updated status
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.payments.boothSubscriptions(),
-			});
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.payments.boothSubscription(variables.boothId),
-			});
-		},
 	});
 }
