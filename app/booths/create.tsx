@@ -22,6 +22,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 // API hooks
 import { useCreateBooth } from "@/api/booths/queries";
+import { useBoothSubscription } from "@/api/payments";
 import type { CreateBoothResponse } from "@/api/booths/types";
 import { FormInput } from "@/components/auth/form-input";
 import { PrimaryButton } from "@/components/auth/primary-button";
@@ -74,6 +75,13 @@ export default function CreateBoothScreen() {
 
 	// Booth store for auto-selecting created booth
 	const { setSelectedBoothId } = useBoothStore();
+
+	// A newly created booth needs an active subscription before its connection
+	// details are usable (it can't be activated otherwise), so gate them.
+	const { data: createdBoothSubscription } = useBoothSubscription(
+		createdBooth?.id ?? null,
+	);
+	const hasActiveSubscription = createdBoothSubscription?.is_active ?? false;
 
 	// Update form field
 	const updateField = (field: keyof FormData, value: string) => {
@@ -176,6 +184,8 @@ export default function CreateBoothScreen() {
 						Your booth &quot;{createdBooth.name}&quot; has been created successfully.
 					</ThemedText>
 
+					{hasActiveSubscription ? (
+						<>
 					{/* Credentials Card */}
 					<View
 						style={[
@@ -307,6 +317,29 @@ export default function CreateBoothScreen() {
 							2. When the booth is ready, return to Settings and tap &quot;Activate Booth License&quot; to scan its QR code.
 						</ThemedText>
 					</View>
+						</>
+					) : (
+						<View
+							style={[
+								styles.nextStepsCard,
+								{ backgroundColor: cardBg, borderColor },
+							]}
+						>
+							<View style={styles.nextStepsHeader}>
+								<IconSymbol
+									name="info.circle"
+									size={20}
+									color={BRAND_COLOR}
+								/>
+								<ThemedText type="defaultSemiBold" style={styles.nextStepsTitle}>
+									One more step to go live
+								</ThemedText>
+							</View>
+							<ThemedText style={[styles.nextStepsLine, { color: textSecondary }]}>
+								{`"${createdBooth.name}" needs an active subscription before you can connect and activate it.`}
+							</ThemedText>
+						</View>
+					)}
 
 					{/* Action Buttons */}
 					<View style={styles.actionButtons}>
