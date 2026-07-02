@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useBoothCredentials, useGenerateBoothCode } from "@/api/booths";
+import { useBoothSubscription } from "@/api/payments";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
@@ -65,14 +66,20 @@ export const ConnectionDetailsModal: React.FC<ConnectionDetailsModalProps> = ({
     }
   }, [visible]);
 
-  // Fetch credentials from API
+  // A booth's connection details are only usable once it has an active
+  // subscription (it can't be activated otherwise), so gate the whole surface.
+  const { data: subscription, isLoading: isSubscriptionLoading } =
+    useBoothSubscription(visible ? boothId : null);
+  const hasActiveSubscription = subscription?.is_active ?? false;
+
+  // Fetch credentials from API (only when the booth has an active subscription)
   // @see GET /api/v1/booths/{booth_id}/credentials
   const {
     data: credentials,
     isLoading,
     error,
     refetch,
-  } = useBoothCredentials(visible ? boothId : null);
+  } = useBoothCredentials(visible && hasActiveSubscription ? boothId : null);
 
   // Generate new code mutation
   // @see POST /api/v1/booths/{booth_id}/generate-code
@@ -169,6 +176,37 @@ export const ConnectionDetailsModal: React.FC<ConnectionDetailsModalProps> = ({
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
         >
+          {/* Subscription check gates the entire connection surface */}
+          {isSubscriptionLoading && (
+            <View style={styles.centerContainer}>
+              <ActivityIndicator size="large" color={BRAND_COLOR} />
+              <ThemedText style={[styles.loadingText, { color: textSecondary }]}>
+                Loading...
+              </ThemedText>
+            </View>
+          )}
+
+          {!isSubscriptionLoading && !hasActiveSubscription && (
+            <View style={styles.centerContainer}>
+              <View
+                style={[
+                  styles.errorIconContainer,
+                  { backgroundColor: withAlpha(BRAND_COLOR, 0.1) },
+                ]}
+              >
+                <IconSymbol name="info.circle" size={32} color={BRAND_COLOR} />
+              </View>
+              <ThemedText type="defaultSemiBold" style={styles.errorTitle}>
+                One more step to go live
+              </ThemedText>
+              <ThemedText style={[styles.errorMessage, { color: textSecondary }]}>
+                {`"${boothName}" needs an active subscription before you can connect and activate it.`}
+              </ThemedText>
+            </View>
+          )}
+
+          {!isSubscriptionLoading && hasActiveSubscription && (
+            <>
           {/* Loading State */}
           {isLoading && (
             <View style={styles.centerContainer}>
@@ -353,6 +391,8 @@ export const ConnectionDetailsModal: React.FC<ConnectionDetailsModalProps> = ({
                   Keep these credentials secure. Anyone with access can control your booth.
                 </ThemedText>
               </View>
+            </>
+          )}
             </>
           )}
         </ScrollView>

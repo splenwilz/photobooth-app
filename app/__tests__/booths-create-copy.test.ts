@@ -41,4 +41,18 @@ describe("app/booths/create.tsx — Apple-compliance copy", () => {
 		// renamed or the info card is dropped.
 		expect(CREATE_SOURCE).toMatch(/Booth Connection Steps/);
 	});
+
+	it("gates the connection credentials on an active subscription", () => {
+		// Credentials/steps are useless without a subscription (the booth can't be
+		// activated), so they must be gated on subscription status.
+		expect(CREATE_SOURCE).toMatch(/useBoothSubscription/);
+		expect(CREATE_SOURCE).toMatch(/is_active/);
+	});
+
+	it("shows a neutral no-subscription state with no subscribe CTA", () => {
+		// Descriptive state only — never instruct the user to subscribe (Apple
+		// anti-steering) and never point to the website.
+		expect(CREATE_SOURCE).toMatch(/needs an active subscription/);
+		expect(CREATE_SOURCE).not.toMatch(/subscribe/i);
+	});
 });
