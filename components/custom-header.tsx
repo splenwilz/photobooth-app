@@ -162,14 +162,36 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
         )}
       </View>
 
-      {/* Right side - Icons or Custom Action */}
+      {/* Right side — the notification bell is the universal Alerts entry, so it
+          renders alongside any screen-specific rightAction (not either/or). */}
       <View style={styles.rightSection}>
-        {rightAction ? (
-          rightAction
-        ) : (
-          <>
-            {/* Search Icon */}
-            {onSearchPress && (
+        {/* Notification Icon with Badge */}
+        {onNotificationPress && (
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={onNotificationPress}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.notificationContainer}>
+              <IconSymbol name="bell" size={22} color={iconColor} />
+              {notificationCount > 0 && (
+                <View style={[styles.badge, { backgroundColor: tint }]}>
+                  <Text style={styles.badgeText}>
+                    {notificationCount > 99 ? '99+' : notificationCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Screen-specific action, or the (optional) search icon */}
+        {rightAction
+          ? rightAction
+          : onSearchPress && (
               <TouchableOpacity
                 style={styles.iconButton}
                 onPress={onSearchPress}
@@ -181,31 +203,6 @@ export const CustomHeader: React.FC<CustomHeaderProps> = ({
                 <IconSymbol name="magnifyingglass" size={22} color={iconColor} />
               </TouchableOpacity>
             )}
-
-            {/* Notification Icon with Badge */}
-            {onNotificationPress && (
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={onNotificationPress}
-                accessibilityRole="button"
-                accessibilityLabel="Notifications"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                activeOpacity={0.7}
-              >
-                <View style={styles.notificationContainer}>
-                  <IconSymbol name="bell" size={22} color={iconColor} />
-                  {notificationCount > 0 && (
-                    <View style={[styles.badge, { backgroundColor: tint }]}>
-                      <Text style={styles.badgeText}>
-                        {notificationCount > 99 ? '99+' : notificationCount}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
       </View>
     </View>
   );

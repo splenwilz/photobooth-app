@@ -22,6 +22,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useAlerts } from "@/api/alerts/queries";
 import { useTemplates } from "@/api/templates/queries";
 import type {
   TemplateListItem,
@@ -72,6 +73,13 @@ export default function StoreScreen() {
   const borderColor = useThemeColor({}, "border");
   const textSecondary = useThemeColor({}, "textSecondary");
   const textColor = useThemeColor({}, "text");
+
+  // Alerts unread count for the header notification bell (Alerts lives in the header)
+  const { data: alertsData } = useAlerts();
+  const unreadAlerts = useMemo(() => {
+    if (!alertsData?.alerts) return 0;
+    return alertsData.alerts.filter((a) => !a.isRead).length;
+  }, [alertsData?.alerts]);
 
   // Local state
   const [search, setSearch] = useState("");
@@ -144,6 +152,8 @@ export default function StoreScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={["top"]}>
       <CustomHeader
         title="Template Store"
+        onNotificationPress={() => router.push("/(tabs)/alerts")}
+        notificationCount={unreadAlerts}
         rightAction={
           <TouchableOpacity
             style={styles.headerIconButton}
