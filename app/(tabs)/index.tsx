@@ -192,11 +192,6 @@ export default function DashboardScreen() {
 		? dashboardOverview?.revenue?.[selectedPeriod]
 		: boothDetail?.revenue?.[selectedPeriod];
 
-	// Get payment breakdown for current period - both modes now use period-based structure
-	const paymentBreakdown = isAllMode
-		? dashboardOverview?.payment_breakdown?.[selectedPeriod]
-		: boothDetail?.payment_breakdown?.[selectedPeriod];
-
 	// Get upsale breakdown for current period - tracks extra copies and cross-sells
 	const upsaleBreakdown = isAllMode
 		? dashboardOverview?.upsale_breakdown?.[selectedPeriod]
@@ -377,48 +372,6 @@ export default function DashboardScreen() {
 									value={(revenueStats?.transactions ?? 0).toLocaleString()}
 									subValue={`Avg: ${formatCurrency(revenueStats?.average ?? 0)}`}
 								/>
-							</View>
-
-							{/* Payment Breakdown - Clean List */}
-							<View
-								style={[
-									styles.breakdownCard,
-									{ backgroundColor: cardBg, borderColor },
-								]}
-							>
-								<ThemedText
-									style={[styles.breakdownTitle, { color: textSecondary }]}
-								>
-									Payment Methods
-								</ThemedText>
-
-								{/* Cash */}
-								<View style={styles.breakdownRow}>
-									<ThemedText style={{ color: textSecondary }}>Cash</ThemedText>
-									<ThemedText type="defaultSemiBold">
-										{formatCurrency(paymentBreakdown?.cash ?? 0)}
-									</ThemedText>
-								</View>
-
-								<View style={[styles.breakdownDivider, { backgroundColor: borderColor }]} />
-
-								{/* Card */}
-								<View style={styles.breakdownRow}>
-									<ThemedText style={{ color: textSecondary }}>Card</ThemedText>
-									<ThemedText type="defaultSemiBold">
-										{formatCurrency(paymentBreakdown?.card ?? 0)}
-									</ThemedText>
-								</View>
-
-								<View style={[styles.breakdownDivider, { backgroundColor: borderColor }]} />
-
-								{/* Manual */}
-								<View style={styles.breakdownRow}>
-									<ThemedText style={{ color: textSecondary }}>Manual</ThemedText>
-									<ThemedText type="defaultSemiBold">
-										{formatCurrency(paymentBreakdown?.manual ?? 0)}
-									</ThemedText>
-								</View>
 							</View>
 
 							{/* Upsales - Original Row Design */}
@@ -749,33 +702,6 @@ const styles = StyleSheet.create({
 	},
 	statsRow: {
 		flexDirection: "row",
-	},
-	// Clean Breakdown Cards
-	breakdownCard: {
-		marginTop: Spacing.md,
-		padding: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 1,
-	},
-	breakdownTitle: {
-		fontSize: 13,
-		fontWeight: "600",
-		marginBottom: Spacing.md,
-	},
-	breakdownRow: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		paddingVertical: Spacing.xs,
-	},
-	breakdownDivider: {
-		height: 1,
-		marginVertical: Spacing.xs,
-	},
-	breakdownSubtext: {
-		fontSize: 12,
-		marginTop: 2,
-		opacity: 0.7,
 	},
 	// Original Row Design for Upsales
 	upsaleContainer: {
