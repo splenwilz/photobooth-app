@@ -14,9 +14,10 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { 
-  StyleSheet, 
-  View, 
+import {
+  StyleSheet,
+  View,
+  Image,
   ScrollView,
   Dimensions,
   TouchableOpacity,
@@ -27,6 +28,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from '@/components/themed-text';
+import { BrandName } from '@/components/brand-name';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { Spacing, BorderRadius, BRAND_COLOR, withAlpha } from '@/constants/theme';
@@ -124,11 +126,13 @@ export default function OnboardingScreen() {
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <View style={[styles.logoIcon, { backgroundColor: withAlpha(BRAND_COLOR, 0.15) }]}>
-            <IconSymbol name="photo.stack" size={24} color={BRAND_COLOR} />
+            <Image
+              source={require('@/assets/images/brand-mark.png')}
+              style={styles.logoMark}
+              resizeMode="contain"
+            />
           </View>
-          <ThemedText type="defaultSemiBold" style={styles.logoText}>
-            BoothIQ
-          </ThemedText>
+          <BrandName type="defaultSemiBold" style={styles.logoText} />
         </View>
         
         {!isLastSlide && (
@@ -241,6 +245,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.sm,
+  },
+  logoMark: {
+    width: 22,
+    height: 22,
   },
   logoText: {
     fontSize: 18,
