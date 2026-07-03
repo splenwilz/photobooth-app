@@ -53,7 +53,6 @@ import { useBoothSubscription } from "@/api/payments";
 import { useDeleteAccount } from "@/api/users";
 import {
   BusinessSettingsModal,
-  ConnectionDetailsModal,
   DeleteBoothModal,
   DownloadLogsModal,
   EmergencyPasswordModal,
@@ -473,9 +472,6 @@ export default function SettingsScreen() {
 	const [showEditProductModal, setShowEditProductModal] = useState(false);
 	const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-	// State for Connection Details modal
-	const [showConnectionModal, setShowConnectionModal] = useState(false);
-
 	// State for Delete Booth modal
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -894,13 +890,6 @@ export default function SettingsScreen() {
 						/>
 
 					<SettingsItem
-						icon="link"
-						title="Connection Details"
-						subtitle="View or generate registration code"
-						onPress={() => setShowConnectionModal(true)}
-					/>
-
-					<SettingsItem
 						icon="qrcode.viewfinder"
 						title="Activate Booth License"
 						subtitle={
@@ -1115,14 +1104,6 @@ export default function SettingsScreen() {
 					setSelectedProduct(null);
 				}}
 				onSave={handleSaveProduct}
-			/>
-
-			{/* Connection Details Modal */}
-			<ConnectionDetailsModal
-				visible={showConnectionModal}
-				boothId={effectiveBoothId}
-				boothName={boothName}
-				onClose={() => setShowConnectionModal(false)}
 			/>
 
 			{/* Delete Booth Modal */}
