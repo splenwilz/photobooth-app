@@ -14,9 +14,9 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { 
-  StyleSheet, 
-  View, 
+import {
+  StyleSheet,
+  View,
   ScrollView,
   Dimensions,
   TouchableOpacity,
@@ -27,6 +27,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from '@/components/themed-text';
+import { BrandHeader } from '@/components/brand-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { Spacing, BorderRadius, BRAND_COLOR, withAlpha } from '@/constants/theme';
@@ -122,14 +123,13 @@ export default function OnboardingScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* Header with Skip button */}
       <View style={styles.header}>
-        <View style={styles.logoContainer}>
-          <View style={[styles.logoIcon, { backgroundColor: withAlpha(BRAND_COLOR, 0.15) }]}>
-            <IconSymbol name="photo.stack" size={24} color={BRAND_COLOR} />
-          </View>
-          <ThemedText type="defaultSemiBold" style={styles.logoText}>
-            BoothIQ
-          </ThemedText>
-        </View>
+        <BrandHeader
+          wrapperStyle={styles.logoContainer}
+          markContainerStyle={styles.logoIcon}
+          markStyle={styles.logoMark}
+          nameType="defaultSemiBold"
+          nameStyle={styles.logoText}
+        />
         
         {!isLastSlide && (
           <TouchableOpacity onPress={handleSkip}>
@@ -241,6 +241,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.sm,
+  },
+  logoMark: {
+    width: 22,
+    height: 22,
   },
   logoText: {
     fontSize: 18,

@@ -14,31 +14,31 @@
  * @see https://docs.expo.dev/router/introduction/ - Expo Router docs
  */
 
-import React, { useEffect, useState } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  ScrollView, 
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { ThemedText } from '@/components/themed-text';
 import { FormInput } from '@/components/auth/form-input';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { SocialButton } from '@/components/auth/social-button';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Spacing, BRAND_COLOR, withAlpha } from '@/constants/theme';
+import { BrandHeader } from '@/components/brand-header';
+import { ThemedText } from '@/components/themed-text';
+import { BRAND_COLOR, Spacing } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // API hooks and utilities
 import { useSignin } from '@/api/auth/signin/queries';
-import { saveTokens, saveUser, clearQueryCache } from '@/api/client';
-import type { AuthResponse } from '@/api/auth/types';
 import type { EmailVerificationResponse } from '@/api/auth/signin/types';
+import type { AuthResponse } from '@/api/auth/types';
+import { clearQueryCache, saveTokens, saveUser } from '@/api/client';
 import { useSocialOAuth } from '@/hooks/use-social-oauth';
 
 interface FormData {
@@ -198,14 +198,13 @@ export default function SignInScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Logo / Branding */}
-          <View style={styles.logoSection}>
-            <View style={[styles.logoContainer, { backgroundColor: withAlpha(BRAND_COLOR, 0.15) }]}>
-              <IconSymbol name="photo.stack" size={40} color={BRAND_COLOR} />
-            </View>
-            <ThemedText type="title" style={styles.brandName}>
-              BoothIQ
-            </ThemedText>
-          </View>
+          <BrandHeader
+            wrapperStyle={styles.logoSection}
+            markContainerStyle={styles.logoContainer}
+            markStyle={styles.logoMark}
+            nameType="title"
+            nameStyle={styles.brandName}
+          />
 
           {/* Header */}
           <View style={styles.header}>
@@ -339,6 +338,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.md,
+  },
+  logoMark: {
+    width: 48,
+    height: 48,
   },
   brandName: {
     fontSize: 24,
