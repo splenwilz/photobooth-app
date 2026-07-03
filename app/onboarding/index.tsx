@@ -17,7 +17,6 @@ import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
-  Image,
   ScrollView,
   Dimensions,
   TouchableOpacity,
@@ -28,7 +27,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from '@/components/themed-text';
-import { BrandName } from '@/components/brand-name';
+import { BrandHeader } from '@/components/brand-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { Spacing, BorderRadius, BRAND_COLOR, withAlpha } from '@/constants/theme';
@@ -124,16 +123,13 @@ export default function OnboardingScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* Header with Skip button */}
       <View style={styles.header}>
-        <View style={styles.logoContainer}>
-          <View style={[styles.logoIcon, { backgroundColor: withAlpha(BRAND_COLOR, 0.15) }]}>
-            <Image
-              source={require('@/assets/images/brand-mark.png')}
-              style={styles.logoMark}
-              resizeMode="contain"
-            />
-          </View>
-          <BrandName type="defaultSemiBold" style={styles.logoText} />
-        </View>
+        <BrandHeader
+          wrapperStyle={styles.logoContainer}
+          markContainerStyle={styles.logoIcon}
+          markStyle={styles.logoMark}
+          nameType="defaultSemiBold"
+          nameStyle={styles.logoText}
+        />
         
         {!isLastSlide && (
           <TouchableOpacity onPress={handleSkip}>

@@ -17,15 +17,14 @@
 import { FormInput } from '@/components/auth/form-input';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { SocialButton } from '@/components/auth/social-button';
-import { BrandName } from '@/components/brand-name';
+import { BrandHeader } from '@/components/brand-header';
 import { ThemedText } from '@/components/themed-text';
-import { BRAND_COLOR, Spacing, withAlpha } from '@/constants/theme';
+import { BRAND_COLOR, Spacing } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -199,16 +198,13 @@ export default function SignInScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Logo / Branding */}
-          <View style={styles.logoSection}>
-            <View style={[styles.logoContainer, { backgroundColor: withAlpha(BRAND_COLOR, 0.15) }]}>
-              <Image
-                source={require('@/assets/images/brand-mark.png')}
-                style={styles.logoMark}
-                resizeMode="contain"
-              />
-            </View>
-            <BrandName type="title" style={styles.brandName} />
-          </View>
+          <BrandHeader
+            wrapperStyle={styles.logoSection}
+            markContainerStyle={styles.logoContainer}
+            markStyle={styles.logoMark}
+            nameType="title"
+            nameStyle={styles.brandName}
+          />
 
           {/* Header */}
           <View style={styles.header}>
