@@ -23,6 +23,7 @@ import {
   BRAND_COLOR,
   Spacing,
   withAlpha,
+  scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
@@ -266,7 +267,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: "600",
   },
   listContent: {
@@ -291,14 +292,14 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   itemName: {
-    fontSize: 15,
+    fontSize: scaleFont(15),
     fontWeight: "600",
   },
   itemType: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
   },
   itemDate: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
   },
   downloadButton: {
     width: 40,
@@ -314,7 +315,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: "500",
   },
 
@@ -325,7 +326,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   boothPickerLabel: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     fontWeight: "500",
   },
   boothPickerList: {
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   boothPickerName: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: "500",
     flex: 1,
   },

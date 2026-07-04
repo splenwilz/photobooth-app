@@ -30,6 +30,7 @@ import {
 	BorderRadius,
 	BRAND_COLOR,
 	Spacing,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -244,10 +245,10 @@ const styles = StyleSheet.create({
 		paddingVertical: Spacing.md,
 	},
 	headerTitle: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 	},
 	saveText: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 	formContent: {
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.lg,
 	},
 	fieldLabel: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 		marginBottom: Spacing.xs,
 		textTransform: "uppercase",
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
 	},
 	input: {
 		flex: 1,
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		height: "100%",
 	},
 });

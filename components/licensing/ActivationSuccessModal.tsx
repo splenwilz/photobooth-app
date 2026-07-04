@@ -13,6 +13,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import * as Clipboard from "expo-clipboard";
@@ -167,12 +168,12 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.lg,
 	},
 	title: {
-		fontSize: 24,
+		fontSize: scaleFont(24),
 		textAlign: "center",
 		marginBottom: Spacing.sm,
 	},
 	message: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "center",
 		marginBottom: Spacing.lg,
 		lineHeight: 20,
@@ -188,11 +189,11 @@ const styles = StyleSheet.create({
 		paddingVertical: Spacing.xs,
 	},
 	detailLabel: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginBottom: 4,
 	},
 	detailValue: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 	divider: {
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.sm,
 	},
 	licenseKey: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "700",
 		fontFamily: "monospace",
 		letterSpacing: 1,
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
 	},
 	noteText: {
 		flex: 1,
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		lineHeight: 18,
 	},
 	doneButton: {
@@ -232,7 +233,7 @@ const styles = StyleSheet.create({
 	},
 	doneButtonText: {
 		color: "white",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 });

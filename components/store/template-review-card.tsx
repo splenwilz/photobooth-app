@@ -9,7 +9,7 @@ import { StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { BorderRadius, Spacing } from "@/constants/theme";
+import { BorderRadius, Spacing, scaleFont } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import type { TemplateReview } from "@/api/templates/types";
 
@@ -85,15 +85,15 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   date: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
   },
   title: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: "600",
     marginBottom: Spacing.xs,
   },
   comment: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     lineHeight: 18,
   },
 });

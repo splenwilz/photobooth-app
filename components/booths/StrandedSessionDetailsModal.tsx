@@ -36,6 +36,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import {
@@ -618,7 +619,7 @@ const styles = StyleSheet.create({
 		paddingHorizontal: Spacing.lg,
 		paddingVertical: Spacing.md,
 	},
-	headerTitle: { fontSize: 18 },
+	headerTitle: { fontSize: scaleFont(18) },
 	headerSpacer: { width: 22 },
 	scroll: { flex: 1 },
 	scrollContent: {
@@ -636,14 +637,14 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.sm,
 	},
 	tagText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "600",
 		textTransform: "uppercase",
 		letterSpacing: 0.5,
 	},
-	amountHeadline: { fontSize: 28, marginBottom: 2 },
-	amountMeta: { fontSize: 14, fontWeight: "400" },
-	occurredAt: { fontSize: 13, marginBottom: Spacing.lg },
+	amountHeadline: { fontSize: scaleFont(28), marginBottom: 2 },
+	amountMeta: { fontSize: scaleFont(14), fontWeight: "400" },
+	occurredAt: { fontSize: scaleFont(13), marginBottom: Spacing.lg },
 	card: {
 		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
@@ -651,7 +652,7 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.md,
 	},
 	cardLabel: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "600",
 		textTransform: "uppercase",
 		letterSpacing: 0.5,
@@ -663,7 +664,7 @@ const styles = StyleSheet.create({
 		justifyContent: "space-between",
 		gap: Spacing.sm,
 	},
-	codeText: { fontSize: 15, flex: 1 },
+	codeText: { fontSize: scaleFont(15), flex: 1 },
 	copyBtn: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -673,9 +674,9 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 		gap: 4,
 	},
-	copyBtnText: { fontSize: 12, fontWeight: "600" },
+	copyBtnText: { fontSize: scaleFont(12), fontWeight: "600" },
 	fieldLabel: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "600",
 		textTransform: "uppercase",
 		letterSpacing: 0.5,
@@ -695,23 +696,23 @@ const styles = StyleSheet.create({
 		paddingVertical: Spacing.sm,
 	},
 	dollarPrefix: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		marginRight: 4,
 	},
 	input: {
 		flex: 1,
-		fontSize: 15,
+		fontSize: scaleFont(15),
 	},
 	multilineInput: {
 		height: "100%",
 		textAlignVertical: "top",
 	},
 	helper: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		marginTop: 4,
 	},
 	charCount: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		marginTop: 4,
 		alignSelf: "flex-end",
 	},
@@ -727,7 +728,7 @@ const styles = StyleSheet.create({
 		borderRadius: BorderRadius.full,
 	},
 	methodChipText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 	},
 	detailRow: {
@@ -736,23 +737,23 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		paddingVertical: 6,
 	},
-	detailLabel: { fontSize: 13 },
-	detailValue: { fontSize: 13, flexShrink: 1, textAlign: "right" },
+	detailLabel: { fontSize: scaleFont(13) },
+	detailValue: { fontSize: scaleFont(13), flexShrink: 1, textAlign: "right" },
 	noteBlock: {
 		marginTop: Spacing.sm,
 	},
 	noteLabel: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "600",
 		textTransform: "uppercase",
 		letterSpacing: 0.5,
 		marginBottom: 4,
 	},
-	noteText: { fontSize: 13, lineHeight: 18 },
-	detailsText: { fontSize: 13, lineHeight: 19 },
-	reasonTag: { fontSize: 12, marginTop: Spacing.sm, fontStyle: "italic" },
+	noteText: { fontSize: scaleFont(13), lineHeight: 18 },
+	detailsText: { fontSize: scaleFont(13), lineHeight: 19 },
+	reasonTag: { fontSize: scaleFont(12), marginTop: Spacing.sm, fontStyle: "italic" },
 	guidance: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		lineHeight: 17,
 		paddingHorizontal: Spacing.xs,
 		marginTop: Spacing.xs,
@@ -768,5 +769,5 @@ const styles = StyleSheet.create({
 		justifyContent: "center",
 		minHeight: 48,
 	},
-	primaryBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+	primaryBtnText: { color: "#FFFFFF", fontSize: scaleFont(16), fontWeight: "600" },
 });

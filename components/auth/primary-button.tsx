@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing, BorderRadius, BRAND_COLOR, withAlpha } from '@/constants/theme';
+import { Spacing, BorderRadius, BRAND_COLOR, withAlpha, scaleFont } from '@/constants/theme';
 
 interface PrimaryButtonProps {
   /** Button text */
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: '600',
   },
 });

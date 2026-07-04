@@ -16,7 +16,7 @@ import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { Spacing, BorderRadius, StatusColors } from '@/constants/theme';
+import { Spacing, BorderRadius, GeistFonts, StatusColors, scaleFont } from '@/constants/theme';
 import { ALL_BOOTHS_ID, useBoothStore } from '@/stores/booth-store';
 import { useBoothDetail, useBoothOverview, useDashboardOverview } from '@/api/booths/queries';
 
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   title: {
-    fontSize: 22,
+    fontSize: scaleFont(22),
     fontWeight: 'bold',
   },
   rightSection: {
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   boothSubtitle: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     marginTop: 1,
   },
   notificationContainer: {
@@ -278,8 +278,8 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: scaleFont(10),
+    fontFamily: GeistFonts.semibold,
     textAlign: 'center',
   },
 });

@@ -17,44 +17,44 @@ import { useIsFocused } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+	RefreshControl,
+	ScrollView,
+	StyleSheet,
+	TouchableOpacity,
+	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 // API hooks
 import { useAlerts } from "@/api/alerts/queries";
 import {
-  useBoothCriticalEvents,
-  useBoothDetail,
-  useDashboardOverview,
+	useBoothCriticalEvents,
+	useBoothDetail,
+	useDashboardOverview,
 } from "@/api/booths/queries";
 import { BoothPickerModal } from "@/components/booth-picker-modal";
 import { CustomHeader } from "@/components/custom-header";
 // Dashboard section components - extracted for separation of concerns
 import {
-  BoothHardwareSection,
-  HardwareSummaryCard,
-  SystemInfoCard,
+	BoothHardwareSection,
+	HardwareSummaryCard,
+	SystemInfoCard,
 } from "@/components/dashboard";
 import { DashboardSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
-import { ErrorState } from "@/components/ui/error-state";
 import { AlertCard } from "@/components/ui/alert-card";
+import { ErrorState } from "@/components/ui/error-state";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatCard } from "@/components/ui/stat-card";
-import { BorderRadius, BRAND_COLOR, Spacing, StatusColors, withAlpha } from "@/constants/theme";
+import { BorderRadius, BRAND_COLOR, Spacing, StatusColors, withAlpha, scaleFont } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 // Utilities - extracted for separation of concerns
 import {
-  formatCurrency,
-  joinCriticalEventsWithTransactions,
-  mapBoothAlertToAppAlert,
-  mapDashboardAlertToAppAlert,
+	formatCurrency,
+	joinCriticalEventsWithTransactions,
+	mapBoothAlertToAppAlert,
+	mapDashboardAlertToAppAlert,
 } from "@/utils";
 
 /** Revenue time period selector type */
@@ -646,10 +646,11 @@ const styles = StyleSheet.create({
 	},
 	section: {
 		marginTop: Spacing.lg,
+		
 	},
 	loadingText: {
 		marginTop: Spacing.md,
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	loadingDetailContainer: {
 		flexDirection: "row",
@@ -659,14 +660,14 @@ const styles = StyleSheet.create({
 		gap: Spacing.sm,
 	},
 	loadingDetailText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	emptyTitle: {
 		marginTop: Spacing.lg,
 		marginBottom: Spacing.xs,
 	},
 	emptySubtitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "center",
 		marginBottom: Spacing.lg,
 	},
@@ -680,7 +681,7 @@ const styles = StyleSheet.create({
 	},
 	createButtonText: {
 		color: "white",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 	periodSelector: {
@@ -697,7 +698,7 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 	},
 	periodButtonText: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "600",
 	},
 	statsRow: {
@@ -711,7 +712,7 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 	},
 	upsaleTitle: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "500",
 		textTransform: "uppercase",
 		letterSpacing: 0.5,
@@ -735,7 +736,7 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 	},
 	upsaleLabel: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		marginBottom: 2,
 	},
 	upsaleDivider: {
@@ -752,7 +753,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.sm,
 	},
 	noAlertsText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	attentionCard: {
 		flexDirection: "row",
@@ -772,10 +773,10 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	attentionTitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	attentionSubtitle: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: 2,
 	},
 });

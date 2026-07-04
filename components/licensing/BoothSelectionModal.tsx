@@ -14,6 +14,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import {
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
 	},
 	instructionText: {
 		flex: 1,
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		lineHeight: 20,
 	},
 	loadingContainer: {
@@ -252,7 +253,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.md,
 	},
 	loadingText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	emptyContainer: {
 		flex: 1,
@@ -270,11 +271,11 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.md,
 	},
 	emptyTitle: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		textAlign: "center",
 	},
 	emptyText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "center",
 		lineHeight: 20,
 	},
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
 	},
 	buttonText: {
 		color: "white",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 	listContent: {
@@ -304,7 +305,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	boothName: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		marginBottom: 4,
 	},
 	subscriptionRow: {
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
 		gap: 4,
 	},
 	subscriptionText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 	},
 	boothAction: {
 		width: 32,

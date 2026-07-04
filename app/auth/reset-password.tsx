@@ -31,7 +31,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from '@/components/themed-text';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Spacing, BorderRadius, BRAND_COLOR, StatusColors, withAlpha } from '@/constants/theme';
+import { Spacing, BorderRadius, BRAND_COLOR, StatusColors, withAlpha, scaleFont } from '@/constants/theme';
 // API hooks
 import { useVerifyResetCode } from '@/api/auth/verify-reset-code/queries';
 import { useForgotPassword } from '@/api/auth/forgot-password/queries';
@@ -348,19 +348,19 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   title: {
-    fontSize: 26,
+    fontSize: scaleFont(26),
     fontWeight: 'bold',
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: scaleFont(15),
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: Spacing.md,
   },
   emailText: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     marginTop: Spacing.xs,
   },
   errorBox: {
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     textAlign: 'center',
   },
   codeContainer: {
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: BorderRadius.lg,
     borderWidth: 2,
-    fontSize: 24,
+    fontSize: scaleFont(24),
     fontWeight: 'bold',
     textAlign: 'center',
   },
@@ -396,10 +396,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resendText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
   resendLink: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: '600',
   },
   backLink: {
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backLinkText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: '500',
   },
   fallbackContainer: {

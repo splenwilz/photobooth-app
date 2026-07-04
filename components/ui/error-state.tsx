@@ -3,7 +3,7 @@ import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import { BorderRadius, BRAND_COLOR, Spacing, StatusColors } from "@/constants/theme";
+import { BorderRadius, BRAND_COLOR, Spacing, StatusColors, scaleFont } from "@/constants/theme";
 
 interface ErrorStateProps {
 	title: string;
@@ -53,13 +53,13 @@ const styles = StyleSheet.create({
 		paddingHorizontal: Spacing.xl,
 	},
 	title: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		fontWeight: "600",
 		marginTop: Spacing.md,
 		textAlign: "center",
 	},
 	message: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		marginTop: Spacing.sm,
 		textAlign: "center",
 	},

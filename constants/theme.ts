@@ -10,7 +10,7 @@
  * @see https://docs.expo.dev/guides/color-schemes/
  */
 
-import { Platform } from 'react-native';
+import { Dimensions, Platform } from 'react-native';
 
 /**
  * Brand Color - Deep Teal
@@ -154,6 +154,29 @@ export const Spacing = {
 } as const;
 
 /**
+ * Geist font families (embedded via assets/fonts, loaded in the root layout).
+ *
+ * RN can't reliably synthesize weights for a custom family, so each weight is
+ * its own named family. Use `fontFamilyForWeight(weight)` to pick the right one
+ * from a numeric/keyword fontWeight — pepmax ships up to SemiBold, so 600+ and
+ * "bold" both resolve to Geist-SemiBold.
+ */
+export const GeistFonts = {
+  regular: 'Geist-Regular', // 400
+  medium: 'Geist-Medium', // 500
+  semibold: 'Geist-SemiBold', // 600 (also used for bold)
+} as const;
+
+export const fontFamilyForWeight = (
+  weight?: number | string,
+): string => {
+  const n = weight === 'bold' ? 700 : Number(weight) || 400;
+  if (n >= 600) return GeistFonts.semibold;
+  if (n >= 500) return GeistFonts.medium;
+  return GeistFonts.regular;
+};
+
+/**
  * Border radius scale
  */
 export const BorderRadius = {
@@ -163,3 +186,22 @@ export const BorderRadius = {
   xl: 16,
   full: 9999,
 } as const;
+
+/**
+ * Responsive font scaling — RN's equivalent of a `vw`-relative font unit.
+ *
+ * Sizes are authored against an iPhone-13-class width (390pt), where the type
+ * reads well. On physically wider phones (iPhone 16 Plus at 430pt) fixed sizes
+ * look small relative to the larger canvas, so we scale up proportionally.
+ * Clamped to [1.0, 1.15]: never smaller than the baseline, never over-scaled on
+ * big screens. Composes with the OS Dynamic Type setting (RN applies that too).
+ *
+ * Wrap baseline sizes with `scaleFont(...)` instead of hardcoding numbers.
+ */
+const FONT_BASE_WIDTH = 390;
+const fontScaleRatio = Math.min(
+  Math.max(Dimensions.get('window').width / FONT_BASE_WIDTH, 1),
+  1.15,
+);
+export const scaleFont = (size: number): number =>
+  Math.round(size * fontScaleRatio);

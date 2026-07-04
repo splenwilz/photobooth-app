@@ -37,6 +37,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useThemeColor } from "@/hooks/use-theme-color";
@@ -435,7 +436,7 @@ const styles = StyleSheet.create({
 	headerTitle: {
 		flex: 1,
 		textAlign: "center",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 
@@ -462,7 +463,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.sm,
 	},
 	name: {
-		fontSize: 22,
+		fontSize: scaleFont(22),
 		fontWeight: "700",
 	},
 	metaRow: {
@@ -476,11 +477,11 @@ const styles = StyleSheet.create({
 		borderRadius: BorderRadius.sm,
 	},
 	typeBadgeText: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "600",
 	},
 	category: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 	},
 	ratingRow: {
 		flexDirection: "row",
@@ -488,7 +489,7 @@ const styles = StyleSheet.create({
 		gap: 4,
 	},
 	ratingText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		marginLeft: 4,
 	},
 	priceRow: {
@@ -497,17 +498,17 @@ const styles = StyleSheet.create({
 		gap: Spacing.sm,
 	},
 	priceLarge: {
-		fontSize: 28,
+		fontSize: scaleFont(28),
 		fontWeight: "800",
 		paddingTop: Spacing.md,
     
 	},
 	originalPriceLarge: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		textDecorationLine: "line-through",
 	},
 	description: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		lineHeight: 20,
 	},
 
@@ -529,7 +530,7 @@ const styles = StyleSheet.create({
 		borderRadius: BorderRadius.md,
 		paddingHorizontal: Spacing.md,
 		paddingVertical: Spacing.sm,
-		fontSize: 15,
+		fontSize: scaleFont(15),
 	},
 	reviewTextArea: {
 		minHeight: 80,
@@ -547,7 +548,7 @@ const styles = StyleSheet.create({
 	},
 	submitReviewText: {
 		color: "#FFFFFF",
-		fontSize: 15,
+		fontSize: scaleFont(15),
 		fontWeight: "600",
 	},
 	deleteReviewButton: {
@@ -564,12 +565,12 @@ const styles = StyleSheet.create({
 		paddingHorizontal: Spacing.md,
 	},
 	sectionTitle: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		fontWeight: "700",
 		marginBottom: Spacing.md,
 	},
 	noReviews: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "center",
 		paddingVertical: Spacing.lg,
 	},

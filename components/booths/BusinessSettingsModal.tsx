@@ -49,6 +49,7 @@ import {
 	BorderRadius,
 	BRAND_COLOR,
 	Spacing,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -787,12 +788,12 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.md,
 	},
 	fieldLabel: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 		marginBottom: Spacing.xs,
 	},
 	fieldHint: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		marginTop: 4,
 	},
 	inputContainer: {
@@ -808,7 +809,7 @@ const styles = StyleSheet.create({
 	},
 	input: {
 		flex: 1,
-		fontSize: 16,
+		fontSize: scaleFont(16),
 	},
 	inputDisabled: {
 		opacity: 0.5,
@@ -846,7 +847,7 @@ const styles = StyleSheet.create({
 		justifyContent: "center" as const,
 	},
 	logoPlaceholderText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		marginTop: 4,
 	},
 	logoActions: {
@@ -869,7 +870,7 @@ const styles = StyleSheet.create({
 	},
 	logoButtonText: {
 		color: "white",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600" as const,
 	},
 	// Save buttons
@@ -883,7 +884,7 @@ const styles = StyleSheet.create({
 	},
 	saveFieldButtonText: {
 		color: "white",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 });

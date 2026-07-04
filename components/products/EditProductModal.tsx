@@ -18,6 +18,7 @@ import {
 	BRAND_COLOR,
 	Spacing,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import type { Product } from "@/types/photobooth";
@@ -459,14 +460,14 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	productDesc: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		marginTop: 2,
 	},
 	inputGroup: {
 		marginBottom: Spacing.lg,
 	},
 	inputLabel: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 		marginBottom: Spacing.sm,
 	},
@@ -479,17 +480,17 @@ const styles = StyleSheet.create({
 		height: 50,
 	},
 	currencyPrefix: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		fontWeight: "600",
 		marginRight: Spacing.xs,
 	},
 	input: {
 		flex: 1,
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		fontWeight: "500",
 	},
 	inputHint: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: Spacing.xs,
 	},
 	previewCard: {
@@ -499,7 +500,7 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.lg,
 	},
 	previewTitle: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "600",
 		letterSpacing: 0.5,
 		marginBottom: Spacing.sm,
@@ -519,7 +520,7 @@ const styles = StyleSheet.create({
 	},
 	saveButtonText: {
 		color: "white",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 });

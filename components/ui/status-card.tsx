@@ -13,7 +13,7 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { StatusColors, BorderRadius, Spacing, withAlpha } from '@/constants/theme';
+import { StatusColors, BorderRadius, Spacing, withAlpha, scaleFont } from '@/constants/theme';
 import type { ComponentStatus } from '@/types/photobooth';
 
 interface StatusCardProps {
@@ -210,10 +210,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     marginTop: 2,
   },
   statusBadge: {
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     fontWeight: '600',
   },
   progressSection: {
@@ -243,10 +243,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   progressLabel: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
   },
   progressValue: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     fontWeight: '600',
   },
   progressTrack: {
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   infoText: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     marginTop: Spacing.sm,
   },
 });

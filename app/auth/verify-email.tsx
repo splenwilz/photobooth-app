@@ -23,7 +23,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from '@/components/themed-text';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Spacing, BorderRadius, BRAND_COLOR, withAlpha } from '@/constants/theme';
+import { Spacing, BorderRadius, BRAND_COLOR, withAlpha, scaleFont } from '@/constants/theme';
 
 // API hooks
 import { useVerifyEmail } from '@/api/auth/verify-email/queries';
@@ -331,16 +331,16 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   title: {
-    fontSize: 26,
+    fontSize: scaleFont(26),
     fontWeight: 'bold',
     marginBottom: Spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     textAlign: 'center',
   },
   email: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     marginTop: Spacing.xs,
   },
   errorBanner: {
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#FF5252',
-    fontSize: 14,
+    fontSize: scaleFont(14),
     textAlign: 'center',
   },
   codeContainer: {
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: BorderRadius.lg,
     borderWidth: 2,
-    fontSize: 24,
+    fontSize: scaleFont(24),
     fontWeight: 'bold',
     textAlign: 'center',
   },
@@ -378,10 +378,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resendText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
   resendLink: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: '600',
   },
 });

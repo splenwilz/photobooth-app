@@ -20,7 +20,7 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { Spacing, withAlpha } from "@/constants/theme";
+import { Spacing, withAlpha, scaleFont } from "@/constants/theme";
 
 export interface ChartDataPoint {
 	date: string;
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
 		minHeight: 4,
 	},
 	barLabel: {
-		fontSize: 10,
+		fontSize: scaleFont(10),
 		marginTop: 4,
 	},
 });

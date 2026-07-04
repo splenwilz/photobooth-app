@@ -30,7 +30,7 @@ import { ThemedText } from '@/components/themed-text';
 import { FormInput } from '@/components/auth/form-input';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { SocialButton } from '@/components/auth/social-button';
-import { Spacing, BRAND_COLOR } from '@/constants/theme';
+import { Spacing, BRAND_COLOR, scaleFont } from '@/constants/theme';
 
 // API hooks
 import { useSignup } from '@/api/auth/signup/queries';
@@ -386,12 +386,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   title: {
-    fontSize: 28,
+    fontSize: scaleFont(28),
     fontWeight: 'bold',
     marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
   },
   errorBanner: {
     backgroundColor: 'rgba(255, 82, 82, 0.15)',
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#FF5252',
-    fontSize: 14,
+    fontSize: scaleFont(14),
     textAlign: 'center',
   },
   form: {
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     marginHorizontal: Spacing.md,
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
   socialButtons: {
     marginBottom: Spacing.lg,
@@ -439,10 +439,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
   footerLink: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: '600',
   },
 });

@@ -1,6 +1,6 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
+import { StyleSheet, Text, type TextProps, type TextStyle } from 'react-native';
 
-import { BRAND_COLOR } from '@/constants/theme';
+import { BRAND_COLOR, fontFamilyForWeight, scaleFont } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 export type ThemedTextProps = TextProps & {
@@ -18,17 +18,26 @@ export function ThemedText({
 }: ThemedTextProps) {
   const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
 
+  const typeStyle =
+    type === 'title'
+      ? styles.title
+      : type === 'defaultSemiBold'
+        ? styles.defaultSemiBold
+        : type === 'subtitle'
+          ? styles.subtitle
+          : type === 'link'
+            ? styles.link
+            : styles.default;
+
+  // Resolve the effective weight (type default + caller override) and pick the
+  // matching Geist family. The family carries the weight, so normalize
+  // fontWeight to avoid faux-bold on Android.
+  const flattened = (StyleSheet.flatten([typeStyle, style]) ?? {}) as TextStyle;
+  const fontFamily = fontFamilyForWeight(flattened.fontWeight);
+
   return (
     <Text
-      style={[
-        { color },
-        type === 'default' ? styles.default : undefined,
-        type === 'title' ? styles.title : undefined,
-        type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
-        type === 'subtitle' ? styles.subtitle : undefined,
-        type === 'link' ? styles.link : undefined,
-        style,
-      ]}
+      style={[{ color }, typeStyle, style, { fontFamily, fontWeight: 'normal' }]}
       {...rest}
     />
   );
@@ -36,26 +45,26 @@ export function ThemedText({
 
 const styles = StyleSheet.create({
   default: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     lineHeight: 24,
   },
   defaultSemiBold: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     lineHeight: 24,
     fontWeight: '600',
   },
   title: {
-    fontSize: 32,
+    fontSize: scaleFont(32),
     fontWeight: 'bold',
     lineHeight: 32,
   },
   subtitle: {
-    fontSize: 20,
+    fontSize: scaleFont(20),
     fontWeight: 'bold',
   },
   link: {
     lineHeight: 30,
-    fontSize: 16,
+    fontSize: scaleFont(16),
     color: BRAND_COLOR,
   },
 });

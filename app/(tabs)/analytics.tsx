@@ -46,6 +46,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 // Global booth selection store
@@ -493,7 +494,7 @@ const styles = StyleSheet.create({
 	},
 	loadingText: {
 		marginTop: Spacing.md,
-		fontSize: 16,
+		fontSize: scaleFont(16),
 	},
 	statsGrid: {
 		gap: Spacing.sm,
@@ -511,7 +512,7 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 12,
 	},
 	chartToggleText: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "500",
 	},
 	chartCard: {
@@ -540,17 +541,17 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	transactionProduct: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		marginBottom: 2,
 	},
 	transactionDetails: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 	},
 	transactionAmount: {
 		alignItems: "flex-end",
 	},
 	transactionTime: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		marginTop: 2,
 	},
 	transactionMeta: {
@@ -563,7 +564,7 @@ const styles = StyleSheet.create({
 		borderRadius: BorderRadius.sm,
 	},
 	paymentText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "500",
 	},
 	statusBadge: {
@@ -572,7 +573,7 @@ const styles = StyleSheet.create({
 		borderRadius: BorderRadius.sm,
 	},
 	statusText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "500",
 	},
 	emptyTransactions: {

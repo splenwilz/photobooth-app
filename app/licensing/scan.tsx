@@ -42,6 +42,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useFocusEffect } from "@react-navigation/native";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -659,7 +660,7 @@ const styles = StyleSheet.create({
 	},
 	headerTitle: {
 		color: "white",
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		fontWeight: "600",
 	},
 	scannerArea: {
@@ -717,7 +718,7 @@ const styles = StyleSheet.create({
 	processingText: {
 		color: "white",
 		marginTop: Spacing.md,
-		fontSize: 16,
+		fontSize: scaleFont(16),
 	},
 	instructions: {
 		padding: Spacing.xl,
@@ -726,7 +727,7 @@ const styles = StyleSheet.create({
 	instructionText: {
 		color: "white",
 		textAlign: "center",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		lineHeight: 24,
 	},
 	iconContainer: {
@@ -765,7 +766,7 @@ const styles = StyleSheet.create({
 	},
 	buttonText: {
 		color: "white",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 });

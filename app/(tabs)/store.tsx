@@ -38,6 +38,7 @@ import {
   BRAND_COLOR,
   Spacing,
   withAlpha,
+  scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -240,7 +241,7 @@ export default function StoreScreen() {
                   setPage(1);
                 }}
               >
-                <ThemedText style={{ color: BRAND_COLOR, fontSize: 14 }}>
+                <ThemedText style={{ color: BRAND_COLOR, fontSize: scaleFont(14) }}>
                   Clear filters
                 </ThemedText>
               </TouchableOpacity>
@@ -496,13 +497,13 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: scaleFont(15),
     paddingVertical: 0,
   },
 
   // Results
   resultsCount: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     marginBottom: Spacing.sm,
   },
 
@@ -514,7 +515,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: "500",
   },
   clearButton: {
@@ -542,11 +543,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   pageButtonText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: "500",
   },
   pageInfo: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
 
   headerIconButton: {
@@ -617,7 +618,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: scaleFont(20),
     fontWeight: "700",
   },
 
@@ -626,7 +627,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   filterLabel: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -644,7 +645,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   filterChipText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: "500",
   },
 
@@ -661,7 +662,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
   },
   sortRowText: {
-    fontSize: 15,
+    fontSize: scaleFont(15),
   },
 
   // Modal actions
@@ -685,7 +686,7 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND_COLOR,
   },
   modalButtonText: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: "600",
   },
 });

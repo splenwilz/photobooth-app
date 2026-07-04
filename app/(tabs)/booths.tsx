@@ -47,6 +47,7 @@ import {
 	BRAND_COLOR,
 	Spacing,
 	StatusColors,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
@@ -524,7 +525,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.md,
 	},
 	loadingText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	content: {
 		flex: 1,
@@ -547,7 +548,7 @@ const styles = StyleSheet.create({
 	},
 	searchInput: {
 		flex: 1,
-		fontSize: 15,
+		fontSize: scaleFont(15),
 		paddingVertical: Spacing.xs,
 	},
 	filterContainer: {
@@ -571,7 +572,7 @@ const styles = StyleSheet.create({
 		borderRadius: 4,
 	},
 	filterButtonText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 	},
 	emptyState: {
@@ -580,7 +581,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.md,
 	},
 	emptyTitle: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "500",
 	},
 	emptyButton: {
@@ -594,7 +595,7 @@ const styles = StyleSheet.create({
 	},
 	emptyButtonText: {
 		color: "#FFFFFF",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 	fab: {
@@ -636,10 +637,10 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 	},
 	allBoothsTitle: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 	},
 	allBoothsSubtitle: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		marginTop: 2,
 	},
 	selectedBadge: {

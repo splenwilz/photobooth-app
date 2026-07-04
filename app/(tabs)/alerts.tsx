@@ -42,6 +42,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
@@ -556,7 +557,7 @@ const styles = StyleSheet.create({
 	},
 	unreadBadgeText: {
 		color: "#FFFFFF",
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "600",
 	},
 	summaryCard: {
@@ -574,12 +575,12 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 	},
 	summaryValue: {
-		fontSize: 28,
+		fontSize: scaleFont(28),
 		fontWeight: "bold",
 		paddingTop: Spacing.sm,
 	},
 	summaryLabel: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: 2,
 	},
 	summaryDivider: {
@@ -590,7 +591,7 @@ const styles = StyleSheet.create({
 		marginTop: Spacing.md,
 	},
 	filterLabel: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "500",
 		marginBottom: Spacing.xs,
 		textTransform: "uppercase",
@@ -614,7 +615,7 @@ const styles = StyleSheet.create({
 		borderRadius: 4,
 	},
 	filterButtonText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 	},
 	alertCard: {
@@ -640,17 +641,17 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	alertTitle: {
-		fontSize: 15,
+		fontSize: scaleFont(15),
 	},
 	alertBooth: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: 2,
 	},
 	alertMeta: {
 		alignItems: "flex-end",
 	},
 	alertTime: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 	},
 	unreadDot: {
 		width: 8,
@@ -659,7 +660,7 @@ const styles = StyleSheet.create({
 		marginTop: 4,
 	},
 	alertMessage: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		lineHeight: 18,
 		marginBottom: Spacing.sm,
 	},
@@ -672,7 +673,7 @@ const styles = StyleSheet.create({
 		borderRadius: BorderRadius.sm,
 	},
 	categoryText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "500",
 	},
 	emptyState: {
@@ -682,12 +683,12 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 	},
 	emptyTitle: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 		marginTop: Spacing.md,
 	},
 	emptySubtitle: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		textAlign: "center",
 		marginTop: Spacing.xs,
 	},

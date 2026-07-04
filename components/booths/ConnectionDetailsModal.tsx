@@ -32,6 +32,7 @@ import {
   Spacing,
   StatusColors,
   withAlpha,
+  scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -417,10 +418,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: scaleFont(18),
   },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     marginTop: 2,
   },
   closeButton: {
@@ -445,7 +446,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: Spacing.md,
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
   errorIconContainer: {
     width: 64,
@@ -456,11 +457,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   errorTitle: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     marginBottom: Spacing.xs,
   },
   errorMessage: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     textAlign: "center",
     marginBottom: Spacing.lg,
     paddingHorizontal: Spacing.xl,
@@ -475,7 +476,7 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: "white",
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: "600",
   },
   // Registration Code Section
@@ -498,7 +499,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   registrationCodeText: {
-    fontSize: 28,
+    fontSize: scaleFont(28),
     fontWeight: "bold",
     letterSpacing: 4,
     fontFamily: "monospace",
@@ -506,7 +507,7 @@ const styles = StyleSheet.create({
     marginTop:4
   },
   expirationHint: {
-    fontSize: 11,
+    fontSize: scaleFont(11),
     marginTop: Spacing.sm,
     textAlign: "center",
   },
@@ -518,7 +519,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   noCodeText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
   generateButton: {
     flexDirection: "row",
@@ -535,21 +536,21 @@ const styles = StyleSheet.create({
   },
   generateButtonText: {
     color: "white",
-    fontSize: 15,
+    fontSize: scaleFont(15),
     fontWeight: "600",
   },
   codeInfoHint: {
-    fontSize: 11,
+    fontSize: scaleFont(11),
     marginTop: Spacing.sm,
     textAlign: "center",
     fontStyle: "italic",
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: scaleFont(15),
     marginBottom: 4,
   },
   sectionDescription: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     lineHeight: 18,
     marginBottom: Spacing.md,
   },
@@ -575,7 +576,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   copyButtonText: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     fontWeight: "600",
   },
   apiKeyBox: {
@@ -584,7 +585,7 @@ const styles = StyleSheet.create({
   },
   apiKeyText: {
     fontFamily: "monospace",
-    fontSize: 12,
+    fontSize: scaleFont(12),
     letterSpacing: 0.5,
   },
   // Instructions Section
@@ -612,12 +613,12 @@ const styles = StyleSheet.create({
   },
   instructionNumberText: {
     color: "white",
-    fontSize: 13,
+    fontSize: scaleFont(13),
     fontWeight: "bold",
   },
   instructionText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: scaleFont(13),
     lineHeight: 18,
     paddingTop: 2,
   },
@@ -632,7 +633,7 @@ const styles = StyleSheet.create({
   },
   warningText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: scaleFont(13),
     lineHeight: 18,
   },
 });

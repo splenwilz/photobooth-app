@@ -13,6 +13,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import {
@@ -213,12 +214,12 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.md,
 	},
 	title: {
-		fontSize: 20,
+		fontSize: scaleFont(20),
 		textAlign: "center",
 		marginBottom: Spacing.xs,
 	},
 	subtitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "center",
 		lineHeight: 20,
 	},
@@ -245,7 +246,7 @@ const styles = StyleSheet.create({
 	},
 	conflictText: {
 		flex: 1,
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		lineHeight: 20,
 	},
 	warningNote: {
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.xs,
 	},
 	warningNoteText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 	},
 	actions: {
@@ -281,12 +282,12 @@ const styles = StyleSheet.create({
 	},
 	confirmButton: {},
 	buttonText: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 	confirmButtonText: {
 		color: "white",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 });

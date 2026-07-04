@@ -32,6 +32,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { useRequestEmergencyPassword } from "@/api/booths";
@@ -426,7 +427,7 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.xs,
 	},
 	headerSubtitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		alignSelf: "flex-start",
 	},
 	scrollContent: {
@@ -447,14 +448,14 @@ const styles = StyleSheet.create({
 	},
 	infoText: {
 		flex: 1,
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		lineHeight: 18,
 	},
 	fieldGroup: {
 		marginBottom: Spacing.lg,
 	},
 	fieldLabel: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		marginBottom: Spacing.sm,
 	},
 	textAreaContainer: {
@@ -464,12 +465,12 @@ const styles = StyleSheet.create({
 		minHeight: 90,
 	},
 	textArea: {
-		fontSize: 15,
+		fontSize: scaleFont(15),
 		lineHeight: 20,
 		minHeight: 60,
 	},
 	charCount: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		textAlign: "right",
 		marginTop: Spacing.xs,
 	},
@@ -486,7 +487,7 @@ const styles = StyleSheet.create({
 		justifyContent: "center",
 	},
 	validityChipText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 	warningCard: {
@@ -500,7 +501,7 @@ const styles = StyleSheet.create({
 	},
 	warningText: {
 		flex: 1,
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		lineHeight: 18,
 	},
 	buttonContainer: {
@@ -515,7 +516,7 @@ const styles = StyleSheet.create({
 	},
 	submitButtonText: {
 		color: "white",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 });

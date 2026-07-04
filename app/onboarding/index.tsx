@@ -30,7 +30,7 @@ import { ThemedText } from '@/components/themed-text';
 import { BrandHeader } from '@/components/brand-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { PrimaryButton } from '@/components/auth/primary-button';
-import { Spacing, BorderRadius, BRAND_COLOR, withAlpha } from '@/constants/theme';
+import { Spacing, BorderRadius, BRAND_COLOR, withAlpha, scaleFont } from '@/constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -247,10 +247,10 @@ const styles = StyleSheet.create({
     height: 22,
   },
   logoText: {
-    fontSize: 18,
+    fontSize: scaleFont(18),
   },
   skipText: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: '500',
   },
   slidesContainer: {
@@ -280,13 +280,13 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xl,
   },
   slideTitle: {
-    fontSize: 28,
+    fontSize: scaleFont(28),
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: Spacing.md,
   },
   slideDescription: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -314,10 +314,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signInText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
   signInLink: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: '600',
   },
 });

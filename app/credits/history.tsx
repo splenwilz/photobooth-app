@@ -35,6 +35,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
@@ -752,7 +753,7 @@ const styles = StyleSheet.create({
 	},
 	balanceLabel: {
 		color: "rgba(255,255,255,0.8)",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		marginBottom: Spacing.xs,
 	},
 	balanceRow: {
@@ -762,13 +763,13 @@ const styles = StyleSheet.create({
 	},
 	balanceValue: {
 		color: "white",
-		fontSize: 36,
+		fontSize: scaleFont(36),
 		fontWeight: "700",
 		lineHeight: 40,
 	},
 	balanceUnit: {
 		color: "rgba(255,255,255,0.8)",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 	},
 	// Clear all button
 	clearAllButton: {
@@ -783,7 +784,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.xs,
 	},
 	clearAllButtonText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "500",
 	},
 	// Active filters badge
@@ -799,11 +800,11 @@ const styles = StyleSheet.create({
 	},
 	activeFiltersText: {
 		flex: 1,
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 	},
 	swipeHint: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		textAlign: "center",
 		marginBottom: Spacing.sm,
 	},
@@ -817,7 +818,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.xs,
 	},
 	deletingText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 	},
 	// Transaction list
@@ -833,7 +834,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.sm,
 	},
 	emptyText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "center",
 	},
 	centerContent: {
@@ -851,7 +852,7 @@ const styles = StyleSheet.create({
 	selectBoothButtonText: {
 		color: "white",
 		fontWeight: "600",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	clearFiltersButton: {
 		marginTop: Spacing.md,
@@ -860,7 +861,7 @@ const styles = StyleSheet.create({
 		borderRadius: BorderRadius.md,
 	},
 	clearFiltersText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "500",
 	},
 	loadingContainer: {
@@ -869,7 +870,7 @@ const styles = StyleSheet.create({
 	},
 	totalText: {
 		textAlign: "center",
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: Spacing.md,
 	},
 	loadMoreButton: {
@@ -883,7 +884,7 @@ const styles = StyleSheet.create({
 		marginTop: Spacing.sm,
 	},
 	loadMoreText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 	// Floating Action Button
@@ -915,7 +916,7 @@ const styles = StyleSheet.create({
 	},
 	fabBadgeText: {
 		color: "white",
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "bold",
 	},
 });

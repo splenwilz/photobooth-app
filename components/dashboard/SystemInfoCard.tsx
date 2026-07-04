@@ -13,7 +13,7 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import type { BoothSystem } from "@/api/booths/types";
 import { ThemedText } from "@/components/themed-text";
-import { BorderRadius, Spacing } from "@/constants/theme";
+import { BorderRadius, Spacing, scaleFont } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
 interface SystemInfoCardProps {
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 	},
 	infoLabel: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		marginBottom: 2,
 	},
 });

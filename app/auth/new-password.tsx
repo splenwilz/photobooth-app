@@ -30,7 +30,7 @@ import { ThemedText } from '@/components/themed-text';
 import { FormInput } from '@/components/auth/form-input';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Spacing, BRAND_COLOR, StatusColors, withAlpha } from '@/constants/theme';
+import { Spacing, BRAND_COLOR, StatusColors, withAlpha, scaleFont } from '@/constants/theme';
 // API hook and schema for reset password
 import { useResetPassword } from '@/api/auth/reset-password/queries';
 import { passwordSchema } from '@/api/auth/reset-password/types';
@@ -269,13 +269,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   title: {
-    fontSize: 26,
+    fontSize: scaleFont(26),
     fontWeight: 'bold',
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: scaleFont(15),
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: Spacing.md,
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     textAlign: 'center',
   },
   buttonSection: {
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backLinkText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: '500',
   },
   fallbackContainer: {

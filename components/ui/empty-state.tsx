@@ -14,7 +14,7 @@ import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { BorderRadius, Spacing, withAlpha } from '@/constants/theme';
+import { BorderRadius, Spacing, withAlpha, scaleFont } from '@/constants/theme';
 
 interface EmptyStateProps {
   /** Emoji or icon to display */
@@ -92,16 +92,16 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   emoji: {
-    fontSize: 36,
+    fontSize: scaleFont(36),
   },
   title: {
-    fontSize: 18,
+    fontSize: scaleFont(18),
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   description: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: Spacing.lg,
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: '600',
   },
 });

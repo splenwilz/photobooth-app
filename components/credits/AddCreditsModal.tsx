@@ -30,6 +30,7 @@ import {
 	BorderRadius,
 	BRAND_COLOR,
 	Spacing,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { QUICK_CREDIT_AMOUNTS } from "@/constants/demo-data";
@@ -425,7 +426,7 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.xs,
 	},
 	headerSubtitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		alignSelf: "flex-start",
 	},
 	scrollContent: {
@@ -456,13 +457,13 @@ const styles = StyleSheet.create({
 		gap: Spacing.xs,
 	},
 	credits: {
-		fontSize: 22,
+		fontSize: scaleFont(22),
 	},
 	creditsLabel: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	dollarValue: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 	customInputWrapper: {
@@ -473,11 +474,11 @@ const styles = StyleSheet.create({
 	},
 	customInput: {
 		flex: 1,
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "500",
 	},
 	customDollar: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 	radioOuter: {
@@ -506,11 +507,11 @@ const styles = StyleSheet.create({
 	},
 	addButtonText: {
 		color: "white",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 	footerNote: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		textAlign: "center",
 		marginTop: Spacing.md,
 	},

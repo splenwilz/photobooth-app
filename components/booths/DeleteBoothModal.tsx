@@ -28,6 +28,7 @@ import {
   Spacing,
   StatusColors,
   withAlpha,
+  scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -275,12 +276,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   title: {
-    fontSize: 20,
+    fontSize: scaleFont(20),
     textAlign: "center",
     marginBottom: Spacing.sm,
   },
   message: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     textAlign: "center",
     lineHeight: 20,
     marginBottom: Spacing.md,
@@ -297,7 +298,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   deleteItemText: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     flex: 1,
   },
   confirmationSection: {
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   confirmationLabel: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     marginBottom: Spacing.xs,
   },
   confirmationInput: {
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    fontSize: 15,
+    fontSize: scaleFont(15),
   },
   errorContainer: {
     flexDirection: "row",
@@ -325,7 +326,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   errorText: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     flex: 1,
   },
   actions: {
@@ -342,7 +343,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cancelButtonText: {
-    fontSize: 15,
+    fontSize: scaleFont(15),
     fontWeight: "600",
   },
   deleteButton: {
@@ -356,7 +357,7 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: "white",
-    fontSize: 15,
+    fontSize: scaleFont(15),
     fontWeight: "600",
   },
 });

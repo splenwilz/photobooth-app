@@ -35,6 +35,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -444,11 +445,11 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	title: {
-		fontSize: 24,
+		fontSize: scaleFont(24),
 		fontWeight: "bold",
 	},
 	subtitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		marginTop: 2,
 	},
 	scrollView: {
@@ -466,14 +467,14 @@ const styles = StyleSheet.create({
 	},
 	errorText: {
 		color: StatusColors.error,
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "center",
 	},
 	section: {
 		marginBottom: Spacing.lg,
 	},
 	label: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "500",
 		marginBottom: Spacing.xs,
 	},
@@ -487,11 +488,11 @@ const styles = StyleSheet.create({
 		minHeight: 140,
 	},
 	textAreaInput: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		lineHeight: 22,
 	},
 	errorMessage: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: Spacing.xs,
 	},
 	priorityGrid: {
@@ -514,10 +515,10 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	priorityLabel: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	priorityDescription: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: 2,
 	},
 	boothGrid: {
@@ -533,7 +534,7 @@ const styles = StyleSheet.create({
 	},
 	boothName: {
 		flex: 1,
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	buttonSection: {
 		marginTop: Spacing.lg,
@@ -549,7 +550,7 @@ const styles = StyleSheet.create({
 	},
 	infoText: {
 		flex: 1,
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		lineHeight: 18,
 	},
 });

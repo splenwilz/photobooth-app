@@ -38,6 +38,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import {
@@ -379,8 +380,8 @@ const styles = StyleSheet.create({
 		marginRight: Spacing.sm,
 	},
 	headerCenter: { flex: 1 },
-	headerTitle: { fontSize: 20 },
-	headerSubtitle: { fontSize: 13, marginTop: 2 },
+	headerTitle: { fontSize: scaleFont(20) },
+	headerSubtitle: { fontSize: scaleFont(13), marginTop: 2 },
 	headerSpacer: { width: 40 },
 	centered: {
 		flex: 1,
@@ -388,7 +389,7 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		gap: Spacing.md,
 	},
-	loadingText: { fontSize: 14 },
+	loadingText: { fontSize: scaleFont(14) },
 	listContent: {
 		paddingHorizontal: Spacing.lg,
 		paddingBottom: Spacing.xxl,
@@ -423,14 +424,14 @@ const styles = StyleSheet.create({
 		marginBottom: 2,
 	},
 	tagText: {
-		fontSize: 10,
+		fontSize: scaleFont(10),
 		fontWeight: "600",
 		textTransform: "uppercase",
 		letterSpacing: 0.4,
 	},
-	codeText: { fontSize: 14 },
-	relativeTime: { fontSize: 12 },
-	amountText: { fontSize: 13 },
+	codeText: { fontSize: scaleFont(14) },
+	relativeTime: { fontSize: scaleFont(12) },
+	amountText: { fontSize: scaleFont(13) },
 	refundedBadge: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -440,7 +441,7 @@ const styles = StyleSheet.create({
 		gap: 4,
 	},
 	refundedText: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "600",
 	},
 	emptyContainer: {
@@ -451,9 +452,9 @@ const styles = StyleSheet.create({
 		paddingVertical: Spacing.xxl * 2,
 		gap: Spacing.md,
 	},
-	emptyTitle: { fontSize: 18, textAlign: "center" },
+	emptyTitle: { fontSize: scaleFont(18), textAlign: "center" },
 	emptyBody: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "center",
 		lineHeight: 20,
 	},

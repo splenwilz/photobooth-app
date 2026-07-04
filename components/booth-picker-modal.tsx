@@ -29,6 +29,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
@@ -288,7 +289,7 @@ const styles = StyleSheet.create({
 	},
 	searchInput: {
 		flex: 1,
-		fontSize: 15,
+		fontSize: scaleFont(15),
 		paddingVertical: Spacing.xs,
 	},
 	listContent: {
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.xs,
 	},
 	boothSubtext: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		marginTop: 2,
 	},
 	statusDot: {
