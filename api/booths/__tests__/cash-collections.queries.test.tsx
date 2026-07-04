@@ -205,6 +205,21 @@ describe("useBoothCashCollectionsInfinite", () => {
 		});
 	});
 
+	it("reports the error state when the service rejects (404/network)", async () => {
+		mockGetBoothCashCollections.mockRejectedValue(
+			new Error("Booth not found"),
+		);
+
+		const { result } = renderHook(
+			() => useBoothCashCollectionsInfinite("booth-123"),
+			{ wrapper: createWrapper(createQueryClient()) },
+		);
+
+		await waitFor(() => expect(result.current.isError).toBe(true));
+		expect(result.current.error?.message).toBe("Booth not found");
+		expect(result.current.data).toBeUndefined();
+	});
+
 	it("stays disabled when boothId is null", async () => {
 		const { result } = renderHook(
 			() => useBoothCashCollectionsInfinite(null),

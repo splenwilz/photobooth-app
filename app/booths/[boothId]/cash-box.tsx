@@ -65,6 +65,7 @@ export default function CashBoxScreen() {
 		fetchNextPage,
 		hasNextPage,
 		isFetchingNextPage,
+		isFetchNextPageError,
 	} = useBoothCashCollectionsInfinite(boothId ?? null);
 
 	// Dedupe by id: offset pagination can re-serve the page-boundary row when
@@ -229,6 +230,30 @@ export default function CashBoxScreen() {
 								>
 									Loading more…
 								</ThemedText>
+							</View>
+						) : isFetchNextPageError ? (
+							// A failed next-page fetch would otherwise be silent: rows
+							// exist so ListEmptyComponent never shows, and the full-screen
+							// error is reserved for having nothing to show at all.
+							<View style={styles.footer}>
+								<ThemedText
+									style={[styles.footerText, { color: textSecondary }]}
+								>
+									Couldn&apos;t load more collections.
+								</ThemedText>
+								<TouchableOpacity
+									onPress={() => fetchNextPage()}
+									accessibilityRole="button"
+									accessibilityLabel="Try loading more collections again"
+									hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+								>
+									<ThemedText
+										type="defaultSemiBold"
+										style={[styles.footerText, { color: tint }]}
+									>
+										Try again
+									</ThemedText>
+								</TouchableOpacity>
 							</View>
 						) : null
 					}
