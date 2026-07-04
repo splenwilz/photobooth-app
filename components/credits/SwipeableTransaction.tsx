@@ -11,6 +11,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import type { CreditTransaction, CreditTransactionType } from "@/api/credits/types";
@@ -183,22 +184,22 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.xs,
 	},
 	transactionNote: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		flex: 1,
 	},
 	transactionTime: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		marginLeft: Spacing.sm,
 	},
 	balanceAfter: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "500",
 	},
 	transactionMeta: {
 		marginTop: Spacing.xs,
 	},
 	sourceText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		textTransform: "capitalize",
 	},
 	// Delete action
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
 	},
 	deleteText: {
 		color: "white",
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "600",
 	},
 });

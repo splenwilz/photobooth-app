@@ -19,7 +19,7 @@ import { PrimaryButton } from '@/components/auth/primary-button';
 import { SocialButton } from '@/components/auth/social-button';
 import { BrandHeader } from '@/components/brand-header';
 import { ThemedText } from '@/components/themed-text';
-import { BRAND_COLOR, Spacing } from '@/constants/theme';
+import { BRAND_COLOR, Spacing, scaleFont } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -344,20 +344,20 @@ const styles = StyleSheet.create({
     height: 48,
   },
   brandName: {
-    fontSize: 24,
+    fontSize: scaleFont(24),
     fontWeight: 'bold',
   },
   header: {
     marginBottom: Spacing.xl,
   },
   title: {
-    fontSize: 28,
+    fontSize: scaleFont(28),
     fontWeight: 'bold',
     marginBottom: Spacing.xs,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     textAlign: 'center',
   },
   errorBanner: {
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#FF5252',
-    fontSize: 14,
+    fontSize: scaleFont(14),
     textAlign: 'center',
   },
   form: {
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   forgotPasswordText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: '500',
   },
   buttonSection: {
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     marginHorizontal: Spacing.md,
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
   socialButtons: {
     marginBottom: Spacing.lg,
@@ -407,10 +407,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
   footerLink: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: '600',
   },
 });

@@ -16,6 +16,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import {
@@ -352,11 +353,11 @@ const styles = StyleSheet.create({
 	},
 	statusBadgeText: {
 		color: "white",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 	planName: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	detailsCard: {
 		padding: Spacing.md,
@@ -372,11 +373,11 @@ const styles = StyleSheet.create({
 		gap: Spacing.md,
 	},
 	detailLabel: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		flexShrink: 0,
 	},
 	detailValue: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "right",
 		flex: 1,
 	},
@@ -385,7 +386,7 @@ const styles = StyleSheet.create({
 		marginVertical: Spacing.xs,
 	},
 	subscriptionId: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		maxWidth: 150,
 		textAlign: "right",
 	},
@@ -399,7 +400,7 @@ const styles = StyleSheet.create({
 	},
 	warningText: {
 		flex: 1,
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		lineHeight: 20,
 	},
 });

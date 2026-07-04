@@ -14,6 +14,7 @@ import {
 	BRAND_COLOR,
 	Spacing,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import React, { useEffect, useState } from "react";
@@ -574,7 +575,7 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.md,
 	},
 	avatarText: {
-		fontSize: 36,
+		fontSize: scaleFont(36),
 		fontWeight: "bold",
 	},
 	changePhotoButton: {
@@ -586,14 +587,14 @@ const styles = StyleSheet.create({
 		gap: Spacing.xs,
 	},
 	changePhotoText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 	fieldContainer: {
 		marginBottom: Spacing.md,
 	},
 	fieldLabel: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 		marginBottom: Spacing.xs,
 	},
@@ -610,7 +611,7 @@ const styles = StyleSheet.create({
 	},
 	input: {
 		flex: 1,
-		fontSize: 16,
+		fontSize: scaleFont(16),
 	},
 	sectionDivider: {
 		flexDirection: "row",
@@ -623,11 +624,11 @@ const styles = StyleSheet.create({
 		height: 1,
 	},
 	dividerText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 	},
 	passwordHint: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		marginBottom: Spacing.md,
 		textAlign: "center",
 	},
@@ -643,7 +644,7 @@ const styles = StyleSheet.create({
 	},
 	saveButtonText: {
 		color: "white",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 });

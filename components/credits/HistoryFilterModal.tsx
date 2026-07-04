@@ -14,6 +14,7 @@ import {
 	BorderRadius,
 	BRAND_COLOR,
 	Spacing,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { useEffect, useState } from "react";
@@ -335,7 +336,7 @@ const styles = StyleSheet.create({
 		borderBottomWidth: 1,
 	},
 	title: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 	},
 	content: {
 		padding: Spacing.lg,
@@ -358,7 +359,7 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 	},
 	optionText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "500",
 	},
 	footer: {
@@ -375,7 +376,7 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 	},
 	clearButtonText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 	applyButton: {
@@ -386,7 +387,7 @@ const styles = StyleSheet.create({
 	},
 	applyButtonText: {
 		color: "white",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 });

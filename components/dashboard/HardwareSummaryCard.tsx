@@ -14,7 +14,7 @@ import { StyleSheet, View } from "react-native";
 import type { DashboardHardwareSummary } from "@/api/booths/types";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol, type IconSymbolName } from "@/components/ui/icon-symbol";
-import { BorderRadius, BRAND_COLOR, Spacing, StatusColors } from "@/constants/theme";
+import { BorderRadius, BRAND_COLOR, Spacing, StatusColors, scaleFont } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
 interface HardwareSummaryCardProps {
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
 		borderRadius: 4,
 	},
 	summaryLabel: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 	},
 });
 

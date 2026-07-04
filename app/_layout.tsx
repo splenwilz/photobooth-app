@@ -19,6 +19,7 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as ExpoSplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -95,8 +96,29 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const hydrateBooth = useBoothStore((state) => state.hydrate);
-  const [appReady, setAppReady] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
   const [splashDone, setSplashDone] = useState(false);
+
+  // Embed the Geist family (assets/fonts). Each weight is its own family;
+  // ThemedText maps fontWeight -> family via fontFamilyForWeight().
+  const [fontsLoaded, fontError] = useFonts({
+    "Geist-Regular": require("@/assets/fonts/Geist-Regular.ttf"),
+    "Geist-Medium": require("@/assets/fonts/Geist-Medium.ttf"),
+    "Geist-SemiBold": require("@/assets/fonts/Geist-SemiBold.ttf"),
+  });
+
+  // Log a font failure but don't block startup on it — otherwise the splash
+  // would hang forever. On failure we fall back to the system font.
+  useEffect(() => {
+    if (fontError) {
+      console.error("[RootLayout] font load failed:", fontError);
+    }
+  }, [fontError]);
+
+  // App is ready once stores are hydrated AND fonts have resolved (loaded OR
+  // failed), so text never flashes before Geist swaps in — but a font error
+  // can never strand the splash.
+  const appReady = dataReady && (fontsLoaded || !!fontError);
 
   // Hydrate stores from SecureStore on app start
   useEffect(() => {
@@ -108,7 +130,7 @@ export default function RootLayout() {
         // empty store state and surface the error for diagnostics.
         console.error("[RootLayout] booth hydration failed:", error);
       } finally {
-        setAppReady(true);
+        setDataReady(true);
       }
     }
     prepare();

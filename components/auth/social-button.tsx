@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { Spacing, BorderRadius } from '@/constants/theme';
+import { Spacing, BorderRadius, scaleFont } from '@/constants/theme';
 
 type SocialProvider = 'google' | 'apple';
 
@@ -138,14 +138,14 @@ const styles = StyleSheet.create({
   },
   googleIconText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: 'bold',
   },
   appleIcon: {
-    fontSize: 20,
+    fontSize: scaleFont(20),
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: '600',
   },
 });

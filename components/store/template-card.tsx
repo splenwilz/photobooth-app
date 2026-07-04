@@ -15,7 +15,7 @@ import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { BorderRadius, Spacing, StatusColors } from "@/constants/theme";
+import { BorderRadius, Spacing, StatusColors, scaleFont } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import type { TemplateListItem } from "@/api/templates/types";
 
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: "#FFFFFF",
-    fontSize: 10,
+    fontSize: scaleFont(10),
     fontWeight: "700",
   },
   info: {
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   name: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: "600",
   },
   ratingRow: {
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   ratingText: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
   },
   priceContainer: {
     flexDirection: "row",
@@ -176,11 +176,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   price: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: "700",
   },
   originalPrice: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     textDecorationLine: "line-through",
   },
 });

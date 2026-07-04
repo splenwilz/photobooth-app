@@ -9,11 +9,11 @@
  * @see https://reactnative.dev/docs/text - React Native Text docs
  */
 
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
+import { Spacing, scaleFont } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { Spacing } from '@/constants/theme';
+import React from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 interface SectionHeaderProps {
   /** Section title */
@@ -86,15 +86,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 18,
+    fontSize: scaleFont(18),
     fontWeight: '600',
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     marginTop: 2,
   },
   viewAllText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: '500',
   },
 });

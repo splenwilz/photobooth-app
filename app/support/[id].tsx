@@ -40,6 +40,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -672,7 +673,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	title: {
-		fontSize: 20,
+		fontSize: scaleFont(20),
 		fontWeight: "bold",
 	},
 	keyboardView: {
@@ -702,7 +703,7 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.xs,
 	},
 	ticketNumber: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 	},
 	statusBadge: {
@@ -714,11 +715,11 @@ const styles = StyleSheet.create({
 		gap: 4,
 	},
 	statusText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "600",
 	},
 	ticketSubject: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		fontWeight: "600",
 		marginBottom: Spacing.sm,
 	},
@@ -741,7 +742,7 @@ const styles = StyleSheet.create({
 		borderRadius: 3,
 	},
 	priorityText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "500",
 	},
 	boothBadge: {
@@ -753,14 +754,14 @@ const styles = StyleSheet.create({
 		gap: 4,
 	},
 	boothName: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 	},
 	divider: {
 		height: 1,
 		marginVertical: Spacing.md,
 	},
 	conversationLabel: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "600",
 		textTransform: "uppercase",
 		letterSpacing: 0.5,
@@ -792,13 +793,13 @@ const styles = StyleSheet.create({
 	},
 	senderName: {
 		flex: 1,
-		fontSize: 13,
+		fontSize: scaleFont(13),
 	},
 	messageTime: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 	},
 	messageText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		lineHeight: 20,
 	},
 	attachments: {
@@ -815,7 +816,7 @@ const styles = StyleSheet.create({
 	},
 	attachmentName: {
 		flex: 1,
-		fontSize: 12,
+		fontSize: scaleFont(12),
 	},
 	replyContainer: {
 		padding: Spacing.md,
@@ -856,7 +857,7 @@ const styles = StyleSheet.create({
 	replyInput: {
 		flex: 1,
 		maxHeight: 100,
-		fontSize: 15,
+		fontSize: scaleFont(15),
 		lineHeight: 20,
 		paddingVertical: Spacing.sm,
 	},
@@ -875,6 +876,6 @@ const styles = StyleSheet.create({
 		gap: Spacing.xs,
 	},
 	closedText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 	},
 });

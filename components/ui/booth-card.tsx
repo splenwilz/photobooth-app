@@ -17,6 +17,7 @@ import {
   Spacing,
   StatusColors,
   withAlpha,
+  scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import type { Booth, BoothStatus } from "@/types/photobooth";
@@ -355,7 +356,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.xs,
 	},
 	name: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		marginBottom: 4,
 		flexShrink: 1,
 	},
@@ -369,7 +370,7 @@ const styles = StyleSheet.create({
 		gap: 4,
 	},
 	location: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		flex: 1,
 	},
 	badgesContainer: {
@@ -399,7 +400,7 @@ const styles = StyleSheet.create({
 		marginRight: 6,
 	},
 	statusText: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "600",
 	},
 	statsRow: {
@@ -412,11 +413,11 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 	},
 	statLabel: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		marginBottom: 2,
 	},
 	statValue: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	divider: {
 		width: 1,
@@ -446,7 +447,7 @@ const styles = StyleSheet.create({
 		gap: 4,
 	},
 	subscriptionText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "500",
 	},
 	errorDetailsRow: {
@@ -460,7 +461,7 @@ const styles = StyleSheet.create({
 	},
 	errorDetailsText: {
 		flex: 1,
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "500",
 	},
 });

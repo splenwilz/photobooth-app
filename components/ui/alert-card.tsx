@@ -14,7 +14,7 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { StatusColors, BorderRadius, Spacing, withAlpha } from '@/constants/theme';
+import { StatusColors, BorderRadius, Spacing, withAlpha, scaleFont } from '@/constants/theme';
 import type { Alert, AlertType, AlertCategory } from '@/types/photobooth';
 
 interface AlertCardProps {
@@ -176,20 +176,20 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     flex: 1,
     marginRight: Spacing.sm,
   },
   time: {
-    fontSize: 11,
+    fontSize: scaleFont(11),
   },
   message: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     lineHeight: 18,
     marginBottom: 6,
   },
   booth: {
-    fontSize: 11,
+    fontSize: scaleFont(11),
     fontWeight: '500',
   },
 });

@@ -15,6 +15,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import type { TicketListItem, TicketPriority, TicketStatus } from "@/api/tickets/types";
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
 		marginRight: Spacing.sm,
 	},
 	ticketNumber: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "500",
 	},
 	boothBadge: {
@@ -228,7 +229,7 @@ const styles = StyleSheet.create({
 		gap: 4,
 	},
 	boothName: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		maxWidth: 120,
 	},
 	statusBadge: {
@@ -240,11 +241,11 @@ const styles = StyleSheet.create({
 		gap: 4,
 	},
 	statusText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "600",
 	},
 	subject: {
-		fontSize: 15,
+		fontSize: scaleFont(15),
 		lineHeight: 20,
 		marginBottom: Spacing.sm,
 	},
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
 		borderRadius: 3,
 	},
 	priorityText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "500",
 	},
 	meta: {
@@ -281,6 +282,6 @@ const styles = StyleSheet.create({
 		gap: 4,
 	},
 	metaText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 	},
 });

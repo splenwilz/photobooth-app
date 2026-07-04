@@ -34,6 +34,7 @@ import {
   Spacing,
   StatusColors,
   withAlpha,
+  scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { useBoothStore } from "@/stores/booth-store";
@@ -471,11 +472,11 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	title: {
-		fontSize: 24,
+		fontSize: scaleFont(24),
 		fontWeight: "bold",
 	},
 	subtitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		marginTop: 2,
 	},
 	scrollView: {
@@ -499,13 +500,13 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.lg,
 	},
 	successTitle: {
-		fontSize: 28,
+		fontSize: scaleFont(28),
 		fontWeight: "bold",
 		textAlign: "center",
 		marginBottom: Spacing.xs,
 	},
 	successSubtitle: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		textAlign: "center",
 		marginBottom: Spacing.xl,
 	},
@@ -517,19 +518,19 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.xl,
 	},
 	credentialsTitle: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		fontWeight: "600",
 		marginBottom: Spacing.xs,
 	},
 	credentialsSubtitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		marginBottom: Spacing.lg,
 	},
 	credentialRow: {
 		marginBottom: Spacing.md,
 	},
 	credentialLabel: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 		marginBottom: Spacing.xs,
 	},
@@ -543,7 +544,7 @@ const styles = StyleSheet.create({
 	},
 	credentialText: {
 		flex: 1,
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
 		marginRight: Spacing.sm,
 	},
@@ -565,7 +566,7 @@ const styles = StyleSheet.create({
 		width: "100%",
 	},
 	registrationCodeText: {
-		fontSize: 28,
+		fontSize: scaleFont(28),
 		fontWeight: "bold",
 		letterSpacing: 6,
 		fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
@@ -573,7 +574,7 @@ const styles = StyleSheet.create({
     marginTop:4
 	},
 	registrationCodeHint: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: Spacing.xs,
 		textAlign: "center",
 	},
@@ -591,7 +592,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.xs,
 	},
 	secondaryButtonText: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 	errorBanner: {
@@ -602,7 +603,7 @@ const styles = StyleSheet.create({
 	},
 	errorText: {
 		color: "#FF5252",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "center",
 	},
 	form: {
@@ -622,7 +623,7 @@ const styles = StyleSheet.create({
 	},
 	infoText: {
 		flex: 1,
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		lineHeight: 18,
 	},
 	// Next Steps card
@@ -641,10 +642,10 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.xs,
 	},
 	nextStepsTitle: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 	},
 	nextStepsLine: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		lineHeight: 20,
 	},
 });

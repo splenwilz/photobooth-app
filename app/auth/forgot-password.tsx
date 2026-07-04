@@ -29,7 +29,7 @@ import { ThemedText } from '@/components/themed-text';
 import { FormInput } from '@/components/auth/form-input';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Spacing, BRAND_COLOR, withAlpha } from '@/constants/theme';
+import { Spacing, BRAND_COLOR, withAlpha, scaleFont } from '@/constants/theme';
 // API hook for forgot password
 import { useForgotPassword } from '@/api/auth/forgot-password/queries';
 import { savePendingResetEmail } from '@/api/client';
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   backText: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
   },
   header: {
     alignItems: 'center',
@@ -190,13 +190,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   title: {
-    fontSize: 26,
+    fontSize: scaleFont(26),
     fontWeight: 'bold',
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: scaleFont(15),
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: Spacing.md,

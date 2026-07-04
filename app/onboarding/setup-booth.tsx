@@ -27,7 +27,7 @@ import { ThemedText } from '@/components/themed-text';
 import { FormInput } from '@/components/auth/form-input';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Spacing, BorderRadius, BRAND_COLOR, StatusColors, withAlpha } from '@/constants/theme';
+import { Spacing, BorderRadius, BRAND_COLOR, StatusColors, withAlpha, scaleFont } from '@/constants/theme';
 
 interface FormData {
   boothName: string;
@@ -422,13 +422,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   title: {
-    fontSize: 26,
+    fontSize: scaleFont(26),
     fontWeight: 'bold',
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: scaleFont(15),
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: Spacing.md,
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   },
   infoBoxText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: scaleFont(13),
     lineHeight: 18,
   },
   buttonSection: {
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   skipText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
 
   // Success/Credentials View Styles
@@ -476,12 +476,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   successTitle: {
-    fontSize: 26,
+    fontSize: scaleFont(26),
     fontWeight: 'bold',
     marginBottom: Spacing.xs,
   },
   successSubtitle: {
-    fontSize: 15,
+    fontSize: scaleFont(15),
     textAlign: 'center',
     paddingHorizontal: Spacing.md,
   },
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
   },
   infoLabel: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
   },
   divider: {
     height: 1,
@@ -508,11 +508,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: scaleFont(18),
     marginBottom: Spacing.xs,
   },
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
   optionCard: {
     borderRadius: BorderRadius.lg,
@@ -534,14 +534,14 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   optionNumberText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: 'bold',
   },
   optionTitle: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
   },
   optionDescription: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     lineHeight: 18,
     marginBottom: Spacing.md,
   },
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   credentialLabel: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     marginBottom: Spacing.xs,
   },
   credentialBox: {
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
   },
   credentialValue: {
     flex: 1,
-    fontSize: 13,
+    fontSize: scaleFont(13),
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   copyButton: {
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   qrHint: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     color: '#666',
   },
   buttonContainer: {
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   addAnotherText: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
     fontWeight: '600',
   },
 });

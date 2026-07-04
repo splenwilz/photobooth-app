@@ -21,7 +21,7 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { BorderRadius, BRAND_COLOR, Spacing, withAlpha } from "@/constants/theme";
+import { BorderRadius, BRAND_COLOR, Spacing, withAlpha, scaleFont } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { formatCurrency } from "@/utils";
 
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
 		borderRadius: 5,
 	},
 	label: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	barTrack: {
 		height: 8,
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
 		borderRadius: 4,
 	},
 	percent: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		textAlign: "right",
 	},
 });

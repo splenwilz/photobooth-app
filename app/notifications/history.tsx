@@ -33,6 +33,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -299,7 +300,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.md,
 	},
 	errorText: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		marginTop: Spacing.sm,
 	},
 	retryButton: {
@@ -310,11 +311,11 @@ const styles = StyleSheet.create({
 	},
 	retryButtonText: {
 		color: "white",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 	totalCount: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		marginTop: Spacing.lg,
 		marginBottom: Spacing.sm,
 	},
@@ -337,7 +338,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	historySubject: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		lineHeight: 20,
 	},
 	historyMeta: {
@@ -352,14 +353,14 @@ const styles = StyleSheet.create({
 		borderRadius: BorderRadius.sm,
 	},
 	statusText: {
-		fontSize: 11,
+		fontSize: scaleFont(11),
 		fontWeight: "600",
 	},
 	historyTimestamp: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 	},
 	historyRecipient: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: Spacing.xs,
 	},
 	emptyState: {
@@ -369,12 +370,12 @@ const styles = StyleSheet.create({
 		gap: Spacing.sm,
 	},
 	emptyText: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 		marginTop: Spacing.sm,
 	},
 	emptySubtext: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	loadMoreButton: {
 		alignItems: "center",
@@ -384,7 +385,7 @@ const styles = StyleSheet.create({
 		marginTop: Spacing.sm,
 	},
 	loadMoreText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 });

@@ -14,6 +14,7 @@ import {
   BRAND_COLOR,
   Spacing,
   StatusColors,
+  scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import type React from "react";
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.md,
 	},
 	label: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "500",
 		marginBottom: Spacing.xs,
 	},
@@ -178,11 +179,11 @@ const styles = StyleSheet.create({
 	},
 	input: {
 		flex: 1,
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		paddingVertical: Spacing.sm,
 	},
 	error: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: Spacing.xs,
 	},
 });

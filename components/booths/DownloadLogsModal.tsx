@@ -29,6 +29,7 @@ import {
 	BRAND_COLOR,
 	Spacing,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { useDownloadBoothLogs } from "@/api/booths";
@@ -404,7 +405,7 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.xs,
 	},
 	headerSubtitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		alignSelf: "flex-start",
 	},
 	scrollContent: {
@@ -425,14 +426,14 @@ const styles = StyleSheet.create({
 	},
 	infoText: {
 		flex: 1,
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		lineHeight: 18,
 	},
 	fieldGroup: {
 		marginBottom: Spacing.lg,
 	},
 	fieldLabel: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		marginBottom: Spacing.sm,
 	},
 	chipGrid: {
@@ -459,7 +460,7 @@ const styles = StyleSheet.create({
 		justifyContent: "center",
 	},
 	chipText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 		textAlign: "center",
 	},
@@ -475,7 +476,7 @@ const styles = StyleSheet.create({
 	},
 	submitButtonText: {
 		color: "white",
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		fontWeight: "600",
 	},
 	processingContainer: {
@@ -485,7 +486,7 @@ const styles = StyleSheet.create({
 	},
 	processingText: {
 		color: "white",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "500",
 	},
 });

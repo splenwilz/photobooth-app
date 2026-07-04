@@ -29,6 +29,7 @@ import {
 	BRAND_COLOR,
 	Spacing,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -234,11 +235,11 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	title: {
-		fontSize: 24,
+		fontSize: scaleFont(24),
 		fontWeight: "bold",
 	},
 	subtitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		marginTop: 2,
 	},
 	createButton: {
@@ -262,7 +263,7 @@ const styles = StyleSheet.create({
 		marginRight: Spacing.xs,
 	},
 	filterChipText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "600",
 	},
 	listContent: {
@@ -291,13 +292,13 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.lg,
 	},
 	emptyTitle: {
-		fontSize: 20,
+		fontSize: scaleFont(20),
 		fontWeight: "600",
 		textAlign: "center",
 		marginBottom: Spacing.xs,
 	},
 	emptySubtitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "center",
 		marginBottom: Spacing.lg,
 	},
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
 	},
 	emptyButtonText: {
 		color: "white",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 });

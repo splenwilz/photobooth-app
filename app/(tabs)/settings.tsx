@@ -75,6 +75,7 @@ import {
   Spacing,
   StatusColors,
   withAlpha,
+  scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 // Global booth selection
@@ -1189,10 +1190,10 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	settingsTitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	settingsSubtitle: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: 2,
 	},
 	settingsRight: {
@@ -1201,7 +1202,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.xs,
 	},
 	settingsValue: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 	},
 	creditsCard: {
 		padding: Spacing.lg,
@@ -1213,18 +1214,18 @@ const styles = StyleSheet.create({
 		marginBottom: Spacing.lg,
 	},
 	creditsLabel: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		textTransform: "uppercase",
 		letterSpacing: 0.5,
 		marginBottom: Spacing.xs,
 	},
 	creditsValue: {
-		fontSize: 48,
+		fontSize: scaleFont(48),
 		fontWeight: "bold",
 		lineHeight: 56,
 	},
 	creditsUnit: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	creditsActions: {
 		flexDirection: "row",
@@ -1241,7 +1242,7 @@ const styles = StyleSheet.create({
 	},
 	creditButtonText: {
 		color: "white",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 	// All Booths Mode Notice
@@ -1258,7 +1259,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	allBoothsNoticeText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		marginTop: 4,
 		lineHeight: 18,
 	},
@@ -1282,17 +1283,17 @@ const styles = StyleSheet.create({
 		marginRight: Spacing.md,
 	},
 	profileAvatarText: {
-		fontSize: 24,
+		fontSize: scaleFont(24),
 		fontWeight: "bold",
 	},
 	profileInfo: {
 		flex: 1,
 	},
 	profileName: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		marginBottom: 2,
 	},
 	profileEmail: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 });

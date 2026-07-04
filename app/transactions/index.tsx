@@ -28,6 +28,7 @@ import {
 	BRAND_COLOR,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 
 // API hook for infinite scroll
@@ -410,10 +411,10 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	headerTitle: {
-		fontSize: 20,
+		fontSize: scaleFont(20),
 	},
 	headerSubtitle: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		marginTop: 2,
 	},
 	headerSpacer: {
@@ -426,7 +427,7 @@ const styles = StyleSheet.create({
 	},
 	loadingText: {
 		marginTop: Spacing.md,
-		fontSize: 16,
+		fontSize: scaleFont(16),
 	},
 	errorContainer: {
 		flex: 1,
@@ -435,13 +436,13 @@ const styles = StyleSheet.create({
 		paddingHorizontal: Spacing.xl,
 	},
 	errorTitle: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		fontWeight: "600",
 		marginTop: Spacing.md,
 		textAlign: "center",
 	},
 	errorMessage: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		marginTop: Spacing.sm,
 		textAlign: "center",
 	},
@@ -474,7 +475,7 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 	},
 	transactionProduct: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 	},
 	transactionSubtitleRow: {
 		flexDirection: "row",
@@ -483,10 +484,10 @@ const styles = StyleSheet.create({
 		marginTop: 4,
 	},
 	transactionDetails: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 	},
 	transactionTime: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 	},
 	transactionBody: {
 		paddingVertical: Spacing.sm,
@@ -503,10 +504,10 @@ const styles = StyleSheet.create({
 		paddingVertical: 4,
 	},
 	detailLabel: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 	},
 	detailValue: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 	},
 	transactionMeta: {
 		flexDirection: "row",
@@ -518,7 +519,7 @@ const styles = StyleSheet.create({
 		borderRadius: BorderRadius.sm,
 	},
 	statusText: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "500",
 	},
 	footerLoader: {
@@ -529,7 +530,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.sm,
 	},
 	footerText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	emptyContainer: {
 		flex: 1,
@@ -539,12 +540,12 @@ const styles = StyleSheet.create({
 		paddingHorizontal: Spacing.xl,
 	},
 	emptyTitle: {
-		fontSize: 18,
+		fontSize: scaleFont(18),
 		fontWeight: "600",
 		marginTop: Spacing.lg,
 	},
 	emptySubtitle: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		textAlign: "center",
 		marginTop: Spacing.sm,
 	},

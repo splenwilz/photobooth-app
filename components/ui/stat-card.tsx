@@ -13,7 +13,7 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { StatusColors, BorderRadius, Spacing, BRAND_COLOR, withAlpha } from '@/constants/theme';
+import { StatusColors, BorderRadius, Spacing, BRAND_COLOR, withAlpha, scaleFont } from '@/constants/theme';
 
 interface StatCardProps {
   /** Label for the metric */
@@ -122,14 +122,14 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
   },
   label: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     fontWeight: '500',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: Spacing.xs,
   },
   value: {
-    fontSize: 24,
+    fontSize: scaleFont(24),
     fontWeight: 'bold',
     lineHeight: 28,
     marginBottom: Spacing.xs,
@@ -146,10 +146,10 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   changeText: {
-    fontSize: 11,
+    fontSize: scaleFont(11),
     fontWeight: '600',
   },
   subValue: {
-    fontSize: 11,
+    fontSize: scaleFont(11),
   },
 });

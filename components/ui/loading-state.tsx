@@ -12,7 +12,7 @@ import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { Spacing } from '@/constants/theme';
+import { Spacing, scaleFont } from '@/constants/theme';
 
 interface LoadingStateProps {
   /** Loading message */
@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
   },
   message: {
     marginTop: Spacing.md,
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
 });
 

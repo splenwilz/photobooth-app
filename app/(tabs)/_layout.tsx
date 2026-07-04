@@ -20,7 +20,7 @@ import { Tabs } from 'expo-router';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
+import { Colors, GeistFonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
@@ -36,6 +36,10 @@ export default function TabLayout() {
           backgroundColor: Colors[colorScheme ?? 'light'].background,
           borderTopColor: Colors[colorScheme ?? 'light'].border,
           borderTopWidth: 1,
+        },
+        // Match the app's Geist type in the tab labels
+        tabBarLabelStyle: {
+          fontFamily: GeistFonts.medium,
         },
         // Hide default header (we use CustomHeader)
         headerShown: false,

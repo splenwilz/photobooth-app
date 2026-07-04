@@ -48,6 +48,7 @@ import {
 	BRAND_COLOR,
 	Spacing,
 	StatusColors,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -355,7 +356,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.md,
 	},
 	errorText: {
-		fontSize: 16,
+		fontSize: scaleFont(16),
 		marginTop: Spacing.sm,
 	},
 	retryButton: {
@@ -366,7 +367,7 @@ const styles = StyleSheet.create({
 	},
 	retryButtonText: {
 		color: "white",
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 	preferenceItem: {
@@ -382,10 +383,10 @@ const styles = StyleSheet.create({
 		marginRight: Spacing.sm,
 	},
 	preferenceLabel: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	preferenceDescription: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: 2,
 	},
 	historyLink: {
@@ -398,7 +399,7 @@ const styles = StyleSheet.create({
 	},
 	historyLinkText: {
 		flex: 1,
-		fontSize: 14,
+		fontSize: scaleFont(14),
 		fontWeight: "600",
 	},
 });

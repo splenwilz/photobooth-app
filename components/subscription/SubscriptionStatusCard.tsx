@@ -16,6 +16,7 @@ import {
 	Spacing,
 	StatusColors,
 	withAlpha,
+	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import {
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
 		gap: Spacing.sm,
 	},
 	loadingText: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 	header: {
 		flexDirection: "row",
@@ -269,18 +270,18 @@ const styles = StyleSheet.create({
 	},
 	statusBadgeText: {
 		color: "white",
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		fontWeight: "600",
 	},
 	planNameText: {
-		fontSize: 13,
+		fontSize: scaleFont(13),
 		fontWeight: "500",
 	},
 	expiryText: {
-		fontSize: 12,
+		fontSize: scaleFont(12),
 		marginTop: 2,
 	},
 	message: {
-		fontSize: 14,
+		fontSize: scaleFont(14),
 	},
 });
