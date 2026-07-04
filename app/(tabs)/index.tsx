@@ -493,7 +493,9 @@ export default function DashboardScreen() {
 													{ color: textSecondary },
 												]}
 											>
-												Physical cash in machine — not revenue
+												{boothDetail.cash_box
+													? "Physical cash in machine — not revenue"
+													: "Cash tracking not available"}
 											</ThemedText>
 										</View>
 									</View>

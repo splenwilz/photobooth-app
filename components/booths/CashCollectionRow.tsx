@@ -56,20 +56,19 @@ export function CashCollectionRow({
 	textSecondary,
 }: CashCollectionRowProps) {
 	const acceptors = acceptorLine(collection);
-	const collectorText = collection.collected_by_name
+	// The visible and a11y strings intentionally differ in their null
+	// fallbacks ("Collector unknown" vs "by unknown collector"), but both
+	// derive from the same formatted values computed once here.
+	const collectedBy = collection.collected_by_name
 		? `by ${collection.collected_by_name}`
-		: "Collector unknown";
-	const timeText = collection.collected_at
+		: null;
+	const relativeTime = collection.collected_at
 		? formatRelativeTime(collection.collected_at)
-		: "Time not recorded";
+		: null;
 
-	const a11yCollector = collection.collected_by_name
-		? `by ${collection.collected_by_name}`
-		: "by unknown collector";
-	const a11yTime = collection.collected_at
-		? formatRelativeTime(collection.collected_at)
-		: "time not recorded";
-	const a11yLabel = `Collected ${formatCurrency(collection.total_amount)} ${a11yCollector}, ${a11yTime}`;
+	const collectorText = collectedBy ?? "Collector unknown";
+	const timeText = relativeTime ?? "Time not recorded";
+	const a11yLabel = `Collected ${formatCurrency(collection.total_amount)} ${collectedBy ?? "by unknown collector"}, ${relativeTime ?? "time not recorded"}`;
 
 	return (
 		<View

@@ -85,10 +85,13 @@ export default function CashBoxScreen() {
 			: "";
 
 	const handleLoadMore = useCallback(() => {
-		if (hasNextPage && !isFetchingNextPage) {
+		// Don't auto-retry from scroll position while the error footer is
+		// showing — retrying is the "Try again" button's job, and a scroll-
+		// triggered fetch would race with it.
+		if (hasNextPage && !isFetchingNextPage && !isFetchNextPageError) {
 			fetchNextPage();
 		}
-	}, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+	}, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage]);
 
 	const onRefresh = useCallback(() => {
 		refetch();
