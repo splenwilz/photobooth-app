@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
 		color: "white",
 		fontSize: scaleFont(36),
 		fontWeight: "700",
-		lineHeight: 40,
+		lineHeight: scaleFont(40),
 	},
 	balanceUnit: {
 		color: "rgba(255,255,255,0.8)",
