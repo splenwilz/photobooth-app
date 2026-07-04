@@ -246,8 +246,16 @@ export function useBoothPricing(boothId: string | null) {
  * });
  * ```
  *
+ * Cache strategy: the booth applies pricing asynchronously (the PATCH just
+ * delivers a WebSocket command), so GET /pricing lags behind the update.
+ * Invalidating the pricing query here would refetch the OLD booth-reported
+ * value and re-cache it for its staleTime — the UI would stay stale until
+ * an app reload. Instead the cache is updated directly from the mutation
+ * response, which carries the authoritative new values in `updates`.
+ *
  * @returns React Query mutation for pricing updates
- * @see PUT /api/v1/booths/{booth_id}/pricing
+ * @see PATCH /api/v1/booths/{booth_id}/pricing
+ * @see https://tanstack.com/query/latest/docs/framework/react/guides/updates-from-mutation-responses
  */
 export function useUpdatePricing() {
 	const queryClient = useQueryClient();
@@ -258,11 +266,29 @@ export function useUpdatePricing() {
 			...pricingData
 		}: { boothId: string } & UpdatePricingRequest) =>
 			updateBoothPricing(boothId, pricingData),
-		onSuccess: (_, variables) => {
-			// Invalidate pricing query to refresh prices
-			queryClient.invalidateQueries({
-				queryKey: queryKeys.booths.pricing(variables.boothId),
-			});
+		onSuccess: async (data, variables) => {
+			// "failed" means the booth never applied the change — the cached
+			// (old) pricing is still correct, so leave it alone.
+			if (data.status !== "failed") {
+				const pricingKey = queryKeys.booths.pricing(variables.boothId);
+				// Kill any in-flight GET so a stale response can't land on top
+				// of the value we're about to write.
+				await queryClient.cancelQueries({ queryKey: pricingKey });
+				queryClient.setQueryData<BoothPricingResponse>(
+					pricingKey,
+					(old) => {
+						if (!old) return old;
+						// Merge only the products the response actually updated.
+						const updated = { ...old.pricing };
+						for (const [product, info] of Object.entries(data.updates)) {
+							if (info) {
+								updated[product as keyof typeof updated] = info;
+							}
+						}
+						return { ...old, pricing: updated };
+					},
+				);
+			}
 			// Invalidate booth detail to refresh pricing info
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.booths.detail(variables.boothId),

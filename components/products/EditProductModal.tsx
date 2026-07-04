@@ -158,10 +158,22 @@ export function EditProductModal({
 			// Add reason for the update
 			pricingRequest.reason = `Updated ${product.name} pricing via mobile app`;
 
-			await updatePricingMutation.mutateAsync({
+			const result = await updatePricingMutation.mutateAsync({
 				boothId,
 				...pricingRequest,
 			});
+
+			// The PATCH resolves even when the booth rejected/never received
+			// the command — only "failed" means the change did not go through.
+			if (result.status === "failed") {
+				Alert.alert(
+					"Update Failed",
+					result.message ||
+						"The booth could not apply the pricing update. Please try again.",
+					[{ text: "OK" }],
+				);
+				return;
+			}
 
 			const updatedProduct: Product = {
 				...product,
