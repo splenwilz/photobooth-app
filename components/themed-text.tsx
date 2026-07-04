@@ -29,15 +29,18 @@ export function ThemedText({
             ? styles.link
             : styles.default;
 
-  // Resolve the effective weight (type default + caller override) and pick the
-  // matching Geist family. The family carries the weight, so normalize
-  // fontWeight to avoid faux-bold on Android.
+  // If the caller supplied their own fontFamily (e.g. a monospace license/
+  // registration code), respect it and leave their weight alone. Otherwise map
+  // the effective weight to the matching Geist family and normalize fontWeight
+  // (the family carries the weight, so this avoids faux-bold on Android).
   const flattened = (StyleSheet.flatten([typeStyle, style]) ?? {}) as TextStyle;
-  const fontFamily = fontFamilyForWeight(flattened.fontWeight);
+  const fontOverride = flattened.fontFamily
+    ? null
+    : { fontFamily: fontFamilyForWeight(flattened.fontWeight), fontWeight: 'normal' as const };
 
   return (
     <Text
-      style={[{ color }, typeStyle, style, { fontFamily, fontWeight: 'normal' }]}
+      style={[{ color }, typeStyle, style, fontOverride]}
       {...rest}
     />
   );
