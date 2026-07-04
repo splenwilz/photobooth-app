@@ -3,37 +3,28 @@
  * 
  * Main navigation structure for the BoothIQ app.
  * Provides bottom tab navigation with 5 main sections:
- * 
+ *
  * 1. Dashboard - Live overview and hardware status
  * 2. Booths - Multi-booth management
- * 3. Analytics - Sales and revenue analytics
- * 4. Alerts - Notification center
+ * 3. Store - Template marketplace
+ * 4. Analytics - Sales and revenue analytics
  * 5. Settings - Configuration and preferences
- * 
+ *
+ * Alerts is reached from the header notification bell (with unread badge)
+ * rather than the tab bar, keeping the bar to 5 primary destinations.
+ *
  * @see https://docs.expo.dev/router/advanced/tabs/ - Expo Router Tabs docs
  */
 
-import { useMemo } from 'react';
 import { Tabs } from 'expo-router';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors, StatusColors } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useAlerts } from '@/api/alerts/queries';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-
-  // Fetch alerts to show unread count badge
-  // @see GET /api/v1/analytics/alerts
-  const { data: alertsData } = useAlerts();
-
-  // Calculate unread alerts count
-  const unreadCount = useMemo(() => {
-    if (!alertsData?.alerts) return 0;
-    return alertsData.alerts.filter(alert => !alert.isRead).length;
-  }, [alertsData?.alerts]);
 
   return (
     <Tabs
@@ -96,22 +87,12 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Alerts Tab - Notification center with unread badge */}
+      {/* Alerts - hidden from the tab bar; reached via the header notification
+          bell. href: null keeps the route mounted and navigable at /(tabs)/alerts. */}
       <Tabs.Screen
         name="alerts"
         options={{
-          title: 'Alerts',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="bell" color={color} />
-          ),
-          // Show badge with unread count (undefined hides the badge)
-          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: StatusColors.error,
-            fontSize: 10,
-            minWidth: 18,
-            height: 18,
-          },
+          href: null,
         }}
       />
 
