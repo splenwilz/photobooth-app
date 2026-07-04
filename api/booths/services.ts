@@ -2,6 +2,7 @@ import { apiClient } from "../client";
 import type { LogoDeleteResponse, LogoUploadResponse } from "../users/types";
 import type {
 	BoothBusinessSettingsResponse,
+	BoothCashCollectionsResponse,
 	BoothCredentialsResponse,
 	BoothCriticalEventsResponse,
 	BoothDetailResponse,
@@ -547,6 +548,41 @@ export async function refundBoothTransaction(
 	const response = await apiClient<RefundTransactionResponse>(
 		`/api/v1/booths/${boothId}/transactions/${encodeURIComponent(transactionCode)}/refund`,
 		{ method: "POST", body: JSON.stringify(body) },
+	);
+	return response;
+}
+
+// ============================================================================
+// CASH BOX SERVICES
+// ============================================================================
+
+/**
+ * List cash-collection audit events for a booth (operator "Collect" actions).
+ * Rows arrive newest-first (collected_at desc, local_id tie-break) — render
+ * the server order as-is.
+ *
+ * Error cases:
+ *   404 — booth not found or not owned by the current user
+ *   422 — validation error (limit outside 1–100, negative offset)
+ *
+ * @param boothId - The booth ID to fetch collections for
+ * @param params - Optional pagination (limit defaults to 50, offset to 0)
+ * @returns Promise resolving to paginated collections with the booth's full count
+ * @see GET /api/v1/booths/{booth_id}/cash-collections
+ */
+export async function getBoothCashCollections(
+	boothId: string,
+	params?: BoothPaginationParams,
+): Promise<BoothCashCollectionsResponse> {
+	if (!boothId)
+		throw new Error("Booth ID is required for getBoothCashCollections");
+	const limit = params?.limit ?? 50;
+	const offset = params?.offset ?? 0;
+	// boothId can arrive from a deep link (route param) — encode for path
+	// safety, matching how transactionCode is handled above.
+	const response = await apiClient<BoothCashCollectionsResponse>(
+		`/api/v1/booths/${encodeURIComponent(boothId)}/cash-collections?limit=${limit}&offset=${offset}`,
+		{ method: "GET" },
 	);
 	return response;
 }
