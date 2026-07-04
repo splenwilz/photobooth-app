@@ -447,6 +447,75 @@ export default function DashboardScreen() {
 							</View>
 						</View>
 
+						{/* Cash Box link — glanceable balance + entry to the dedicated
+						    screen. Shows the physical cash in the machine, which is NOT
+						    revenue — hence a plain link row after the revenue section
+						    rather than a section of its own. Amount is only rendered
+						    when the booth actually reports a snapshot (null ≠ $0). */}
+						{!isAllMode && boothDetail && (
+							<View style={styles.section}>
+								<TouchableOpacity
+									style={[
+										styles.attentionCard,
+										styles.cashBoxLinkGap,
+										{ backgroundColor: cardBg, borderColor },
+									]}
+									activeOpacity={0.7}
+									onPress={() =>
+										router.push(`/booths/${selectedBoothId}/cash-box`)
+									}
+									accessibilityRole="button"
+									accessibilityLabel={
+										boothDetail.cash_box
+											? `Cash box: ${formatCurrency(boothDetail.cash_box.expected_total)} in machine`
+											: "Cash box"
+									}
+									accessibilityHint="Shows physical cash in the machine and collection history"
+								>
+									<View style={styles.attentionLeft}>
+										<View
+											style={[
+												styles.cashBoxIcon,
+												{ backgroundColor: withAlpha(BRAND_COLOR, 0.15) },
+											]}
+										>
+											<IconSymbol
+												name="dollarsign.circle.fill"
+												size={16}
+												color={BRAND_COLOR}
+											/>
+										</View>
+										<View style={styles.attentionTextBlock}>
+											<ThemedText type="defaultSemiBold">Cash Box</ThemedText>
+											<ThemedText
+												style={[
+													styles.attentionSubtitle,
+													{ color: textSecondary },
+												]}
+											>
+												{boothDetail.cash_box
+													? "Physical cash in machine — not revenue"
+													: "Cash tracking not available"}
+											</ThemedText>
+										</View>
+									</View>
+									{boothDetail.cash_box && (
+										<ThemedText
+											type="defaultSemiBold"
+											style={styles.cashBoxAmount}
+										>
+											{formatCurrency(boothDetail.cash_box.expected_total)}
+										</ThemedText>
+									)}
+									<IconSymbol
+										name="chevron.right"
+										size={16}
+										color={textSecondary}
+									/>
+								</TouchableOpacity>
+							</View>
+						)}
+
 						{/* Needs Attention — stranded paid sessions for this booth only */}
 						{!isAllMode && hasBoothSelected && strandedCount > 0 && (
 							<View style={styles.section}>
@@ -778,5 +847,18 @@ const styles = StyleSheet.create({
 	attentionSubtitle: {
 		fontSize: scaleFont(12),
 		marginTop: 2,
+	},
+	cashBoxLinkGap: {
+		gap: Spacing.sm,
+	},
+	cashBoxIcon: {
+		width: 32,
+		height: 32,
+		borderRadius: BorderRadius.md,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	cashBoxAmount: {
+		fontSize: scaleFont(15),
 	},
 });

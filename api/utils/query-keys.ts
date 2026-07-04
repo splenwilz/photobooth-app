@@ -108,6 +108,15 @@ export const queryKeys = {
      */
     criticalEvents: (boothId: string, params?: { limit?: number; offset?: number }) =>
       ['booths', 'criticalEvents', boothId, params] as const,
+
+    /**
+     * Get booth cash-collection history (paginated)
+     * Invalidate with the 3-element prefix ['booths', 'cashCollections', boothId]
+     * so every paginated cache entry matches.
+     * @see GET /api/v1/booths/{booth_id}/cash-collections
+     */
+    cashCollections: (boothId: string, params?: { limit?: number; offset?: number }) =>
+      ['booths', 'cashCollections', boothId, params] as const,
   },
 
   /**

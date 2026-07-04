@@ -11,4 +11,6 @@ export { DeleteBoothModal } from "./DeleteBoothModal";
 export { DownloadLogsModal } from "./DownloadLogsModal";
 export { EmergencyPasswordModal } from "./EmergencyPasswordModal";
 export { StrandedSessionDetailsModal } from "./StrandedSessionDetailsModal";
+export { CashBoxCard } from "./CashBoxCard";
+export { CashCollectionRow } from "./CashCollectionRow";
 

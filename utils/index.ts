@@ -36,6 +36,13 @@ export {
 	mapDashboardAlertToAppAlert,
 } from "./alert-mapping";
 
+// Cash box (physical cash in machine)
+export {
+	type CashBoxFreshness,
+	getCashBoxFreshness,
+	getCashBoxRefundGap,
+} from "./cash-box";
+
 // Stranded paid sessions
 export {
 	type StrandedSessionRow,

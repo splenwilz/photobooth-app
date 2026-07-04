@@ -222,6 +222,42 @@ export interface BoothDetailAlert {
 }
 
 /**
+ * Summary of the most recent cash collection on a booth.
+ * Part of the cash_box object on the booth detail overview.
+ */
+export interface CashBoxLastCollection {
+  /** Amount collected */
+  total_amount: number;
+  /** When the operator collected, booth-local event time */
+  collected_at: string | null;
+  /** Collector's display name, resolved on the booth at collection time */
+  collected_by_name: string | null;
+}
+
+/**
+ * Live cash-box snapshot for a booth: the physical cash sitting in the
+ * bill acceptors since the last collection. NOT revenue — a booth can have
+ * high cash revenue and an empty cash box (just collected), or vice versa.
+ *
+ * Invariant: bill1_inserted + bill2_inserted >= expected_total. Cash-till
+ * refunds are netted against the total only (the booth cannot know which
+ * acceptor box refund cash came from), so a positive gap between the sum
+ * and the total means refunds were paid from the till — normal, not theft.
+ */
+export interface CashBox {
+  /** Expected cash in the acceptors since the last collection: inserts minus cash-till refunds */
+  expected_total: number;
+  /** Gross amount inserted through acceptor 1 since the last collection */
+  bill1_inserted: number;
+  /** Gross amount inserted through acceptor 2 since the last collection */
+  bill2_inserted: number;
+  /** When the booth last reported the snapshot (~30s heartbeat cadence) */
+  updated_at: string | null;
+  /** Most recent collection, or null if the booth has never recorded one */
+  last_collection: CashBoxLastCollection | null;
+}
+
+/**
  * Complete booth detail response
  * GET /api/v1/booths/{booth_id}/overview
  */
@@ -241,6 +277,13 @@ export interface BoothDetailResponse {
   upsale_breakdown: BoothUpsaleBreakdown;
   hardware: BoothHardware;
   system: BoothSystem;
+  /**
+   * Physical cash currently in the machine. Null until the booth's first
+   * cash-box heartbeat (kiosk versions predating the feature never send one)
+   * — render "not available", NOT $0 (a real $0 means "box is empty").
+   * Optional because backends predating the feature omit the key entirely.
+   */
+  cash_box?: CashBox | null;
   recent_alerts: BoothDetailAlert[];
   alerts_count: number;
 }
@@ -953,6 +996,50 @@ export interface BoothTransactionsResponse {
   booth_name: string;
   transactions: SyncedTransaction[];
   count: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * One cash-collection audit event: an operator emptying the booth's cash box.
+ * Append-only, synced from the booth exactly-once.
+ * @see GET /api/v1/booths/{booth_id}/cash-collections
+ */
+export interface CashCollection {
+  /** Cloud row ID */
+  id: string;
+  /** The booth's local audit-row ID (dedup key together with the booth) */
+  local_id: number;
+  /** Expected cash at the moment of collection */
+  total_amount: number;
+  /** Gross via acceptor 1 since the prior collection; null on rows recorded before per-acceptor tracking existed */
+  bill1_amount: number | null;
+  /** Gross via acceptor 2. Same nullability as bill1_amount */
+  bill2_amount: number | null;
+  /** Display name of the collecting admin, resolved on the booth; null when the admin was later deleted or no user was logged in */
+  collected_by_name: string | null;
+  /** Operator free-form note */
+  note: string | null;
+  /** When the collection happened on the booth. Sort and display by this field */
+  collected_at: string | null;
+  /**
+   * When the cloud received the row. Never show or sort by this — first-upgrade
+   * backfill makes it much later than collected_at.
+   */
+  synced_at: string;
+}
+
+/**
+ * Response from booth cash-collections endpoint.
+ * Rows arrive newest-first (collected_at desc, local_id tie-break).
+ * @see GET /api/v1/booths/{booth_id}/cash-collections
+ */
+export interface BoothCashCollectionsResponse {
+  booth_id: string;
+  booth_name: string;
+  collections: CashCollection[];
+  /** Full collection count for the booth, independent of limit/offset */
+  total: number;
   limit: number;
   offset: number;
 }

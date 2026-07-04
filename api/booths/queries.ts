@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { queryKeys } from "../utils/query-keys";
 import {
 	cancelBoothRestart,
@@ -8,6 +13,7 @@ import {
 	downloadBoothLogs,
 	generateBoothCode,
 	getBoothBusinessSettings,
+	getBoothCashCollections,
 	getBoothCredentials,
 	getBoothCriticalEvents,
 	getBoothDetail,
@@ -772,5 +778,54 @@ export function useRefundBoothTransaction() {
 				queryKey: ["booths", "transactions", variables.boothId],
 			});
 		},
+	});
+}
+
+// ============================================================================
+// CASH BOX HOOKS
+// ============================================================================
+
+/**
+ * Hook to fetch a booth's cash-collection history with infinite scroll.
+ * Pages are driven by the response's `total` count (offset pagination).
+ * Rows arrive newest-first (collected_at desc) — render server order as-is.
+ *
+ * The live cash-box snapshot needs no hook of its own: it rides the
+ * `cash_box` object on `useBoothDetail`. Freshness comes from the card's
+ * "as of {updated_at}" line plus focus-refetch/pull-to-refresh; if product
+ * ever needs true live-ness, add `refetchInterval: 30_000` (foreground only)
+ * to `useBoothDetail` rather than polling here.
+ *
+ * @param boothId - The booth ID (null disables the query)
+ * @param params - Optional page size (limit defaults to 50, API max 100)
+ * @see GET /api/v1/booths/{booth_id}/cash-collections
+ */
+export function useBoothCashCollectionsInfinite(
+	boothId: string | null,
+	params?: { limit?: number },
+) {
+	const limit = params?.limit ?? 50;
+
+	return useInfiniteQuery({
+		queryKey: boothId
+			? [...queryKeys.booths.cashCollections(boothId, { limit }), "infinite"]
+			: ["booths", "cashCollections", null, { limit }, "infinite"],
+		queryFn: ({ pageParam }) =>
+			getBoothCashCollections(boothId!, { limit, offset: pageParam }),
+		enabled: !!boothId,
+		initialPageParam: 0,
+		getNextPageParam: (lastPage, allPages) => {
+			// An empty page means the server has nothing more to give, even if
+			// `total` claims otherwise (count/read skew, soft-deleted rows).
+			// Without this guard the same offset would be requested forever.
+			if (lastPage.collections.length === 0) return undefined;
+			const totalLoaded = allPages.reduce(
+				(sum, page) => sum + page.collections.length,
+				0,
+			);
+			// Loaded everything the booth has? No more pages.
+			return totalLoaded < lastPage.total ? totalLoaded : undefined;
+		},
+		staleTime: 60 * 1000,
 	});
 }
