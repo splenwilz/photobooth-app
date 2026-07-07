@@ -183,7 +183,7 @@ export default function AlertsScreen() {
 
 	// Booth picker state
 	const [isPickerVisible, setIsPickerVisible] = useState(false);
-	const { selectedBoothId } = useBoothStore();
+	const { selectedBoothId, setSelectedBoothId } = useBoothStore();
 	const isAllMode = selectedBoothId === ALL_BOOTHS_ID;
 
 	// State for filters
@@ -245,6 +245,22 @@ export default function AlertsScreen() {
 	const totalUnread = useMemo(
 		() => alerts.filter((a) => !a.isRead).length,
 		[alerts],
+	);
+
+	// Fleet-wide alerts (same source as the header bell) — only needed in
+	// single-booth mode, to explain the fleet badge that a booth-scoped
+	// "Mark all read" can't clear. Cheap: the query is shared/cached.
+	const { data: fleetAlertsData } = useAlerts(undefined, {
+		enabled: !isAllMode,
+	});
+	const otherBoothsUnread = useMemo(
+		() =>
+			isAllMode
+				? 0
+				: (fleetAlertsData?.alerts?.filter(
+						(a) => !a.isRead && a.boothId !== selectedBoothId,
+					).length ?? 0),
+		[isAllMode, fleetAlertsData?.alerts, selectedBoothId],
 	);
 
 	// Severity filter options
@@ -392,18 +408,20 @@ export default function AlertsScreen() {
 							onPress={handleMarkAllRead}
 							disabled={markAllAlertsRead.isPending}
 							accessibilityRole="button"
-							accessibilityLabel={`Mark all ${totalUnread} alerts as read`}
+							accessibilityLabel={
+								isAllMode
+									? `Mark all ${totalUnread} alerts as read`
+									: `Mark this booth's ${totalUnread} alerts as read`
+							}
 							hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
 						>
-							<View
-								style={[styles.unreadBadge, { backgroundColor: BRAND_COLOR }]}
-							>
-								<ThemedText style={styles.unreadBadgeText}>
-									{totalUnread}
-								</ThemedText>
-							</View>
+							<IconSymbol
+								name="checkmark.circle"
+								size={16}
+								color={BRAND_COLOR}
+							/>
 							<ThemedText style={[styles.markAllText, { color: BRAND_COLOR }]}>
-								Mark all read
+								{isAllMode ? "Mark all read" : "Mark this booth read"}
 							</ThemedText>
 						</TouchableOpacity>
 					) : undefined
@@ -421,6 +439,31 @@ export default function AlertsScreen() {
 					/>
 				}
 			>
+				{/* Other-booths hint — the fleet bell counts every booth, but this
+				    booth-scoped view can't clear alerts on the others. Offer a jump. */}
+				{otherBoothsUnread > 0 && (
+					<TouchableOpacity
+						style={[
+							styles.otherBoothsHint,
+							{
+								backgroundColor: withAlpha(BRAND_COLOR, 0.1),
+								borderColor: withAlpha(BRAND_COLOR, 0.35),
+							},
+						]}
+						onPress={() => setSelectedBoothId(ALL_BOOTHS_ID)}
+						accessibilityRole="button"
+						accessibilityLabel={`${otherBoothsUnread} unread alerts on other booths. Switch to All Booths.`}
+					>
+						<IconSymbol name="bell.badge" size={18} color={BRAND_COLOR} />
+						<ThemedText
+							style={[styles.otherBoothsHintText, { color: BRAND_COLOR }]}
+						>
+							{otherBoothsUnread} unread on other booths — view all
+						</ThemedText>
+						<IconSymbol name="chevron.right" size={16} color={BRAND_COLOR} />
+					</TouchableOpacity>
+				)}
+
 				{/* Push-off banner — alerts won't reach the device without permission */}
 				{showPushBanner && (
 					<View
@@ -679,19 +722,6 @@ const styles = StyleSheet.create({
 		fontSize: scaleFont(13),
 		fontWeight: "600",
 	},
-	unreadBadge: {
-		minWidth: 24,
-		height: 24,
-		borderRadius: 12,
-		justifyContent: "center",
-		alignItems: "center",
-		paddingHorizontal: 8,
-	},
-	unreadBadgeText: {
-		color: "#FFFFFF",
-		fontSize: scaleFont(12),
-		fontWeight: "600",
-	},
 	pushBanner: {
 		flexDirection: "row",
 		alignItems: "center",
@@ -700,6 +730,20 @@ const styles = StyleSheet.create({
 		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
 		marginTop: Spacing.md,
+	},
+	otherBoothsHint: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: Spacing.sm,
+		padding: Spacing.md,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+		marginTop: Spacing.md,
+	},
+	otherBoothsHintText: {
+		flex: 1,
+		fontSize: scaleFont(13),
+		fontWeight: "600",
 	},
 	pushBannerBody: {
 		flex: 1,

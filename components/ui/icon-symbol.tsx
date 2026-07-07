@@ -31,6 +31,8 @@ const MAPPING: IconMapping = {
   'magnifyingglass': 'search',
   'bell': 'notifications-none',
   'bell.fill': 'notifications',
+  'bell.badge': 'notifications-active',
+  'bell.slash': 'notifications-off',
   'gear': 'settings',
   'plus': 'add',
   'checkmark': 'check',
