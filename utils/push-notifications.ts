@@ -48,14 +48,20 @@ let creatingDeviceId: Promise<string> | null = null;
 export async function getOrCreateDeviceId(): Promise<string> {
 	const existing = await SecureStore.getItemAsync(DEVICE_ID_KEY);
 	if (existing) return existing;
-	// Coalesce concurrent creators onto the same promise → one shared id.
+	// Coalesce concurrent creators onto ONE shared promise. The promise is kept
+	// for the process lifetime (cleared only on rejection) so a caller whose
+	// read resolved a stale `null` late still observes a non-null latch instead
+	// of minting a second id. The closure re-reads to defeat that stale read.
 	if (!creatingDeviceId) {
 		creatingDeviceId = (async () => {
+			const again = await SecureStore.getItemAsync(DEVICE_ID_KEY);
+			if (again) return again;
 			const id = Crypto.randomUUID();
 			await SecureStore.setItemAsync(DEVICE_ID_KEY, id);
 			return id;
-		})().finally(() => {
-			creatingDeviceId = null;
+		})().catch((e) => {
+			creatingDeviceId = null; // allow a retry only after a failure
+			throw e;
 		});
 	}
 	return creatingDeviceId;

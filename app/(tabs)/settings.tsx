@@ -336,7 +336,14 @@ export default function SettingsScreen() {
 						// actual sign-out; the backend also prunes dead tokens.
 						try {
 							const deviceId = await getStoredDeviceId();
-							if (deviceId) await unregisterDevice(deviceId);
+							// Time-boxed: the API timeout is 30s, but logout must not
+							// wait that long on a flaky network.
+							if (deviceId) {
+								await Promise.race([
+									unregisterDevice(deviceId),
+									new Promise((resolve) => setTimeout(resolve, 3000)),
+								]);
+							}
 						} catch (e) {
 							console.warn("[Settings] push unregister skipped:", e);
 						}

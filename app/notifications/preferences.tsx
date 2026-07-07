@@ -158,11 +158,10 @@ export default function NotificationPreferencesScreen() {
 
 	const handleEnablePush = useCallback(async () => {
 		try {
-			// Already denied → iOS won't re-prompt; take the user to Settings.
-			if (pushPermission === "denied") {
-				await Linking.openSettings();
-				return;
-			}
+			// Always attempt a request first — requestPermissionsAsync re-prompts
+			// when the OS still allows it (Android canAskAgain) and resolves denied
+			// immediately when it doesn't, so we only fall back to Settings below
+			// when the OS truly won't ask again.
 			const result = await acquireExpoPushToken({
 				requestIfUndetermined: true,
 			});
@@ -185,7 +184,7 @@ export default function NotificationPreferencesScreen() {
 			// onPress won't surface a rejected promise — handle native failures here.
 			console.warn("[prefs] enable-push failed:", e);
 		}
-	}, [pushPermission, registerDevice, refreshPermission]);
+	}, [registerDevice, refreshPermission]);
 
 	// Manual refresh state — prevents mutation-triggered refetches from spinning
 	const [isRefreshing, setIsRefreshing] = useState(false);

@@ -29,12 +29,21 @@ export function usePushPermission(active = true) {
 
 	useEffect(() => {
 		if (!active) return;
-		refresh();
+		let cancelled = false;
+		const read = () => {
+			getPushPermissionState()
+				.then((s) => !cancelled && setState(s))
+				.catch(() => !cancelled && setState("undetermined"));
+		};
+		read();
 		const sub = AppState.addEventListener("change", (s) => {
-			if (s === "active") refresh();
+			if (s === "active") read();
 		});
-		return () => sub.remove();
-	}, [active, refresh]);
+		return () => {
+			cancelled = true;
+			sub.remove();
+		};
+	}, [active]);
 
 	return { state, refresh };
 }

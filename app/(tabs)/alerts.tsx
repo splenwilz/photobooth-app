@@ -20,6 +20,7 @@ import * as Linking from "expo-linking";
 import type React from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
+	Alert as RNAlert,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
@@ -295,10 +296,9 @@ export default function AlertsScreen() {
 		if (bannerBusy.current) return; // guard against double-tap (state lags a frame)
 		bannerBusy.current = true;
 		try {
-			if (pushState === "denied") {
-				await Linking.openSettings();
-				return;
-			}
+			// Attempt a request first — it re-prompts when the OS still allows it
+			// (Android canAskAgain) and resolves denied when it doesn't. Only then
+			// fall back to Settings.
 			const result = await acquireExpoPushToken({
 				requestIfUndetermined: true,
 			});
@@ -308,6 +308,14 @@ export default function AlertsScreen() {
 					device_id: result.deviceId,
 					platform: result.platform,
 				});
+			} else if (result.status === "denied") {
+				await Linking.openSettings();
+			} else {
+				// unsupported: simulator/web, or a real device with no EAS projectId.
+				RNAlert.alert(
+					"Not available",
+					"Push notifications require a physical device.",
+				);
 			}
 			refreshPushState();
 		} catch (e) {
@@ -316,7 +324,7 @@ export default function AlertsScreen() {
 		} finally {
 			bannerBusy.current = false;
 		}
-	}, [pushState, registerDevice, refreshPushState]);
+	}, [registerDevice, refreshPushState]);
 
 	const showPushBanner =
 		!bannerDismissed &&
@@ -430,11 +438,7 @@ export default function AlertsScreen() {
 							style={styles.pushBannerBody}
 							onPress={handleEnableFromBanner}
 							accessibilityRole="button"
-							accessibilityLabel={
-								pushState === "denied"
-									? "Open settings to turn on notifications"
-									: "Turn on push notifications"
-							}
+							accessibilityLabel="Turn on push notifications"
 						>
 							<ThemedText type="defaultSemiBold" style={styles.pushBannerTitle}>
 								{pushState === "denied"
@@ -444,9 +448,10 @@ export default function AlertsScreen() {
 							<ThemedText
 								style={[styles.pushBannerSubtitle, { color: textSecondary }]}
 							>
-								{pushState === "denied"
-									? "You won't be alerted when a booth goes down — tap to open Settings"
-									: "Get notified the instant a booth needs attention"}
+								{/* Behavior-agnostic: tapping re-prompts when the OS allows
+								    it (Android) and otherwise opens Settings. */}
+								Tap to turn on alerts so you know the instant a booth needs
+								attention
 							</ThemedText>
 						</TouchableOpacity>
 						<TouchableOpacity

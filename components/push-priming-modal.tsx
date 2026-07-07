@@ -82,9 +82,11 @@ export function PushPrimingModal({ visible, onClose }: PushPrimingModalProps) {
 				// onPress won't surface a rejected promise — swallow native failures.
 				console.warn("[push] priming decision failed:", e);
 			} finally {
+				// Release the latch only after finish() completes, so the ~ms of its
+				// SecureStore write can't re-enable a second decide().
+				await finish();
 				setBusy(false);
 				inFlight.current = false;
-				await finish();
 			}
 		},
 		[registerDevice, finish],

@@ -1,1 +1,21 @@
+#!/usr/bin/env sh
+# ── Cold-review gate ─────────────────────────────────────────────
+# Never push without an explicit request + a cold (fresh-context) review of the
+# diff. This hook can't do the review for you — it surfaces the working state
+# and runs the checks as a backstop.
+
+echo "🧊 pre-push: cold-review gate"
+
+# Surface uncommitted working-tree changes (they will NOT be pushed) so the
+# review covers the full picture and nothing inconsistent slips by.
+if [ -n "$(git status --porcelain)" ]; then
+  echo ""
+  echo "⚠️  Uncommitted changes present — review these (NOT included in this push):"
+  git status --short
+  echo ""
+fi
+
+echo "→ Confirm a cold review of the outgoing diff was done. Running checks…"
+echo ""
+
 npm run lint && npm run typecheck && npm test -- --forceExit --detectOpenHandles

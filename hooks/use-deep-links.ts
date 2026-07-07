@@ -44,7 +44,9 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 
 	try {
 		const parsed = Linking.parse(url);
-		const path = parsed.path ?? parsed.hostname;
+		// `||` (not `??`) so an empty-string path (trailing-slash URL) falls back
+		// to the hostname instead of dropping the link.
+		const path = parsed.path || parsed.hostname;
 
 		console.log("[DeepLink] Received:", url);
 		console.log("[DeepLink] Parsed path:", path);

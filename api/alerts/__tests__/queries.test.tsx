@@ -201,4 +201,29 @@ describe("useMarkAllAlertsRead", () => {
 		expect(list?.alerts.find((a) => a.id === "a1")?.isRead).toBe(true);
 		expect(list?.alerts.find((a) => a.id === "a2")?.isRead).toBe(false);
 	});
+
+	it("rolls back the cache when the request fails", async () => {
+		mockMarkAllAlertsRead.mockRejectedValue(new Error("500"));
+
+		const queryClient = createQueryClient();
+		queryClient.setQueryData(queryKeys.alerts.list({ limit: 50 }), {
+			alerts: [
+				makeAlert({ id: "a1", boothId: "b1" }),
+				makeAlert({ id: "a2", boothId: "b2" }),
+			],
+		});
+
+		const { result } = renderHook(() => useMarkAllAlertsRead(), {
+			wrapper: createWrapper(queryClient),
+		});
+
+		result.current.mutate(null);
+		await waitFor(() => expect(result.current.isError).toBe(true));
+
+		const list = queryClient.getQueryData<{ alerts: AppAlert[] }>(
+			queryKeys.alerts.list({ limit: 50 }),
+		);
+		// Snapshot restored — every alert back to its original unread state.
+		expect(list?.alerts.every((a) => !a.isRead)).toBe(true);
+	});
 });

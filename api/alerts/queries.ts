@@ -137,6 +137,7 @@ export function useMarkAlertRead() {
 
 	return useMutation({
 		mutationKey: ALERTS_MUTATION_KEY,
+		retry: false, // optimistic → fail fast so rollback happens immediately
 		mutationFn: ({
 			alertId,
 			isRead = true,
@@ -206,28 +207,40 @@ export function useMarkAllAlertsRead() {
 
 	return useMutation({
 		mutationKey: ALERTS_MUTATION_KEY,
+		retry: false, // optimistic → fail fast so rollback happens immediately
 		mutationFn: (boothId: string | null) => markAllAlertsRead(boothId),
 		onMutate: async (boothId) => {
 			await queryClient.cancelQueries({ queryKey: queryKeys.alerts.all() });
 
-			const previous = queryClient.getQueriesData<TransformedAlertsResponse>({
-				queryKey: queryKeys.alerts.all(),
-			});
+			const inScope = (alert: AppAlert) =>
+				boothId === null || alert.boothId === boothId;
+
+			// Capture prior read-state for ONLY the in-scope alerts we're about to
+			// flip, so rollback can't clobber a concurrent mark-read of a different
+			// (out-of-scope) alert.
+			const priorRead = new Map<string, boolean>();
+			for (const [, data] of queryClient.getQueriesData<TransformedAlertsResponse>(
+				{ queryKey: queryKeys.alerts.all() },
+			)) {
+				for (const a of data?.alerts ?? []) {
+					if (inScope(a) && !priorRead.has(a.id)) priorRead.set(a.id, a.isRead);
+				}
+			}
 
 			patchAllAlertsCaches(queryClient, (alert) =>
-				// null = all booths; otherwise only alerts for the scoped booth
-				boothId === null || alert.boothId === boothId
-					? { ...alert, isRead: true }
-					: alert,
+				inScope(alert) ? { ...alert, isRead: true } : alert,
 			);
 
-			return { previous };
+			return { priorRead };
 		},
 		onError: (_err, _boothId, context) => {
-			// Bulk op → restore the full snapshot taken before this mark-all.
-			context?.previous?.forEach(([key, data]) => {
-				queryClient.setQueryData(key, data);
-			});
+			// Restore only the alerts this op flipped, to their prior read-state.
+			if (!context?.priorRead) return;
+			patchAllAlertsCaches(queryClient, (alert) =>
+				context.priorRead.has(alert.id)
+					? { ...alert, isRead: context.priorRead.get(alert.id)! }
+					: alert,
+			);
 		},
 		onSettled: (_data, _err, boothId) => {
 			// Only reconcile when this is the last in-flight mutation (see above).

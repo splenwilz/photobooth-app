@@ -60,13 +60,18 @@ function renderScreen() {
 describe("Alerts push-permission banner", () => {
 	beforeEach(() => jest.clearAllMocks());
 
-	it("shows the 'notifications are off' banner and opens Settings when denied", async () => {
+	it("opens Settings when denied and a re-request is also denied", async () => {
 		mockState.mockResolvedValue("denied");
+		// Re-request first (Android re-prompt / iOS no-op); still denied → Settings.
+		mockAcquire.mockResolvedValue({ status: "denied" });
 		const { getByText } = renderScreen();
 
 		await waitFor(() => expect(getByText("Notifications are off")).toBeTruthy());
 
 		fireEvent.press(getByText("Notifications are off"));
+		await waitFor(() =>
+			expect(mockAcquire).toHaveBeenCalledWith({ requestIfUndetermined: true }),
+		);
 		await waitFor(() => expect(mockOpenSettings).toHaveBeenCalled());
 	});
 
