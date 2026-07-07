@@ -13,9 +13,11 @@ import {
 	bulkUpdatePreferences,
 	getNotificationHistory,
 	getNotificationPreferences,
+	patchNotificationPreferences,
 	updateNotificationPreference,
 } from "./services";
 import type {
+	NotificationChannel,
 	NotificationEventType,
 	NotificationHistoryParams,
 	NotificationPreferencesResponse,
@@ -179,6 +181,94 @@ export function useBulkUpdatePreferences() {
 					},
 				);
 			}
+		},
+	});
+}
+
+/**
+ * Hook to update a single per-channel notification preference (email/push).
+ *
+ * Optimistically flips `channels[channel]` for the event (and keeps the
+ * deprecated `enabled` mirror in sync for the email channel), rolls back on
+ * error. Rollback restores ONLY the affected `(event_type, channel)` value, so
+ * a concurrent toggle of a different channel on the same event isn't clobbered.
+ *
+ * @see PATCH /api/v1/notifications/preferences
+ */
+export function useUpdateChannelPreference() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			eventType,
+			channel,
+			enabled,
+		}: {
+			eventType: NotificationEventType;
+			channel: NotificationChannel;
+			enabled: boolean;
+		}) =>
+			patchNotificationPreferences({
+				updates: [{ event_type: eventType, channel, enabled }],
+			}),
+		onMutate: async ({ eventType, channel, enabled }) => {
+			await queryClient.cancelQueries({
+				queryKey: queryKeys.notifications.preferences(),
+			});
+
+			const current =
+				queryClient.getQueryData<NotificationPreferencesResponse>(
+					queryKeys.notifications.preferences(),
+				);
+			// Snapshot ONLY the affected channel's prior value for a scoped rollback.
+			const previousValue = current?.preferences.find(
+				(p) => p.event_type === eventType,
+			)?.channels[channel];
+
+			if (current) {
+				queryClient.setQueryData<NotificationPreferencesResponse>(
+					queryKeys.notifications.preferences(),
+					{
+						...current,
+						preferences: current.preferences.map((pref) =>
+							pref.event_type === eventType
+								? {
+										...pref,
+										channels: { ...pref.channels, [channel]: enabled },
+										// keep the deprecated mirror consistent
+										enabled: channel === "email" ? enabled : pref.enabled,
+									}
+								: pref,
+						),
+					},
+				);
+			}
+
+			return { eventType, channel, previousValue };
+		},
+		onError: (_err, _variables, context) => {
+			if (context?.previousValue === undefined) return;
+			// Destructure after the guard so `previousValue` narrows to boolean.
+			const { eventType, channel, previousValue } = context;
+			queryClient.setQueryData<NotificationPreferencesResponse>(
+				queryKeys.notifications.preferences(),
+				(prev) => {
+					if (!prev) return prev;
+					return {
+						...prev,
+						preferences: prev.preferences.map((p) =>
+							p.event_type === eventType
+								? {
+										...p,
+										// restore only the one channel we changed
+										channels: { ...p.channels, [channel]: previousValue },
+										enabled: channel === "email" ? previousValue : p.enabled,
+									}
+								: p,
+						),
+					};
+				},
+			);
 		},
 	});
 }

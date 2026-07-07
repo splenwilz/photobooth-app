@@ -1,25 +1,27 @@
 /**
- * Email Notification Preferences Screen
+ * Notification Preferences Screen
  *
- * Allows users to enable/disable email notifications per event type.
- * Preferences are grouped by category: License, Booth, Billing, Hardware.
+ * EMAIL-only preferences: push is system-controlled (not a user choice), so the
+ * only per-event toggle here is email — shown only for events that offer it.
+ * Grouped by category, rendered dynamically from the API response so a new
+ * backend category can't break the screen.
  *
  * Features:
- * - Toggle individual notification preferences
- * - Category-level enable/disable all toggle
- * - Optimistic updates for instant UI feedback
- * - Pull-to-refresh
- * - Loading and error states
+ * - One email toggle per email-offered event, optimistic updates
+ * - In-context "Enable push" prompt (permission) with a Settings deep-link
+ * - Pull-to-refresh, loading and error states
  *
  * @see GET /api/v1/notifications/preferences
- * @see PUT /api/v1/notifications/preferences/{event_type}
- * @see PUT /api/v1/notifications/preferences
+ * @see PATCH /api/v1/notifications/preferences
  */
 
 import { router } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import * as Linking from "expo-linking";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
+	Alert,
+	AppState,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
@@ -29,13 +31,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useRegisterDevice } from "@/api/push/queries";
 import {
-	useBulkUpdatePreferences,
 	useNotificationPreferences,
-	useUpdatePreference,
+	useUpdateChannelPreference,
 } from "@/api/notifications/queries";
 import type {
-	NotificationCategory,
 	NotificationEventType,
 	NotificationPreference,
 } from "@/api/notifications/types";
@@ -51,10 +52,14 @@ import {
 	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import {
+	acquireExpoPushToken,
+	getPushPermissionState,
+} from "@/utils/push-notifications";
 
-/** Category display configuration */
+/** Display config for known categories; unknown ones fall back gracefully. */
 const CATEGORY_CONFIG: Record<
-	NotificationCategory,
+	string,
 	{ label: string; subtitle: string; icon: string }
 > = {
 	license: {
@@ -79,15 +84,30 @@ const CATEGORY_CONFIG: Record<
 	},
 };
 
-/** Category display order */
-const CATEGORY_ORDER: NotificationCategory[] = [
-	"license",
-	"booth",
-	"billing",
-	"hardware",
-];
+/** Preferred category order; any categories not listed are appended after. */
+const CATEGORY_ORDER = ["license", "booth", "billing", "hardware"];
 
-/** Single preference row */
+function titleCase(value: string): string {
+	return value
+		.split(/[_\s]+/)
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+		.join(" ");
+}
+
+function getCategoryConfig(category: string) {
+	return (
+		CATEGORY_CONFIG[category] ?? {
+			label: titleCase(category),
+			subtitle: "",
+			icon: "bell.fill",
+		}
+	);
+}
+
+/**
+ * Single email-preference row. Push is system-controlled (not a user choice),
+ * so the only toggle here is email — shown only for events that offer it.
+ */
 function PreferenceRow({
 	preference,
 	onToggle,
@@ -114,10 +134,11 @@ function PreferenceRow({
 				</ThemedText>
 			</View>
 			<Switch
-				value={preference.enabled}
-				onValueChange={(value) => onToggle(preference.event_type, value)}
+				value={preference.channels.email ?? false}
+				onValueChange={(v) => onToggle(preference.event_type, v)}
 				trackColor={{ false: borderColor, true: BRAND_COLOR }}
 				thumbColor="white"
+				accessibilityLabel={`Email notifications for ${preference.label}`}
 			/>
 		</View>
 	);
@@ -125,17 +146,61 @@ function PreferenceRow({
 
 export default function NotificationPreferencesScreen() {
 	const backgroundColor = useThemeColor({}, "background");
+	const cardBg = useThemeColor({}, "card");
 	const borderColor = useThemeColor({}, "border");
 	const textSecondary = useThemeColor({}, "textSecondary");
 
-	const {
-		data,
-		isLoading,
-		error,
-		refetch,
-	} = useNotificationPreferences();
+	const { data, isLoading, error, refetch } = useNotificationPreferences();
+	const updateChannel = useUpdateChannelPreference();
+	const registerDevice = useRegisterDevice();
 
-	// Manual refresh state — prevents mutation-triggered refetches from showing the spinner
+	// OS push permission — drives the "Enable push" banner.
+	const [pushPermission, setPushPermission] = useState<
+		"checking" | "granted" | "denied" | "undetermined"
+	>("checking");
+
+	const refreshPermission = useCallback(() => {
+		getPushPermissionState()
+			.then(setPushPermission)
+			.catch(() => setPushPermission("undetermined"));
+	}, []);
+
+	// Re-read on mount AND on foreground, so enabling/disabling notifications in
+	// the OS Settings app is reflected without a manual remount.
+	useEffect(() => {
+		refreshPermission();
+		const sub = AppState.addEventListener("change", (state) => {
+			if (state === "active") refreshPermission();
+		});
+		return () => sub.remove();
+	}, [refreshPermission]);
+
+	const handleEnablePush = useCallback(async () => {
+		// Already denied → iOS won't re-prompt; take the user to Settings.
+		if (pushPermission === "denied") {
+			await Linking.openSettings();
+			return;
+		}
+		const result = await acquireExpoPushToken({ requestIfUndetermined: true });
+		if (result.status === "granted") {
+			registerDevice.mutate({
+				expo_push_token: result.token,
+				device_id: result.deviceId,
+				platform: result.platform,
+			});
+			setPushPermission("granted");
+		} else if (result.status === "denied") {
+			setPushPermission("denied");
+			await Linking.openSettings();
+		} else {
+			Alert.alert(
+				"Not available",
+				"Push notifications require a physical device.",
+			);
+		}
+	}, [pushPermission, registerDevice]);
+
+	// Manual refresh state — prevents mutation-triggered refetches from spinning
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const handleRefresh = useCallback(async () => {
 		setIsRefreshing(true);
@@ -146,56 +211,34 @@ export default function NotificationPreferencesScreen() {
 		}
 	}, [refetch]);
 
-	const updatePreference = useUpdatePreference();
-	const bulkUpdate = useBulkUpdatePreferences();
-
-	// Group preferences by category
-	const groupedPreferences = useMemo(() => {
-		if (!data?.preferences) return null;
-		const groups: Record<NotificationCategory, NotificationPreference[]> = {
-			license: [],
-			booth: [],
-			billing: [],
-			hardware: [],
-		};
-		for (const pref of data.preferences) {
-			groups[pref.category]?.push(pref);
+	// Group EMAIL-configurable preferences by category, dynamically, in a stable
+	// order. Push is system-controlled, so only events that offer email appear.
+	const categories = useMemo(() => {
+		const map = new Map<string, NotificationPreference[]>();
+		for (const pref of data?.preferences ?? []) {
+			if (pref.channels.email === undefined) continue; // email not offered → hide
+			const list = map.get(pref.category) ?? [];
+			list.push(pref);
+			map.set(pref.category, list);
 		}
-		return groups;
+		const present = Array.from(map.keys());
+		const ordered = [
+			...CATEGORY_ORDER.filter((c) => map.has(c)),
+			...present.filter((c) => !CATEGORY_ORDER.includes(c)),
+		];
+		return ordered.map((category) => ({
+			category,
+			prefs: map.get(category) ?? [],
+		}));
 	}, [data?.preferences]);
 
-	// Handle individual toggle
 	const handleToggle = useCallback(
 		(eventType: NotificationEventType, enabled: boolean) => {
-			updatePreference.mutate({ eventType, enabled });
+			updateChannel.mutate({ eventType, channel: "email", enabled });
 		},
-		[updatePreference],
+		[updateChannel],
 	);
 
-	// Handle category-level toggle
-	const handleCategoryToggle = useCallback(
-		(category: NotificationCategory, enabled: boolean) => {
-			if (!groupedPreferences) return;
-			const prefs = groupedPreferences[category];
-			const updates: Partial<Record<NotificationEventType, boolean>> = {};
-			for (const pref of prefs) {
-				updates[pref.event_type] = enabled;
-			}
-			bulkUpdate.mutate(updates);
-		},
-		[groupedPreferences, bulkUpdate],
-	);
-
-	// Check if all preferences in a category are enabled
-	const isCategoryEnabled = useCallback(
-		(category: NotificationCategory): boolean => {
-			if (!groupedPreferences) return false;
-			return groupedPreferences[category].every((p) => p.enabled);
-		},
-		[groupedPreferences],
-	);
-
-	// Loading state
 	if (isLoading) {
 		return (
 			<SafeAreaView
@@ -203,7 +246,7 @@ export default function NotificationPreferencesScreen() {
 				edges={["top"]}
 			>
 				<CustomHeader
-					title="Email Notifications"
+					title="Notifications"
 					showBackButton
 					onBackPress={() => router.back()}
 				/>
@@ -214,7 +257,6 @@ export default function NotificationPreferencesScreen() {
 		);
 	}
 
-	// Error state
 	if (error) {
 		return (
 			<SafeAreaView
@@ -222,7 +264,7 @@ export default function NotificationPreferencesScreen() {
 				edges={["top"]}
 			>
 				<CustomHeader
-					title="Email Notifications"
+					title="Notifications"
 					showBackButton
 					onBackPress={() => router.back()}
 				/>
@@ -232,9 +274,7 @@ export default function NotificationPreferencesScreen() {
 						size={48}
 						color={StatusColors.warning}
 					/>
-					<ThemedText
-						style={[styles.errorText, { color: textSecondary }]}
-					>
+					<ThemedText style={[styles.errorText, { color: textSecondary }]}>
 						Failed to load preferences
 					</ThemedText>
 					<TouchableOpacity
@@ -255,7 +295,7 @@ export default function NotificationPreferencesScreen() {
 			edges={["top"]}
 		>
 			<CustomHeader
-				title="Email Notifications"
+				title="Notifications"
 				showBackButton
 				onBackPress={() => router.back()}
 			/>
@@ -272,45 +312,57 @@ export default function NotificationPreferencesScreen() {
 					/>
 				}
 			>
-				{/* Category sections */}
-				{groupedPreferences &&
-					CATEGORY_ORDER.map((category) => {
-						const config = CATEGORY_CONFIG[category];
-						const prefs = groupedPreferences[category];
-						if (!prefs.length) return null;
+				{/* Enable-push prompt when the OS permission isn't granted yet */}
+				{(pushPermission === "undetermined" || pushPermission === "denied") && (
+					<TouchableOpacity
+						style={[styles.enablePushCard, { backgroundColor: cardBg, borderColor }]}
+						onPress={handleEnablePush}
+						activeOpacity={0.8}
+						accessibilityRole="button"
+					>
+						<IconSymbol name="bell.fill" size={22} color={BRAND_COLOR} />
+						<View style={styles.enablePushText}>
+							<ThemedText type="defaultSemiBold">
+								Enable push notifications
+							</ThemedText>
+							<ThemedText
+								style={[styles.enablePushSubtitle, { color: textSecondary }]}
+							>
+								{pushPermission === "denied"
+									? "Turn on notifications for BoothIQ in Settings"
+									: "Get alerted instantly when a booth needs attention"}
+							</ThemedText>
+						</View>
+						<IconSymbol name="chevron.right" size={16} color={textSecondary} />
+					</TouchableOpacity>
+				)}
 
-						const allEnabled = isCategoryEnabled(category);
+				{/* Push is system-controlled; only email is user-configurable. */}
+				<View style={styles.pushNote}>
+					<IconSymbol name="bell.fill" size={16} color={textSecondary} />
+					<ThemedText style={[styles.pushNoteText, { color: textSecondary }]}>
+						Critical alerts are always sent as push notifications. You can turn
+						those off only in your device Settings. The toggles below control
+						email.
+					</ThemedText>
+				</View>
 
-						return (
-							<View key={category} style={styles.section}>
-								<SectionHeader
-									title={config.label}
-									subtitle={config.subtitle}
-									rightAction={
-										<Switch
-											value={allEnabled}
-											onValueChange={(value) =>
-												handleCategoryToggle(category, value)
-											}
-											trackColor={{
-												false: borderColor,
-												true: BRAND_COLOR,
-											}}
-											thumbColor="white"
-										/>
-									}
+				{categories.map(({ category, prefs }) => {
+					if (!prefs.length) return null;
+					const config = getCategoryConfig(category);
+					return (
+						<View key={category} style={styles.section}>
+							<SectionHeader title={config.label} subtitle={config.subtitle} />
+							{prefs.map((pref) => (
+								<PreferenceRow
+									key={pref.event_type}
+									preference={pref}
+									onToggle={handleToggle}
 								/>
-
-								{prefs.map((pref) => (
-									<PreferenceRow
-										key={pref.event_type}
-										preference={pref}
-										onToggle={handleToggle}
-									/>
-								))}
-							</View>
-						);
-					})}
+							))}
+						</View>
+					);
+				})}
 
 				{/* Link to notification history */}
 				<View style={styles.section}>
@@ -323,15 +375,10 @@ export default function NotificationPreferencesScreen() {
 						<ThemedText style={[styles.historyLinkText, { color: BRAND_COLOR }]}>
 							View Notification History
 						</ThemedText>
-						<IconSymbol
-							name="chevron.right"
-							size={16}
-							color={textSecondary}
-						/>
+						<IconSymbol name="chevron.right" size={16} color={textSecondary} />
 					</TouchableOpacity>
 				</View>
 
-				{/* Bottom spacing */}
 				<View style={{ height: Spacing.xxl }} />
 			</ScrollView>
 		</SafeAreaView>
@@ -369,6 +416,33 @@ const styles = StyleSheet.create({
 		color: "white",
 		fontSize: scaleFont(14),
 		fontWeight: "600",
+	},
+	enablePushCard: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: Spacing.sm,
+		padding: Spacing.md,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+		marginTop: Spacing.md,
+	},
+	enablePushText: {
+		flex: 1,
+	},
+	enablePushSubtitle: {
+		fontSize: scaleFont(12),
+		marginTop: 2,
+	},
+	pushNote: {
+		flexDirection: "row",
+		alignItems: "flex-start",
+		gap: Spacing.xs,
+		marginTop: Spacing.lg,
+	},
+	pushNoteText: {
+		flex: 1,
+		fontSize: scaleFont(12),
+		lineHeight: 17,
 	},
 	preferenceItem: {
 		flexDirection: "row",

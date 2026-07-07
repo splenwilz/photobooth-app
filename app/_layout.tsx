@@ -30,6 +30,7 @@ import { queryClient } from "@/api/query-client";
 import { SplashScreen } from "@/components/splash-screen";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDeepLinks } from "@/hooks/use-deep-links";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { useBoothStore } from "@/stores/booth-store";
 
 // Keep the native splash visible while we load
@@ -48,6 +49,10 @@ function RootLayoutNav() {
 
   // Handle deep links for payment callbacks and email notification redirects
   useDeepLinks();
+
+  // Push notifications: foreground handler, Android channel, and tap routing.
+  // Device registration is handled in the tabs layout (authed-only).
+  usePushNotifications();
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>

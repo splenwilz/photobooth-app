@@ -72,3 +72,39 @@ export interface AlertsParams {
 	/** Maximum alerts to return (default: 50, max: 100) */
 	limit?: number;
 }
+
+/**
+ * Request body for marking a single alert read/unread
+ * @see PATCH /api/v1/analytics/alerts/{alert_id}/read
+ */
+export interface MarkAlertReadRequest {
+	/** true = mark read; false = mark unread (deletes the read marker) */
+	is_read: boolean;
+}
+
+/**
+ * Response from marking a single alert read/unread
+ * @see PATCH /api/v1/analytics/alerts/{alert_id}/read
+ */
+export interface MarkAlertReadResponse {
+	id: string;
+	is_read: boolean;
+}
+
+/**
+ * Request body for marking all active alerts read
+ * @see PATCH /api/v1/analytics/alerts/read-all
+ */
+export interface MarkAllAlertsReadRequest {
+	/** Scope to a booth, or null/omitted for all booths owned by the caller */
+	booth_id: string | null;
+}
+
+/**
+ * Response from marking all active alerts read
+ * @see PATCH /api/v1/analytics/alerts/read-all
+ */
+export interface MarkAllAlertsReadResponse {
+	/** Number of currently-active alerts marked read */
+	updated: number;
+}
