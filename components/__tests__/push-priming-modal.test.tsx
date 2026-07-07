@@ -71,4 +71,15 @@ describe("PushPrimingModal", () => {
 		expect(mockRegister).not.toHaveBeenCalled();
 		expect(mockMarkSeen).toHaveBeenCalled(); // still marked so it won't reappear
 	});
+
+	it("closes (and marks seen) even when acquiring the token rejects", async () => {
+		mockAcquire.mockRejectedValue(new Error("native failure"));
+		const { getByLabelText, onClose } = renderModal();
+
+		fireEvent.press(getByLabelText("Enable alerts"));
+
+		await waitFor(() => expect(onClose).toHaveBeenCalled());
+		expect(mockRegister).not.toHaveBeenCalled();
+		expect(mockMarkSeen).toHaveBeenCalled();
+	});
 });

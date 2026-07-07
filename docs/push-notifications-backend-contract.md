@@ -13,7 +13,7 @@ we already have, it's called out under **⚠ Divergence**.
 
 ## 0. Architecture at a glance
 
-```
+```text
  App (Expo SDK 54)                Backend (FastAPI)                 Expo Push Service
  ─────────────────                ─────────────────                 ─────────────────
  mint ExpoPushToken  ──register──►  push_devices table
@@ -48,7 +48,7 @@ has a `// TODO` where mark-as-read should be). The client will ship **local-firs
 read-state immediately; these endpoints let it become server-backed (cross-device,
 server-computed unread badge).
 
-```
+```text
 PATCH /api/v1/analytics/alerts/{alert_id}/read
   auth:   required (Bearer)
   body:   { "is_read": true }
@@ -75,7 +75,7 @@ PATCH /api/v1/analytics/alerts/read-all
 The client mints an Expo push token (`ExponentPushToken[...]`) and registers it per
 install. Store one row per **`(user_id, device_id)`** — see the divergence note.
 
-```
+```text
 POST /api/v1/push/devices
   auth:   required (Bearer) — user_id derived from the token, NEVER from the body
   body: {
@@ -132,7 +132,7 @@ a second `push_enabled` boolean column.
 | (b) normalized `(user_id, event_type, channel, enabled)` | ✅ **chosen** — new channel = new enum value + rows, zero schema change; stays queryable |
 | (c) JSON `channels` blob | ❌ un-queryable ("who has push on for booth_offline?"), no integrity |
 
-```
+```text
 notification_preferences
   user_id     FK
   event_type  enum   -- the 14 types in §5
@@ -170,7 +170,7 @@ Enforce on **three** layers, not just the UI:
 3. **Send path** never emails an event whose email isn't offered, regardless of any stored row;
    `OFFERED[event_type]` is the source of truth, checked before every send.
 
-```
+```text
 GET /api/v1/notifications/preferences
   200: {
     "preferences": [
@@ -258,7 +258,7 @@ Also prune by `last_seen_at` age (e.g. > 6 months) — doubles as a GDPR retenti
 
 ### The send decision (per event)
 
-```
+```text
 on event(user_id, event_type, alert):
   if resolve_pref(user_id, event_type, 'push') is False: skip
   tokens = active push_devices for user_id
@@ -382,7 +382,8 @@ For your reference — no backend action needed, listed so scope is clear:
   deprecated `shouldShowAlert`), received/response listeners, and `useLastNotificationResponse`
   in the root layout for cold-start taps → route via existing `use-deep-links`.
 - Local-first alert read-state now; swap to §1 endpoints when live.
-- Second (push) toggle per row in the preferences screen against the §3 `channels` shape.
+- Preferences UI is **email-only**: one email toggle per email-offered event. Push is
+  system-controlled (no user push toggle) — see the offered-channel policy in §3/§5.
 - **Testing requires a development build** — remote push was removed from Expo Go (Android
   SDK 53+). Physical device recommended.
 

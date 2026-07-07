@@ -7,7 +7,7 @@
  * double-fire) is deduped by request identifier.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react-native";
+import { act, renderHook, waitFor } from "@testing-library/react-native";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import React from "react";
@@ -100,7 +100,11 @@ describe("usePushNotifications", () => {
 	it("ignores non-default action identifiers (custom buttons)", async () => {
 		mockGetLast.mockResolvedValue(makeResponse({ actionIdentifier: "SNOOZE" }));
 		renderHook(() => usePushNotifications(), { wrapper: createWrapper() });
-		await new Promise((r) => setTimeout(r, 10));
+		// Deterministically wait for the hook to consume the response, then flush
+		// the .then(handleResponse) microtask — no arbitrary sleep. (waitFor around
+		// a `.not` assertion would pass instantly, so we flush THEN assert.)
+		await waitFor(() => expect(mockGetLast).toHaveBeenCalled());
+		await act(async () => {});
 		expect(mockRouterReplace).not.toHaveBeenCalledWith("/(tabs)/alerts");
 	});
 });

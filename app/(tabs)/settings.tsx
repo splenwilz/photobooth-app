@@ -337,10 +337,15 @@ export default function SettingsScreen() {
 						try {
 							const deviceId = await getStoredDeviceId();
 							// Time-boxed: the API timeout is 30s, but logout must not
-							// wait that long on a flaky network.
+							// wait that long on a flaky network. Catch the DELETE up-front
+							// so a rejection that lands AFTER the timeout wins the race
+							// can't become an unhandled rejection.
 							if (deviceId) {
+								const unreg = unregisterDevice(deviceId).catch((e) =>
+									console.warn("[Settings] push unregister failed:", e),
+								);
 								await Promise.race([
-									unregisterDevice(deviceId),
+									unreg,
 									new Promise((resolve) => setTimeout(resolve, 3000)),
 								]);
 							}

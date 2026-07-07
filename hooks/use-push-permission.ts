@@ -9,7 +9,7 @@
  * @param active - when false, skips reading/subscribing (e.g. screen unfocused)
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import {
 	getPushPermissionState,
@@ -20,11 +20,20 @@ export function usePushPermission(active = true) {
 	const [state, setState] = useState<PushPermissionState | "checking">(
 		"checking",
 	);
+	const mountedRef = useRef(true);
+	useEffect(() => {
+		mountedRef.current = true;
+		return () => {
+			mountedRef.current = false;
+		};
+	}, []);
 
+	// Imperative refresh (e.g. after an in-app "Enable" tap). Guarded so a late
+	// resolve after unmount doesn't setState (parity with the effect's guard).
 	const refresh = useCallback(() => {
 		getPushPermissionState()
-			.then(setState)
-			.catch(() => setState("undetermined"));
+			.then((s) => mountedRef.current && setState(s))
+			.catch(() => mountedRef.current && setState("undetermined"));
 	}, []);
 
 	useEffect(() => {
