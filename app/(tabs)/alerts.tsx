@@ -18,9 +18,8 @@
 import { useIsFocused } from "@react-navigation/native";
 import * as Linking from "expo-linking";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
-	AppState,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
@@ -37,11 +36,8 @@ import {
 } from "@/api/alerts/queries";
 import type { AlertSeverity } from "@/api/alerts/types";
 import { useRegisterDevice } from "@/api/push/queries";
-import {
-	acquireExpoPushToken,
-	getPushPermissionState,
-	type PushPermissionState,
-} from "@/utils/push-notifications";
+import { usePushPermission } from "@/hooks/use-push-permission";
+import { acquireExpoPushToken } from "@/utils/push-notifications";
 import { BoothPickerModal } from "@/components/booth-picker-modal";
 import { CustomHeader } from "@/components/custom-header";
 import { AlertsSkeleton } from "@/components/skeletons";
@@ -290,28 +286,9 @@ export default function AlertsScreen() {
 	// Push-permission banner: nudge users whose OS notifications are off so they
 	// don't silently miss alerts. Denied → OS Settings; undetermined → prompt.
 	const registerDevice = useRegisterDevice();
-	const [pushState, setPushState] = useState<PushPermissionState | "checking">(
-		"checking",
-	);
+	const { state: pushState, refresh: refreshPushState } =
+		usePushPermission(isFocused);
 	const [bannerDismissed, setBannerDismissed] = useState(false);
-
-	const refreshPushState = useCallback(() => {
-		getPushPermissionState()
-			.then(setPushState)
-			.catch(() => setPushState("undetermined"));
-	}, []);
-
-	// Re-read permission on focus AND when the app returns to the foreground —
-	// the latter catches the user toggling notifications in the OS Settings app
-	// (leaving to Settings does not change navigation focus).
-	useEffect(() => {
-		if (!isFocused) return;
-		refreshPushState();
-		const sub = AppState.addEventListener("change", (state) => {
-			if (state === "active") refreshPushState();
-		});
-		return () => sub.remove();
-	}, [isFocused, refreshPushState]);
 
 	const bannerBusy = useRef(false);
 	const handleEnableFromBanner = useCallback(async () => {
@@ -333,6 +310,9 @@ export default function AlertsScreen() {
 				});
 			}
 			refreshPushState();
+		} catch (e) {
+			// onPress won't surface a rejected promise — handle native failures here.
+			console.warn("[alerts] enable-push from banner failed:", e);
 		} finally {
 			bannerBusy.current = false;
 		}

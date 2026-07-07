@@ -23,6 +23,9 @@ import type {
 	NotificationPreferencesResponse,
 } from "./types";
 
+/** Shared key so the channel-pref reconcile gate counts only these mutations. */
+const PREF_MUTATION_KEY = ["notifications", "pref"] as const;
+
 /**
  * Hook to fetch all notification preferences
  *
@@ -199,6 +202,7 @@ export function useUpdateChannelPreference() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
+		mutationKey: PREF_MUTATION_KEY,
 		mutationFn: ({
 			eventType,
 			channel,
@@ -269,6 +273,15 @@ export function useUpdateChannelPreference() {
 					};
 				},
 			);
+		},
+		onSettled: () => {
+			// Only the last in-flight toggle reconciles — refetches server truth so
+			// a stale rollback from an out-of-order failure self-heals.
+			if (queryClient.isMutating({ mutationKey: PREF_MUTATION_KEY }) !== 1)
+				return;
+			return queryClient.invalidateQueries({
+				queryKey: queryKeys.notifications.preferences(),
+			});
 		},
 	});
 }

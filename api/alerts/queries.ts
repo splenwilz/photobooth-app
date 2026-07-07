@@ -18,6 +18,12 @@ import type { AlertSummary, AlertsParams } from "./types";
  */
 
 /**
+ * Shared mutation key for the alert read-state mutations, so the onSettled
+ * reconcile gate counts ONLY these mutations (not unrelated app mutations).
+ */
+const ALERTS_MUTATION_KEY = ["alerts", "mutate"] as const;
+
+/**
  * Transformed alerts response with app Alert types
  */
 interface TransformedAlertsResponse {
@@ -130,6 +136,7 @@ export function useMarkAlertRead() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
+		mutationKey: ALERTS_MUTATION_KEY,
 		mutationFn: ({
 			alertId,
 			isRead = true,
@@ -173,7 +180,8 @@ export function useMarkAlertRead() {
 		onSettled: (_data, _err, variables) => {
 			// Only the LAST in-flight mutation reconciles, so a settled mutation's
 			// refetch can't overwrite a still-pending sibling's optimistic update.
-			if (queryClient.isMutating() !== 1) return;
+			if (queryClient.isMutating({ mutationKey: ALERTS_MUTATION_KEY }) !== 1)
+				return;
 			return Promise.all([
 				queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() }),
 				queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.overview() }),
@@ -197,6 +205,7 @@ export function useMarkAllAlertsRead() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
+		mutationKey: ALERTS_MUTATION_KEY,
 		mutationFn: (boothId: string | null) => markAllAlertsRead(boothId),
 		onMutate: async (boothId) => {
 			await queryClient.cancelQueries({ queryKey: queryKeys.alerts.all() });
@@ -222,7 +231,8 @@ export function useMarkAllAlertsRead() {
 		},
 		onSettled: (_data, _err, boothId) => {
 			// Only reconcile when this is the last in-flight mutation (see above).
-			if (queryClient.isMutating() !== 1) return;
+			if (queryClient.isMutating({ mutationKey: ALERTS_MUTATION_KEY }) !== 1)
+				return;
 			return Promise.all([
 				queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() }),
 				queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.overview() }),

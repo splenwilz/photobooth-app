@@ -6,9 +6,14 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import * as Linking from "expo-linking";
 import React from "react";
 import AlertsScreen from "../alerts";
-import { getPushPermissionState } from "@/utils/push-notifications";
+import {
+	acquireExpoPushToken,
+	getPushPermissionState,
+} from "@/utils/push-notifications";
 
 jest.mock("@react-navigation/native", () => ({ useIsFocused: () => true }));
+
+const mockRegisterMutate = jest.fn();
 
 jest.mock("@/api/alerts/queries", () => {
 	const emptyAlerts = {
@@ -26,7 +31,7 @@ jest.mock("@/api/alerts/queries", () => {
 	};
 });
 jest.mock("@/api/push/queries", () => ({
-	useRegisterDevice: () => ({ mutate: jest.fn() }),
+	useRegisterDevice: () => ({ mutate: mockRegisterMutate }),
 }));
 jest.mock("@/utils/push-notifications", () => ({
 	getPushPermissionState: jest.fn(),
@@ -38,6 +43,7 @@ jest.mock("@/stores/booth-store", () => ({
 }));
 
 const mockState = getPushPermissionState as jest.Mock;
+const mockAcquire = acquireExpoPushToken as jest.Mock;
 const mockOpenSettings = Linking.openSettings as jest.Mock;
 
 function renderScreen() {
@@ -71,5 +77,32 @@ describe("Alerts push-permission banner", () => {
 		await waitFor(() => expect(mockState).toHaveBeenCalled());
 		expect(queryByText("Notifications are off")).toBeNull();
 		expect(queryByText("Turn on push alerts")).toBeNull();
+	});
+
+	it("shows 'Turn on push alerts' when undetermined and enables on tap", async () => {
+		mockState.mockResolvedValue("undetermined");
+		mockAcquire.mockResolvedValue({
+			status: "granted",
+			token: "ExponentPushToken[x]",
+			deviceId: "d1",
+			platform: "ios",
+		});
+		const { getByText } = renderScreen();
+
+		await waitFor(() => expect(getByText("Turn on push alerts")).toBeTruthy());
+
+		fireEvent.press(getByText("Turn on push alerts"));
+
+		await waitFor(() =>
+			expect(mockAcquire).toHaveBeenCalledWith({ requestIfUndetermined: true }),
+		);
+		await waitFor(() =>
+			expect(mockRegisterMutate).toHaveBeenCalledWith({
+				expo_push_token: "ExponentPushToken[x]",
+				device_id: "d1",
+				platform: "ios",
+			}),
+		);
+		expect(mockOpenSettings).not.toHaveBeenCalled();
 	});
 });

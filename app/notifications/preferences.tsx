@@ -17,11 +17,10 @@
 
 import { router } from "expo-router";
 import * as Linking from "expo-linking";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
-	AppState,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
@@ -51,11 +50,9 @@ import {
 	StatusColors,
 	scaleFont,
 } from "@/constants/theme";
+import { usePushPermission } from "@/hooks/use-push-permission";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import {
-	acquireExpoPushToken,
-	getPushPermissionState,
-} from "@/utils/push-notifications";
+import { acquireExpoPushToken } from "@/utils/push-notifications";
 
 /** Display config for known categories; unknown ones fall back gracefully. */
 const CATEGORY_CONFIG: Record<
@@ -154,51 +151,41 @@ export default function NotificationPreferencesScreen() {
 	const updateChannel = useUpdateChannelPreference();
 	const registerDevice = useRegisterDevice();
 
-	// OS push permission — drives the "Enable push" banner.
-	const [pushPermission, setPushPermission] = useState<
-		"checking" | "granted" | "denied" | "undetermined"
-	>("checking");
-
-	const refreshPermission = useCallback(() => {
-		getPushPermissionState()
-			.then(setPushPermission)
-			.catch(() => setPushPermission("undetermined"));
-	}, []);
-
-	// Re-read on mount AND on foreground, so enabling/disabling notifications in
-	// the OS Settings app is reflected without a manual remount.
-	useEffect(() => {
-		refreshPermission();
-		const sub = AppState.addEventListener("change", (state) => {
-			if (state === "active") refreshPermission();
-		});
-		return () => sub.remove();
-	}, [refreshPermission]);
+	// OS push permission — drives the "Enable push" card. Shared hook keeps it
+	// fresh on foreground (e.g. after returning from the OS Settings app).
+	const { state: pushPermission, refresh: refreshPermission } =
+		usePushPermission();
 
 	const handleEnablePush = useCallback(async () => {
-		// Already denied → iOS won't re-prompt; take the user to Settings.
-		if (pushPermission === "denied") {
-			await Linking.openSettings();
-			return;
-		}
-		const result = await acquireExpoPushToken({ requestIfUndetermined: true });
-		if (result.status === "granted") {
-			registerDevice.mutate({
-				expo_push_token: result.token,
-				device_id: result.deviceId,
-				platform: result.platform,
+		try {
+			// Already denied → iOS won't re-prompt; take the user to Settings.
+			if (pushPermission === "denied") {
+				await Linking.openSettings();
+				return;
+			}
+			const result = await acquireExpoPushToken({
+				requestIfUndetermined: true,
 			});
-			setPushPermission("granted");
-		} else if (result.status === "denied") {
-			setPushPermission("denied");
-			await Linking.openSettings();
-		} else {
-			Alert.alert(
-				"Not available",
-				"Push notifications require a physical device.",
-			);
+			if (result.status === "granted") {
+				registerDevice.mutate({
+					expo_push_token: result.token,
+					device_id: result.deviceId,
+					platform: result.platform,
+				});
+				refreshPermission();
+			} else if (result.status === "denied") {
+				await Linking.openSettings();
+			} else {
+				Alert.alert(
+					"Not available",
+					"Push notifications require a physical device.",
+				);
+			}
+		} catch (e) {
+			// onPress won't surface a rejected promise — handle native failures here.
+			console.warn("[prefs] enable-push failed:", e);
 		}
-	}, [pushPermission, registerDevice]);
+	}, [pushPermission, registerDevice, refreshPermission]);
 
 	// Manual refresh state — prevents mutation-triggered refetches from spinning
 	const [isRefreshing, setIsRefreshing] = useState(false);

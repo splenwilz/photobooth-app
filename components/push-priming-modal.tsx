@@ -78,6 +78,9 @@ export function PushPrimingModal({ visible, onClose }: PushPrimingModalProps) {
 						platform: result.platform,
 					});
 				}
+			} catch (e) {
+				// onPress won't surface a rejected promise — swallow native failures.
+				console.warn("[push] priming decision failed:", e);
 			} finally {
 				setBusy(false);
 				inFlight.current = false;

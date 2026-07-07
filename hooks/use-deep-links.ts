@@ -22,6 +22,12 @@ import { router } from "expo-router";
 import { queryKeys } from "@/api/utils/query-keys";
 import { useBoothStore } from "@/stores/booth-store";
 
+/** Refresh subscription/access data (used by the settings + billing routes). */
+function invalidatePaymentQueries(queryClient: QueryClient): void {
+	queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
+	queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
+}
+
 /**
  * Route a single `boothiq://` deep link to the right screen and refresh any
  * data that screen depends on.
@@ -46,12 +52,7 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 		switch (path) {
 			case "settings":
 				// Return from customer portal - refresh subscription data
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.payments.access(),
-				});
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.payments.subscription(),
-				});
+				invalidatePaymentQueries(queryClient);
 				break;
 
 			// Email notification / push deep links
@@ -74,12 +75,7 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 				break;
 
 			case "billing":
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.payments.subscription(),
-				});
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.payments.access(),
-				});
+				invalidatePaymentQueries(queryClient);
 				router.replace("/(tabs)/settings");
 				break;
 

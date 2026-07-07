@@ -34,6 +34,12 @@ export async function getStoredDeviceId(): Promise<string | null> {
 }
 
 /**
+ * In-flight guard so concurrent first-run callers share ONE creation promise
+ * (otherwise two callers could each mint a different UUID and register twice).
+ */
+let creatingDeviceId: Promise<string> | null = null;
+
+/**
  * Get the persisted device id, generating and storing one on first call.
  * A locally-generated UUID is platform-uniform and synchronous to read after
  * first generation — preferred over IDFV/ANDROID_ID, which are platform-split
@@ -42,9 +48,17 @@ export async function getStoredDeviceId(): Promise<string | null> {
 export async function getOrCreateDeviceId(): Promise<string> {
 	const existing = await SecureStore.getItemAsync(DEVICE_ID_KEY);
 	if (existing) return existing;
-	const id = Crypto.randomUUID();
-	await SecureStore.setItemAsync(DEVICE_ID_KEY, id);
-	return id;
+	// Coalesce concurrent creators onto the same promise → one shared id.
+	if (!creatingDeviceId) {
+		creatingDeviceId = (async () => {
+			const id = Crypto.randomUUID();
+			await SecureStore.setItemAsync(DEVICE_ID_KEY, id);
+			return id;
+		})().finally(() => {
+			creatingDeviceId = null;
+		});
+	}
+	return creatingDeviceId;
 }
 
 /** Resolve the EAS projectId required by getExpoPushTokenAsync in SDK 54. */
@@ -182,11 +196,6 @@ export async function acquireExpoPushToken({
 	const { data: token } = await Notifications.getExpoPushTokenAsync({
 		projectId,
 	});
-	if (__DEV__) {
-		// Dev aid: copy this from the Metro terminal into the Expo push tool
-		// (https://expo.dev/notifications) to send a test push to this device.
-		console.log("[push] Expo push token:", token);
-	}
 	const deviceId = await getOrCreateDeviceId();
 	const platform: DevicePlatform = Platform.OS === "ios" ? "ios" : "android";
 

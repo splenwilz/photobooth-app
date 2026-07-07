@@ -94,7 +94,8 @@ export function usePushNotifications() {
 			.then((r) => {
 				if (!r) return;
 				handleResponse(r);
-				Notifications.clearLastNotificationResponseAsync();
+				// Return into the chain so a rejection hits the trailing .catch.
+				return Notifications.clearLastNotificationResponseAsync();
 			})
 			.catch(() => {});
 		return () => sub.remove();

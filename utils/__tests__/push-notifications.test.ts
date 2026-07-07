@@ -108,6 +108,42 @@ describe("acquireExpoPushToken", () => {
 		});
 		expect(result.status).toBe("granted");
 	});
+
+	it("provisional on Android returns 'denied' without prompting (no provisional tier)", async () => {
+		const RN = require("react-native");
+		const original = RN.Platform.OS;
+		Object.defineProperty(RN.Platform, "OS", {
+			get: () => "android",
+			configurable: true,
+		});
+		try {
+			mockGetPerms.mockResolvedValue({ status: "undetermined" });
+			const result = await acquireExpoPushToken({
+				requestIfUndetermined: true,
+				provisional: true,
+			});
+			expect(result.status).toBe("denied");
+			expect(mockReqPerms).not.toHaveBeenCalled();
+		} finally {
+			Object.defineProperty(RN.Platform, "OS", {
+				get: () => original,
+				configurable: true,
+			});
+		}
+	});
+
+	it("returns 'unsupported' when no EAS projectId is configured", async () => {
+		const Constants = require("expo-constants").default;
+		const originalConfig = Constants.expoConfig;
+		Constants.expoConfig = { extra: { eas: {} } }; // no projectId
+		try {
+			mockGetPerms.mockResolvedValue({ status: "granted" });
+			const result = await acquireExpoPushToken();
+			expect(result.status).toBe("unsupported");
+		} finally {
+			Constants.expoConfig = originalConfig;
+		}
+	});
 });
 
 describe("getPushPermissionState", () => {
