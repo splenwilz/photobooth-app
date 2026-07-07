@@ -1,7 +1,7 @@
 /**
  * usePushPriming trigger tests
  */
-import { renderHook, waitFor } from "@testing-library/react-native";
+import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { useBoothOverview } from "@/api/booths/queries";
 import {
 	getPushPermissionState,
@@ -39,8 +39,8 @@ describe("usePushPriming", () => {
 	it("does not show when the user has no booths", async () => {
 		withBooths(0);
 		const { result } = renderHook(() => usePushPriming());
-		// give the effect a tick
-		await new Promise((r) => setTimeout(r, 0));
+		// The no-booths branch returns synchronously before any await, so the
+		// permission check never runs — assert directly, no timer needed.
 		expect(result.current.visible).toBe(false);
 		expect(mockState).not.toHaveBeenCalled();
 	});
@@ -49,7 +49,10 @@ describe("usePushPriming", () => {
 		withBooths(1);
 		mockState.mockResolvedValue("granted");
 		const { result } = renderHook(() => usePushPriming());
-		await new Promise((r) => setTimeout(r, 0));
+		// Wait for the async eligibility check to run AND its promise chain to
+		// settle, so a buggy setVisible(true) would be observable before we assert.
+		await waitFor(() => expect(mockState).toHaveBeenCalled());
+		await act(async () => {});
 		expect(result.current.visible).toBe(false);
 	});
 
@@ -57,8 +60,21 @@ describe("usePushPriming", () => {
 		withBooths(2);
 		mockSeen.mockResolvedValue(true);
 		const { result } = renderHook(() => usePushPriming());
-		await new Promise((r) => setTimeout(r, 0));
+		await waitFor(() => expect(mockSeen).toHaveBeenCalled());
+		await act(async () => {});
 		expect(result.current.visible).toBe(false);
+	});
+
+	it("does not show (and swallows) when the eligibility check rejects", async () => {
+		const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+		withBooths(1);
+		mockState.mockRejectedValue(new Error("permissions read failed"));
+		const { result } = renderHook(() => usePushPriming());
+		// The warn only fires from the catch handler — proves the rejection was
+		// caught (not merely unobserved), which asserting visible===false cannot.
+		await waitFor(() => expect(warnSpy).toHaveBeenCalled());
+		expect(result.current.visible).toBe(false);
+		warnSpy.mockRestore();
 	});
 
 	it("dismiss hides the modal", async () => {

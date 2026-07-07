@@ -144,8 +144,10 @@ describe("useMarkAlertRead", () => {
 		expect(invalidateSpy).toHaveBeenCalledWith({
 			queryKey: queryKeys.dashboard.overview(),
 		});
+		// Broad booth-detail prefix (concurrency-safe under the isMutating gate),
+		// not the single booth.
 		expect(invalidateSpy).toHaveBeenCalledWith({
-			queryKey: queryKeys.booths.detail("b1"),
+			queryKey: queryKeys.booths.detailAll(),
 		});
 	});
 });
@@ -175,6 +177,29 @@ describe("useMarkAllAlertsRead", () => {
 			queryKeys.alerts.list({ limit: 50 }),
 		);
 		expect(list?.alerts.every((a) => a.isRead)).toBe(true);
+	});
+
+	it("invalidates the broad booth-detail prefix on settle (both null and scoped)", async () => {
+		mockMarkAllAlertsRead.mockResolvedValue({ updated: 2 });
+
+		// Booth detail carries recent_alerts/alerts_count. Both the all-booths (null)
+		// and single-booth paths invalidate the broad ["booths","detail"] prefix, so
+		// the isMutating reconcile gate (last settler wins) can't drop a broad refresh.
+		for (const arg of [null, "b1"] as const) {
+			const queryClient = createQueryClient();
+			const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
+
+			const { result } = renderHook(() => useMarkAllAlertsRead(), {
+				wrapper: createWrapper(queryClient),
+			});
+
+			result.current.mutate(arg);
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+			expect(invalidateSpy).toHaveBeenCalledWith({
+				queryKey: queryKeys.booths.detailAll(),
+			});
+		}
 	});
 
 	it("only marks the scoped booth's alerts when boothId is set", async () => {

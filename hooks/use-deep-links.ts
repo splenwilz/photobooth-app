@@ -7,7 +7,7 @@
  * deep links are intentionally absent.
  *
  * Supported URLs:
- * - boothiq://settings - Return from customer portal
+ * - boothiq://settings - Return from customer portal / license_* push taps
  * - boothiq://booths - Navigate to booths (optional booth_id param)
  * - boothiq://alerts - Navigate to alerts
  * - boothiq://billing - Navigate to billing settings
@@ -53,8 +53,11 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 
 		switch (path) {
 			case "settings":
-				// Return from customer portal - refresh subscription data
+				// Two callers land here: returning from the Stripe customer portal,
+				// and `license_*` push taps (contract routes those to boothiq://settings).
+				// Refresh subscription data AND navigate, so the push tap opens Settings.
 				invalidatePaymentQueries(queryClient);
+				router.replace("/(tabs)/settings");
 				break;
 
 			// Email notification / push deep links

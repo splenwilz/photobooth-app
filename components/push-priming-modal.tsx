@@ -56,9 +56,16 @@ export function PushPrimingModal({ visible, onClose }: PushPrimingModalProps) {
 	const inFlight = useRef(false);
 
 	// Mark seen (so it never re-shows) then close — used for every exit path.
+	// onClose() runs in `finally` and the write is swallowed, so a SecureStore
+	// rejection can't leave the modal stuck (or make decide()'s finally throw).
 	const finish = useCallback(async () => {
-		await markPushPrimingSeen();
-		onClose();
+		try {
+			await markPushPrimingSeen();
+		} catch (e) {
+			console.warn("[push] failed to persist priming-seen flag:", e);
+		} finally {
+			onClose();
+		}
 	}, [onClose]);
 
 	const decide = useCallback(
@@ -97,7 +104,12 @@ export function PushPrimingModal({ visible, onClose }: PushPrimingModalProps) {
 			visible={visible}
 			animationType="fade"
 			transparent
-			onRequestClose={finish}
+			// Ignore the Android back button while a decision is in flight — decide()
+			// already calls finish() in its finally, so routing back here too would
+			// double-fire markPushPrimingSeen()/onClose().
+			onRequestClose={() => {
+				if (!inFlight.current) finish();
+			}}
 		>
 			<View style={styles.overlay}>
 				<View style={[styles.container, { backgroundColor }]}>

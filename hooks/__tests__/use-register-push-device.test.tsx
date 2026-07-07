@@ -53,7 +53,11 @@ describe("useRegisterPushDevice", () => {
 	it("does not register when permission is not granted", async () => {
 		mockAcquire.mockResolvedValue({ status: "denied" });
 		renderHook(() => useRegisterPushDevice(), { wrapper: createWrapper() });
-		await new Promise((r) => setTimeout(r, 0));
+		// Wait for the effect to actually invoke acquire (silent path), so the
+		// negative assertion below isn't a vacuous pass before the effect ran.
+		await waitFor(() =>
+			expect(mockAcquire).toHaveBeenCalledWith({ requestIfUndetermined: false }),
+		);
 		expect(mockRegister).not.toHaveBeenCalled();
 	});
 });

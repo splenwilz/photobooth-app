@@ -314,7 +314,7 @@ export default function AlertsScreen() {
 				// unsupported: simulator/web, or a real device with no EAS projectId.
 				RNAlert.alert(
 					"Not available",
-					"Push notifications require a physical device.",
+					"Push notifications aren't available on this device.",
 				);
 			}
 			refreshPushState();

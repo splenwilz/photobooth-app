@@ -15,6 +15,7 @@
  */
 
 import { useMarkAlertRead } from "@/api/alerts/queries";
+import { getAccessToken } from "@/api/client";
 import { routeDeepLink } from "@/hooks/use-deep-links";
 import { ensureAndroidChannel } from "@/utils/push-notifications";
 import { useQueryClient } from "@tanstack/react-query";
@@ -66,8 +67,17 @@ export function usePushNotifications() {
 
 			const data = response.notification.request.content
 				.data as PushNotificationData;
-			if (data?.alert_id) {
-				markAlertRead({ alertId: data.alert_id, boothId: data.booth_id });
+			const alertId = data?.alert_id;
+			if (alertId) {
+				// Gate the protected mutation behind a session — a signed-out
+				// cold-start tap must not hit the auth-only mark-read endpoint.
+				// (Routing stays ungated; a signed-out user is bounced reactively
+				// by the api/client 401 interceptor → handleSessionExpiration.)
+				getAccessToken()
+					.then((token) => {
+						if (token) markAlertRead({ alertId, boothId: data.booth_id });
+					})
+					.catch(() => {});
 			}
 			if (data?.deep_link) {
 				routeDeepLink(data.deep_link, queryClient);

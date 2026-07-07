@@ -18,6 +18,14 @@ jest.mock("@/api/alerts/services", () => ({
 	markAlertRead: jest.fn().mockResolvedValue({ id: "x", is_read: true }),
 	markAllAlertsRead: jest.fn(),
 }));
+// The tap read-path is auth-gated. Spread the real module so any other client
+// export stays intact; override only getAccessToken (signed-in by default).
+jest.mock("@/api/client", () => ({
+	...jest.requireActual("@/api/client"),
+	getAccessToken: jest.fn().mockResolvedValue("test-token"),
+}));
+const mockGetAccessToken = jest.requireMock("@/api/client")
+	.getAccessToken as jest.Mock;
 
 const mockMarkRead = markAlertRead as jest.Mock;
 const mockGetLast =
@@ -72,9 +80,27 @@ describe("usePushNotifications", () => {
 		await waitFor(() =>
 			expect(mockRouterReplace).toHaveBeenCalledWith("/(tabs)/alerts"),
 		);
-		expect(mockMarkRead).toHaveBeenCalledWith("printer-error-b1", true);
+		// mark-read is deferred behind the async auth check, so await it.
+		await waitFor(() =>
+			expect(mockMarkRead).toHaveBeenCalledWith("printer-error-b1", true),
+		);
 		// Prevents re-routing to this stale response on the next normal launch.
 		expect(mockClearLast).toHaveBeenCalled();
+	});
+
+	it("signed-out tap routes but does NOT call the protected mark-read", async () => {
+		// No session → the auth gate must skip markAlertRead entirely, while still
+		// routing (the router itself bounces a signed-out user).
+		mockGetAccessToken.mockResolvedValueOnce(null);
+		mockGetLast.mockResolvedValue(makeResponse());
+		renderHook(() => usePushNotifications(), { wrapper: createWrapper() });
+
+		await waitFor(() =>
+			expect(mockRouterReplace).toHaveBeenCalledWith("/(tabs)/alerts"),
+		);
+		// Flush the getAccessToken().then microtask, then assert the negative.
+		await act(async () => {});
+		expect(mockMarkRead).not.toHaveBeenCalled();
 	});
 
 	it("dedupes the same response delivered via both getLast and the listener", async () => {
@@ -89,6 +115,9 @@ describe("usePushNotifications", () => {
 		await waitFor(() =>
 			expect(mockRouterReplace).toHaveBeenCalledTimes(1),
 		);
+
+		// mark-read is deferred behind the async auth check, so await it.
+		await waitFor(() => expect(mockMarkRead).toHaveBeenCalledTimes(1));
 
 		// iOS also fires the listener for the launch notification (same id).
 		listenerCb?.(makeResponse());

@@ -82,4 +82,20 @@ describe("PushPrimingModal", () => {
 		expect(mockRegister).not.toHaveBeenCalled();
 		expect(mockMarkSeen).toHaveBeenCalled();
 	});
+
+	it("still closes when persisting the priming-seen flag rejects (no stuck modal)", async () => {
+		mockAcquire.mockResolvedValue({
+			status: "granted",
+			token: "ExponentPushToken[x]",
+			deviceId: "d1",
+			platform: "ios",
+		});
+		// SecureStore write fails — finish() must swallow it and still call onClose.
+		mockMarkSeen.mockRejectedValue(new Error("securestore write failed"));
+		const { getByLabelText, onClose } = renderModal();
+
+		fireEvent.press(getByLabelText("Enable alerts"));
+
+		await waitFor(() => expect(onClose).toHaveBeenCalled());
+	});
 });

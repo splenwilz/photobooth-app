@@ -29,13 +29,21 @@ export function usePushPriming() {
 		if (!hasBooths || evaluated) return;
 		let cancelled = false;
 		(async () => {
-			const [state, seen] = await Promise.all([
-				getPushPermissionState(),
-				hasSeenPushPriming(),
-			]);
-			if (cancelled) return;
-			setEvaluated(true);
-			if (state === "undetermined" && !seen) setVisible(true);
+			try {
+				const [state, seen] = await Promise.all([
+					getPushPermissionState(),
+					hasSeenPushPriming(),
+				]);
+				if (cancelled) return;
+				setEvaluated(true);
+				if (state === "undetermined" && !seen) setVisible(true);
+			} catch (e) {
+				// Transient permissions/SecureStore failure: stop the flow (mark
+				// evaluated, never show) instead of leaking an unhandled rejection.
+				if (cancelled) return;
+				setEvaluated(true);
+				console.warn("[push] priming eligibility check failed:", e);
+			}
 		})();
 		return () => {
 			cancelled = true;

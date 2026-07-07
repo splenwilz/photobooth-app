@@ -175,4 +175,41 @@ describe("useUpdateChannelPreference", () => {
 		)?.preferences[0];
 		expect(pref?.channels.push).toBe(true); // restored
 	});
+
+	it("a stale failed toggle does not clobber a newer optimistic value (latest-wins)", async () => {
+		const queryClient = createQueryClient();
+		seed(queryClient, [makePref({ channels: { email: false, push: true } })]);
+
+		const { result } = renderHook(() => useUpdateChannelPreference(), {
+			wrapper: createWrapper(queryClient),
+		});
+
+		// Three quick toggles of the SAME (event, channel). The FIRST rejects
+		// (slow network); the last succeeds. The first's late rollback must NOT
+		// restore its stale previousValue over the newest optimistic value.
+		mockPatch
+			.mockRejectedValueOnce(new Error("500")) // toggle A → true, fails late
+			.mockResolvedValueOnce({ updated: 1 }) //     toggle B → false
+			.mockResolvedValueOnce({ updated: 1 }); //    toggle C → true (final)
+
+		const email = (enabled: boolean) =>
+			result.current.mutate({ eventType: "booth_offline", channel: "email", enabled });
+
+		email(true); // A: prev=false
+		email(false); // B: prev=true
+		email(true); // C: prev=false — the user's final intent
+
+		// Once all three settle, the cache must reflect C's optimistic `true`,
+		// not A's stale rolled-back `false`.
+		await waitFor(() => {
+			const pref = queryClient.getQueryData<NotificationPreferencesResponse>(
+				queryKeys.notifications.preferences(),
+			)?.preferences[0];
+			expect(pref?.channels.email).toBe(true);
+		});
+		const pref = queryClient.getQueryData<NotificationPreferencesResponse>(
+			queryKeys.notifications.preferences(),
+		)?.preferences[0];
+		expect(pref?.channels.email).toBe(true);
+	});
 });

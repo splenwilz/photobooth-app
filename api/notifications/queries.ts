@@ -8,6 +8,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { queryKeys } from "../utils/query-keys";
 import {
 	getNotificationHistory,
@@ -50,6 +51,11 @@ export function useNotificationPreferences() {
  */
 export function useUpdateChannelPreference() {
 	const queryClient = useQueryClient();
+	// Latest-wins guard: monotonic seq per `${eventType}:${channel}`. A stale
+	// failed toggle must NOT roll back a newer toggle's optimistic value for the
+	// same key (and since success deliberately skips invalidation, that clobber
+	// wouldn't self-heal). onError only acts if it's still the latest for its key.
+	const latestSeq = useRef(new Map<string, number>());
 
 	return useMutation({
 		mutationKey: PREF_MUTATION_KEY,
@@ -70,6 +76,11 @@ export function useUpdateChannelPreference() {
 			await queryClient.cancelQueries({
 				queryKey: queryKeys.notifications.preferences(),
 			});
+
+			// Claim this key as the latest in-flight toggle.
+			const key = `${eventType}:${channel}`;
+			const seq = (latestSeq.current.get(key) ?? 0) + 1;
+			latestSeq.current.set(key, seq);
 
 			const current =
 				queryClient.getQueryData<NotificationPreferencesResponse>(
@@ -99,41 +110,44 @@ export function useUpdateChannelPreference() {
 				);
 			}
 
-			return { eventType, channel, previousValue };
+			return { eventType, channel, previousValue, key, seq };
 		},
 		onError: (_err, _variables, context) => {
-			if (context?.previousValue === undefined) {
-				// Nothing was optimistically written; still reconcile with the server
-				// in case an out-of-order sibling left the cache inconsistent.
-				return queryClient.invalidateQueries({
-					queryKey: queryKeys.notifications.preferences(),
-				});
+			// If a newer toggle for the same key has since started, its optimistic
+			// value is authoritative — don't roll back or invalidate over it.
+			if (context && latestSeq.current.get(context.key) !== context.seq) {
+				return;
 			}
-			// Destructure after the guard so `previousValue` narrows to boolean.
-			const { eventType, channel, previousValue } = context;
-			queryClient.setQueryData<NotificationPreferencesResponse>(
-				queryKeys.notifications.preferences(),
-				(prev) => {
-					if (!prev) return prev;
-					return {
-						...prev,
-						preferences: prev.preferences.map((p) =>
-							p.event_type === eventType
-								? {
-										...p,
-										// restore only the one channel we changed
-										channels: { ...p.channels, [channel]: previousValue },
-										enabled: channel === "email" ? previousValue : p.enabled,
-									}
-								: p,
-						),
-					};
-				},
-			);
-			// Reconcile ONLY on failure — refetches server truth so a stale
-			// rollback self-heals. On SUCCESS we deliberately do NOT invalidate:
-			// the optimistic value is authoritative and a reconcile GET could
-			// revert it on out-of-order PATCHes / read-replica lag.
+			// Roll back only the affected channel if we optimistically wrote it.
+			if (context?.previousValue !== undefined) {
+				const { eventType, channel, previousValue } = context;
+				queryClient.setQueryData<NotificationPreferencesResponse>(
+					queryKeys.notifications.preferences(),
+					(prev) => {
+						if (!prev) return prev;
+						return {
+							...prev,
+							preferences: prev.preferences.map((p) =>
+								p.event_type === eventType
+									? {
+											...p,
+											// restore only the one channel we changed
+											channels: { ...p.channels, [channel]: previousValue },
+											enabled: channel === "email" ? previousValue : p.enabled,
+										}
+									: p,
+							),
+						};
+					},
+				);
+			}
+			// Reconcile ONLY on failure (success deliberately never invalidates —
+			// the optimistic value is authoritative and a reconcile GET could revert
+			// it on out-of-order PATCHes / read-replica lag), and ONLY when no sibling
+			// PATCH is still in flight: otherwise a reconcile GET can resolve before a
+			// pending sibling commits and strand the cache. The settling mutation
+			// counts itself as pending here, so the last in-flight one sees exactly 1.
+			if (queryClient.isMutating({ mutationKey: PREF_MUTATION_KEY }) !== 1) return;
 			return queryClient.invalidateQueries({
 				queryKey: queryKeys.notifications.preferences(),
 			});

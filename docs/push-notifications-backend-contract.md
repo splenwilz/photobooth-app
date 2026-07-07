@@ -118,8 +118,14 @@ DELETE /api/v1/push/devices/{device_id}
 ## 3. Notification preferences (multi-channel: email + push)
 
 You already have email preferences (`GET/PUT /api/v1/notifications/preferences`, 14 event
-types, single `enabled` boolean). Push must be **independently toggleable per event**, and
-we want to add SMS / in-app later without a migration each time.
+types, single `enabled` boolean). We want a schema that adds channels (SMS / in-app) later
+without a migration each time.
+
+> **⚠ Note (2026-07-07 policy — see the API-shape block below).** Push is **system-controlled**,
+> NOT a user-configurable channel: the backend decides which events push (§5) and the user's only
+> control is the OS. So there are **no user-written `push` rows** — the normalized table below is
+> for **email today (+ future user-facing channels)**, and the send path resolves push purely from
+> `DEFAULTS['push']`. Read the model below with that scope.
 
 ### ⚠ Divergence & recommendation — normalized channel model
 
@@ -129,8 +135,8 @@ a second `push_enabled` boolean column.
 | Option | Verdict |
 |---|---|
 | (a) add `push_enabled` column next to `enabled` | ❌ every new channel = schema migration + nullable columns |
-| (b) normalized `(user_id, event_type, channel, enabled)` | ✅ **chosen** — new channel = new enum value + rows, zero schema change; stays queryable |
-| (c) JSON `channels` blob | ❌ un-queryable ("who has push on for booth_offline?"), no integrity |
+| (b) normalized `(user_id, event_type, channel, enabled)` | ✅ **chosen** — new user-facing channel = new enum value + rows, zero schema change; stays queryable |
+| (c) JSON `channels` blob | ❌ un-queryable, no integrity |
 
 ```text
 notification_preferences

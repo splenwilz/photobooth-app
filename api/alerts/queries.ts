@@ -186,11 +186,11 @@ export function useMarkAlertRead() {
 			return Promise.all([
 				queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() }),
 				queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.overview() }),
-				variables.boothId
-					? queryClient.invalidateQueries({
-							queryKey: queryKeys.booths.detail(variables.boothId),
-						})
-					: Promise.resolve(),
+				// Broad prefix (not the single booth): the isMutating gate lets only
+				// the last settler reconcile, so it must cover the widest scope any
+				// in-flight sibling wanted — else a concurrent mark-all(null) drops
+				// its broad booth-detail refresh. refetchType:'active' keeps it cheap.
+				queryClient.invalidateQueries({ queryKey: queryKeys.booths.detailAll() }),
 			]);
 		},
 	});
@@ -249,11 +249,11 @@ export function useMarkAllAlertsRead() {
 			return Promise.all([
 				queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() }),
 				queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.overview() }),
-				boothId
-					? queryClient.invalidateQueries({
-							queryKey: queryKeys.booths.detail(boothId),
-						})
-					: Promise.resolve(),
+				// Broad booth-detail prefix regardless of scope — booth detail carries
+				// `recent_alerts`/`alerts_count`. The isMutating gate lets only the last
+				// settler reconcile, so it must cover the widest scope; a per-booth key
+				// here would be dropped when a mark-all(null) settles first in a race.
+				queryClient.invalidateQueries({ queryKey: queryKeys.booths.detailAll() }),
 			]);
 		},
 	});
