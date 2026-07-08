@@ -74,6 +74,12 @@ export const queryKeys = {
     detail: (boothId: string) => ['booths', 'detail', boothId] as const,
 
     /**
+     * Prefix for ALL booth-detail queries (broad invalidation across booths,
+     * e.g. after marking all alerts read — booth detail carries alert counts).
+     */
+    detailAll: () => ['booths', 'detail'] as const,
+
+    /**
      * Get booth statistics
      */
     stats: (boothId: string) => ['booths', 'stats', boothId] as const,

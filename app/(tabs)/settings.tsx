@@ -31,6 +31,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // API hooks for credits, booth details, and alerts
 import { useAlerts } from "@/api/alerts/queries";
 import { useSignout } from "@/api/auth/signout/queries";
+import { unregisterDevice } from "@/api/push/services";
+import { getStoredDeviceId } from "@/utils/push-notifications";
 import {
   useBoothDetail,
   useBoothOverview,
@@ -328,6 +330,28 @@ export default function SettingsScreen() {
 				style: "destructive",
 				onPress: async () => {
 					try {
+						// Unregister this device's push token BEFORE signout clears
+						// the bearer token. Fully isolated & best-effort — a failure
+						// here (incl. a SecureStore read error) must NEVER prevent the
+						// actual sign-out; the backend also prunes dead tokens.
+						try {
+							const deviceId = await getStoredDeviceId();
+							// Time-boxed: the API timeout is 30s, but logout must not
+							// wait that long on a flaky network. Catch the DELETE up-front
+							// so a rejection that lands AFTER the timeout wins the race
+							// can't become an unhandled rejection.
+							if (deviceId) {
+								const unreg = unregisterDevice(deviceId).catch((e) =>
+									console.warn("[Settings] push unregister failed:", e),
+								);
+								await Promise.race([
+									unreg,
+									new Promise((resolve) => setTimeout(resolve, 3000)),
+								]);
+							}
+						} catch (e) {
+							console.warn("[Settings] push unregister skipped:", e);
+						}
 						await signoutMutation.mutateAsync();
 						router.replace("/auth/signin");
 					} catch (error) {
@@ -989,14 +1013,14 @@ export default function SettingsScreen() {
 					</View>
 				)}
 
-				{/* Email Notifications - user-level, always visible */}
+				{/* Notifications (email + push) - user-level, always visible */}
 				<View style={styles.section}>
-					<SectionHeader title="Notifications" subtitle="Email notification settings" />
+					<SectionHeader title="Notifications" subtitle="Email & push settings" />
 
 					<SettingsItem
-						icon="envelope"
-						title="Email Notifications"
-						subtitle="Manage which emails you receive"
+						icon="bell.fill"
+						title="Notifications"
+						subtitle="Manage email and push alerts"
 						onPress={() => router.push("/notifications/preferences")}
 					/>
 				</View>

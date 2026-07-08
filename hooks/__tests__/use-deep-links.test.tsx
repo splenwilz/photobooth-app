@@ -140,12 +140,14 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
 	});
 
-	it("settings still triggers query invalidation (regression guard)", async () => {
+	it("settings triggers query invalidation AND navigates (license_* push taps)", async () => {
 		const { qc } = mountHarness();
 		await waitFor(() => expect(capturedHandler).not.toBeNull());
 		const spy = jest.spyOn(qc, "invalidateQueries");
 		capturedHandler!({ url: "boothiq://settings" });
 		expect(spy).toHaveBeenCalled();
+		// license_* pushes deep-link here — the tap must open the Settings tab.
+		expect(mockReplace).toHaveBeenCalledWith("/(tabs)/settings");
 	});
 
 	it("billing still triggers query invalidation and navigation (regression guard)", async () => {

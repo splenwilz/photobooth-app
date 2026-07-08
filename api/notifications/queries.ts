@@ -8,18 +8,22 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { queryKeys } from "../utils/query-keys";
 import {
-	bulkUpdatePreferences,
 	getNotificationHistory,
 	getNotificationPreferences,
-	updateNotificationPreference,
+	patchNotificationPreferences,
 } from "./services";
 import type {
+	NotificationChannel,
 	NotificationEventType,
 	NotificationHistoryParams,
 	NotificationPreferencesResponse,
 } from "./types";
+
+/** Shared key so the channel-pref reconcile gate counts only these mutations. */
+const PREF_MUTATION_KEY = ["notifications", "pref"] as const;
 
 /**
  * Hook to fetch all notification preferences
@@ -36,58 +40,87 @@ export function useNotificationPreferences() {
 }
 
 /**
- * Hook to update a single notification preference
+ * Hook to update a single per-channel notification preference (email/push).
  *
- * Uses optimistic updates to immediately toggle the switch UI,
- * then rolls back on error.
+ * Optimistically flips `channels[channel]` for the event (and keeps the
+ * deprecated `enabled` mirror in sync for the email channel), rolls back on
+ * error. Rollback restores ONLY the affected `(event_type, channel)` value, so
+ * a concurrent toggle of a different channel on the same event isn't clobbered.
  *
- * @returns Mutation for updating a single preference
- * @see PUT /api/v1/notifications/preferences/{event_type}
+ * @see PATCH /api/v1/notifications/preferences
  */
-export function useUpdatePreference() {
+export function useUpdateChannelPreference() {
 	const queryClient = useQueryClient();
+	// Latest-wins guard: monotonic seq per `${eventType}:${channel}`. A stale
+	// failed toggle must NOT roll back a newer toggle's optimistic value for the
+	// same key (and since success deliberately skips invalidation, that clobber
+	// wouldn't self-heal). onError only acts if it's still the latest for its key.
+	const latestSeq = useRef(new Map<string, number>());
 
 	return useMutation({
+		mutationKey: PREF_MUTATION_KEY,
+		retry: false, // optimistic → fail fast so rollback happens immediately
 		mutationFn: ({
 			eventType,
+			channel,
 			enabled,
 		}: {
 			eventType: NotificationEventType;
+			channel: NotificationChannel;
 			enabled: boolean;
-		}) => updateNotificationPreference(eventType, { enabled }),
-		onMutate: async ({ eventType, enabled }) => {
-			// Cancel outgoing refetches so they don't overwrite our optimistic update
+		}) =>
+			patchNotificationPreferences({
+				updates: [{ event_type: eventType, channel, enabled }],
+			}),
+		onMutate: async ({ eventType, channel, enabled }) => {
 			await queryClient.cancelQueries({
 				queryKey: queryKeys.notifications.preferences(),
 			});
 
-			// Snapshot only the affected preference for rollback
+			// Claim this key as the latest in-flight toggle.
+			const key = `${eventType}:${channel}`;
+			const seq = (latestSeq.current.get(key) ?? 0) + 1;
+			latestSeq.current.set(key, seq);
+
 			const current =
 				queryClient.getQueryData<NotificationPreferencesResponse>(
 					queryKeys.notifications.preferences(),
 				);
-			const previousEnabled = current?.preferences.find(
+			// Snapshot ONLY the affected channel's prior value for a scoped rollback.
+			const previousValue = current?.preferences.find(
 				(p) => p.event_type === eventType,
-			)?.enabled;
+			)?.channels[channel];
 
-			// Optimistically update the cache immediately
 			if (current) {
 				queryClient.setQueryData<NotificationPreferencesResponse>(
 					queryKeys.notifications.preferences(),
 					{
 						...current,
 						preferences: current.preferences.map((pref) =>
-							pref.event_type === eventType ? { ...pref, enabled } : pref,
+							pref.event_type === eventType
+								? {
+										...pref,
+										channels: { ...pref.channels, [channel]: enabled },
+										// keep the deprecated mirror consistent
+										enabled: channel === "email" ? enabled : pref.enabled,
+									}
+								: pref,
 						),
 					},
 				);
 			}
 
-			return { eventType, previousEnabled };
+			return { eventType, channel, previousValue, key, seq };
 		},
 		onError: (_err, _variables, context) => {
-			// Roll back only the affected preference — preserves other concurrent optimistic updates
-			if (context?.previousEnabled !== undefined) {
+			// If a newer toggle for the same key has since started, its optimistic
+			// value is authoritative — don't roll back or invalidate over it.
+			if (context && latestSeq.current.get(context.key) !== context.seq) {
+				return;
+			}
+			// Roll back only the affected channel if we optimistically wrote it.
+			if (context?.previousValue !== undefined) {
+				const { eventType, channel, previousValue } = context;
 				queryClient.setQueryData<NotificationPreferencesResponse>(
 					queryKeys.notifications.preferences(),
 					(prev) => {
@@ -95,90 +128,29 @@ export function useUpdatePreference() {
 						return {
 							...prev,
 							preferences: prev.preferences.map((p) =>
-								p.event_type === context.eventType
-									? { ...p, enabled: context.previousEnabled! }
+								p.event_type === eventType
+									? {
+											...p,
+											// restore only the one channel we changed
+											channels: { ...p.channels, [channel]: previousValue },
+											enabled: channel === "email" ? previousValue : p.enabled,
+										}
 									: p,
 							),
 						};
 					},
 				);
 			}
-		},
-		// No onSettled/invalidation — the optimistic update is the source of truth.
-		// Pull-to-refresh will sync with the server if needed.
-	});
-}
-
-/**
- * Hook to bulk update notification preferences
- *
- * @returns Mutation for bulk updating preferences
- * @see PUT /api/v1/notifications/preferences
- */
-export function useBulkUpdatePreferences() {
-	const queryClient = useQueryClient();
-
-	return useMutation({
-		mutationFn: (preferences: Partial<Record<NotificationEventType, boolean>>) =>
-			bulkUpdatePreferences({ preferences }),
-		onMutate: async (preferences) => {
-			await queryClient.cancelQueries({
+			// Reconcile ONLY on failure (success deliberately never invalidates —
+			// the optimistic value is authoritative and a reconcile GET could revert
+			// it on out-of-order PATCHes / read-replica lag), and ONLY when no sibling
+			// PATCH is still in flight: otherwise a reconcile GET can resolve before a
+			// pending sibling commits and strand the cache. The settling mutation
+			// counts itself as pending here, so the last in-flight one sees exactly 1.
+			if (queryClient.isMutating({ mutationKey: PREF_MUTATION_KEY }) !== 1) return;
+			return queryClient.invalidateQueries({
 				queryKey: queryKeys.notifications.preferences(),
 			});
-
-			const current =
-				queryClient.getQueryData<NotificationPreferencesResponse>(
-					queryKeys.notifications.preferences(),
-				);
-
-			// Snapshot only the affected preferences for rollback
-			const affectedKeys = Object.keys(preferences) as NotificationEventType[];
-			const previousValues: Partial<Record<NotificationEventType, boolean>> = {};
-			if (current) {
-				for (const pref of current.preferences) {
-					if (affectedKeys.includes(pref.event_type)) {
-						previousValues[pref.event_type] = pref.enabled;
-					}
-				}
-			}
-
-			// Optimistically update all affected preferences
-			if (current) {
-				queryClient.setQueryData<NotificationPreferencesResponse>(
-					queryKeys.notifications.preferences(),
-					{
-						...current,
-						preferences: current.preferences.map((pref) => {
-							const newValue = preferences[pref.event_type];
-							return newValue !== undefined
-								? { ...pref, enabled: newValue }
-								: pref;
-						}),
-					},
-				);
-			}
-
-			return { previousValues };
-		},
-		onError: (_err, _variables, context) => {
-			// Roll back only the affected preferences — preserves other concurrent optimistic updates
-			if (context?.previousValues) {
-				queryClient.setQueryData<NotificationPreferencesResponse>(
-					queryKeys.notifications.preferences(),
-					(prev) => {
-						if (!prev) return prev;
-						return {
-							...prev,
-							preferences: prev.preferences.map((p) => {
-								const rollback = context.previousValues[p.event_type];
-								return rollback !== undefined
-									? { ...p, enabled: rollback }
-									: p;
-							}),
-						};
-					},
-				);
-			}
 		},
 	});
 }

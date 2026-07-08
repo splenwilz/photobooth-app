@@ -7,4 +7,10 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    // Root Jest setup file isn't matched by the test-file globs, so give it the
+    // jest global explicitly (avoids no-undef under direct eslint / IDE / CI).
+    files: ['jest.setup.js'],
+    languageOptions: { globals: { jest: 'readonly' } },
+  },
 ]);
