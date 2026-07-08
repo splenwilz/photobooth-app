@@ -10,7 +10,7 @@
 export type TemplateType = "strip" | "photo_4x6";
 
 export interface TemplateCategory {
-  id: number;
+  id: string;
   name: string;
   description: string;
   is_active: boolean;
@@ -81,7 +81,7 @@ export interface TemplateAssetUrls {
  * required.
  */
 export interface TemplateListItem extends TemplateAssetUrls {
-  id: number;
+  id: string;
   slug: string;
   name: string;
   description: string | null;
@@ -93,7 +93,7 @@ export interface TemplateListItem extends TemplateAssetUrls {
   rating_average: string;
   review_count: number;
   download_count: number;
-  category_id: number | null;
+  category_id: string | null;
   layout_id: string | null;
 }
 
@@ -103,11 +103,11 @@ export interface TemplateListItem extends TemplateAssetUrls {
  * in `TemplatePurchase.template`.
  */
 export interface Template extends TemplateAssetUrls {
-  id: number;
+  id: string;
   name: string;
   slug: string;
   description: string | null;
-  category_id: number;
+  category_id: string;
   category: TemplateCategory;
   layout_id: string | null;
   layout: TemplateLayout | null;
@@ -146,7 +146,7 @@ export interface TemplatesResponse {
 export interface TemplatesQueryParams {
   page?: number;
   per_page?: number;
-  category_id?: number;
+  category_id?: string;
   layout_id?: string;
   template_type?: TemplateType;
   is_featured?: boolean;
@@ -170,13 +170,18 @@ export interface LayoutsResponse {
 // Reviews
 export interface TemplateReview {
   id: number;
-  template_id: number;
-  user_id: string;
+  template_id: string;
   rating: number;
   title: string | null;
   comment: string | null;
   is_approved: boolean;
   created_at: string;
+  /** Display name of the reviewer (the API does not expose raw user ids here). */
+  reviewer_display_name: string;
+  /** Avatar URL of the reviewer, or null if none. */
+  reviewer_avatar_url: string | null;
+  /** True when this review belongs to the authenticated caller. */
+  is_own_review: boolean;
 }
 
 export interface ReviewsResponse {
@@ -190,7 +195,7 @@ export interface ReviewsResponse {
 // Purchases
 export interface TemplatePurchase {
   id: number;
-  template_id: number;
+  template_id: string;
   booth_id: string;
   template: Template;
   quantity: number;

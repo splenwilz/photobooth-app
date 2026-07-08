@@ -38,11 +38,11 @@ export function useTemplates(params: TemplatesQueryParams = {}) {
  * Hook to fetch a single template by ID
  * @see GET /api/v1/templates/{id}
  */
-export function useTemplateById(id: number | null) {
+export function useTemplateById(id: string | null) {
   return useQuery({
     queryKey: id ? queryKeys.templates.detail(id) : ["templates", "detail", null],
     queryFn: () => getTemplateById(id!),
-    enabled: !!id && id > 0,
+    enabled: !!id,
     staleTime: 60 * 1000,
   });
 }
@@ -76,7 +76,7 @@ export function useTemplateLayouts() {
  * @see GET /api/v1/templates/{templateId}/reviews
  */
 export function useTemplateReviews(
-  templateId: number | null,
+  templateId: string | null,
   params: { page?: number; per_page?: number } = {},
 ) {
   return useQuery({
@@ -84,7 +84,7 @@ export function useTemplateReviews(
       ? [...queryKeys.templates.reviews(templateId), params]
       : ["templates", "reviews", null],
     queryFn: () => getTemplateReviews(templateId!, params),
-    enabled: !!templateId && templateId > 0,
+    enabled: !!templateId,
     staleTime: 60 * 1000,
   });
 }
@@ -101,7 +101,7 @@ export function useSubmitReview() {
       templateId,
       data,
     }: {
-      templateId: number;
+      templateId: string;
       data: { rating: number; title?: string; comment?: string };
     }) => submitReview(templateId, data),
     onSuccess: (_, { templateId }) => {
@@ -131,7 +131,7 @@ export function useUpdateReview() {
       reviewId,
       data,
     }: {
-      templateId: number;
+      templateId: string;
       reviewId: number;
       data: { rating?: number; title?: string; comment?: string };
     }) => updateReview(templateId, reviewId, data),
@@ -158,7 +158,7 @@ export function useDeleteReview() {
       templateId,
       reviewId,
     }: {
-      templateId: number;
+      templateId: string;
       reviewId: number;
     }) => deleteReview(templateId, reviewId),
     onSuccess: (_, { templateId }) => {
@@ -196,6 +196,6 @@ export function usePurchasedTemplates(
  */
 export function useDownloadTemplate() {
   return useMutation({
-    mutationFn: (id: number) => downloadTemplate(id),
+    mutationFn: (id: string) => downloadTemplate(id),
   });
 }

@@ -15,7 +15,7 @@ function makeTemplate(
 	overrides: Partial<TemplateListItem> = {},
 ): TemplateListItem {
 	const base: TemplateListItem = {
-		id: 1,
+		id: "11111111-1111-4111-8111-111111111111",
 		slug: "sample-template",
 		name: "Sample Template",
 		description: null,
@@ -30,7 +30,7 @@ function makeTemplate(
 		download_url: null,
 		preview_url: "https://example.com/p.png",
 		overlay_url: null,
-		category_id: 1,
+		category_id: "22222222-2222-4222-8222-222222222222",
 		layout_id: null,
 	};
 	return { ...base, ...overrides };

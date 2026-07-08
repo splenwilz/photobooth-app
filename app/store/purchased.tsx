@@ -53,7 +53,7 @@ export default function PurchasedTemplatesScreen() {
   });
   const downloadMutation = useDownloadTemplate();
   const syncMutation = useSyncBoothTemplates();
-  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const handleSync = () => {
     if (!effectiveBoothId) {

@@ -46,7 +46,7 @@ export async function getTemplates(
  * Get a single template by ID
  * @see GET /api/v1/templates/{id}
  */
-export async function getTemplateById(id: number): Promise<Template> {
+export async function getTemplateById(id: string): Promise<Template> {
   return apiClient<Template>(`${BASE}/${id}`);
 }
 
@@ -79,7 +79,7 @@ export async function getLayouts(): Promise<LayoutsResponse> {
  * @see GET /api/v1/templates/{templateId}/reviews
  */
 export async function getTemplateReviews(
-  templateId: number,
+  templateId: string,
   params: { page?: number; per_page?: number } = {},
 ): Promise<ReviewsResponse> {
   const qs = buildQueryString(params);
@@ -91,7 +91,7 @@ export async function getTemplateReviews(
  * @see POST /api/v1/templates/{templateId}/reviews
  */
 export async function submitReview(
-  templateId: number,
+  templateId: string,
   data: { rating: number; title?: string; comment?: string },
 ): Promise<void> {
   return apiClient(`${BASE}/${templateId}/reviews`, {
@@ -105,7 +105,7 @@ export async function submitReview(
  * @see PATCH /api/v1/templates/{templateId}/reviews/{reviewId}
  */
 export async function updateReview(
-  templateId: number,
+  templateId: string,
   reviewId: number,
   data: { rating?: number; title?: string; comment?: string },
 ): Promise<TemplateReview> {
@@ -123,7 +123,7 @@ export async function updateReview(
  * @see DELETE /api/v1/templates/{templateId}/reviews/{reviewId}
  */
 export async function deleteReview(
-  templateId: number,
+  templateId: string,
   reviewId: number,
 ): Promise<void> {
   return apiClient(`${BASE}/${templateId}/reviews/${reviewId}`, {
@@ -136,7 +136,7 @@ export async function deleteReview(
  * @see POST /api/v1/templates/{id}/download
  */
 export async function downloadTemplate(
-  id: number,
+  id: string,
 ): Promise<{ download_url: string }> {
   return apiClient<{ download_url: string }>(`${BASE}/${id}/download`, {
     method: "POST",
