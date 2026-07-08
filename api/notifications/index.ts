@@ -4,7 +4,7 @@
  * Exports for notification preferences API operations.
  *
  * @example
- * import { useNotificationPreferences, useUpdatePreference } from "@/api/notifications";
+ * import { useNotificationPreferences, useUpdateChannelPreference } from "@/api/notifications";
  */
 
 export * from "./types";

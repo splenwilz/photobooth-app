@@ -17,6 +17,8 @@ import type {
 	NotificationHistoryResponse,
 	NotificationPreference,
 	NotificationPreferencesResponse,
+	PatchPreferencesRequest,
+	PatchPreferencesResponse,
 	UpdatePreferenceRequest,
 } from "./types";
 
@@ -79,6 +81,28 @@ export async function bulkUpdatePreferences(
 		},
 	);
 	return response;
+}
+
+/**
+ * Update notification preferences per channel (email/push).
+ *
+ * Partial upsert — send only the toggles that changed. Preferred over the
+ * legacy PUT endpoints, which only write the email channel.
+ *
+ * @param body - list of { event_type, channel, enabled } updates
+ * @returns Promise resolving to the number of updated rows
+ * @see PATCH /api/v1/notifications/preferences
+ */
+export async function patchNotificationPreferences(
+	body: PatchPreferencesRequest,
+): Promise<PatchPreferencesResponse> {
+	return apiClient<PatchPreferencesResponse>(
+		"/api/v1/notifications/preferences",
+		{
+			method: "PATCH",
+			body: JSON.stringify(body),
+		},
+	);
 }
 
 /**

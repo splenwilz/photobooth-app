@@ -3,7 +3,12 @@
  *
  * Tests for getAlerts and getBoothAlerts service functions.
  */
-import { getAlerts, getBoothAlerts } from "../services";
+import {
+	getAlerts,
+	getBoothAlerts,
+	markAlertRead,
+	markAllAlertsRead,
+} from "../services";
 import { apiClient } from "../../client";
 
 jest.mock("../../client", () => ({
@@ -96,5 +101,81 @@ describe("getBoothAlerts", () => {
 		mockApiClient.mockRejectedValue(error);
 
 		await expect(getBoothAlerts("bad-id")).rejects.toThrow("Booth not found");
+	});
+});
+
+describe("markAlertRead", () => {
+	beforeEach(() => jest.clearAllMocks());
+
+	it("PATCHes /{alert_id}/read with is_read=true by default", async () => {
+		mockApiClient.mockResolvedValue({ id: "printer-error-b1", is_read: true });
+
+		const result = await markAlertRead("printer-error-b1");
+
+		expect(mockApiClient).toHaveBeenCalledWith(
+			"/api/v1/analytics/alerts/printer-error-b1/read",
+			expect.objectContaining({
+				method: "PATCH",
+				body: JSON.stringify({ is_read: true }),
+			}),
+		);
+		expect(result).toEqual({ id: "printer-error-b1", is_read: true });
+	});
+
+	it("supports marking unread (is_read=false)", async () => {
+		mockApiClient.mockResolvedValue({ id: "offline-b1", is_read: false });
+
+		await markAlertRead("offline-b1", false);
+
+		expect(mockApiClient).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({ body: JSON.stringify({ is_read: false }) }),
+		);
+	});
+
+	it("URL-encodes the alert id", async () => {
+		mockApiClient.mockResolvedValue({ id: "x", is_read: true });
+
+		await markAlertRead("weird id/with#chars");
+
+		const calledUrl = mockApiClient.mock.calls[0][0] as string;
+		expect(calledUrl).toBe(
+			`/api/v1/analytics/alerts/${encodeURIComponent("weird id/with#chars")}/read`,
+		);
+	});
+
+	it("propagates API errors", async () => {
+		mockApiClient.mockRejectedValue(new Error("Bad id"));
+		await expect(markAlertRead("bad")).rejects.toThrow("Bad id");
+	});
+});
+
+describe("markAllAlertsRead", () => {
+	beforeEach(() => jest.clearAllMocks());
+
+	it("PATCHes /read-all with a booth_id when scoped", async () => {
+		mockApiClient.mockResolvedValue({ updated: 5 });
+
+		const result = await markAllAlertsRead("booth-123");
+
+		expect(mockApiClient).toHaveBeenCalledWith(
+			"/api/v1/analytics/alerts/read-all",
+			expect.objectContaining({
+				method: "PATCH",
+				body: JSON.stringify({ booth_id: "booth-123" }),
+			}),
+		);
+		expect(result).toEqual({ updated: 5 });
+	});
+
+	it("sends booth_id:null for all booths", async () => {
+		mockApiClient.mockResolvedValue({ updated: 12 });
+
+		await markAllAlertsRead(null);
+
+		expect(mockApiClient).toHaveBeenCalledWith(
+			"/api/v1/analytics/alerts/read-all",
+			expect.objectContaining({ body: JSON.stringify({ booth_id: null }) }),
+		);
 	});
 });

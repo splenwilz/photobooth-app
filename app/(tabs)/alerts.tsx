@@ -16,9 +16,11 @@
  */
 
 import { useIsFocused } from "@react-navigation/native";
+import * as Linking from "expo-linking";
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
+	Alert as RNAlert,
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
@@ -27,8 +29,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 // API hooks
-import { useAlerts, useBoothAlerts } from "@/api/alerts/queries";
+import {
+	useAlerts,
+	useBoothAlerts,
+	useMarkAlertRead,
+	useMarkAllAlertsRead,
+} from "@/api/alerts/queries";
 import type { AlertSeverity } from "@/api/alerts/types";
+import { useRegisterDevice } from "@/api/push/queries";
+import { usePushPermission } from "@/hooks/use-push-permission";
+import { acquireExpoPushToken } from "@/utils/push-notifications";
 import { BoothPickerModal } from "@/components/booth-picker-modal";
 import { CustomHeader } from "@/components/custom-header";
 import { AlertsSkeleton } from "@/components/skeletons";
@@ -173,7 +183,7 @@ export default function AlertsScreen() {
 
 	// Booth picker state
 	const [isPickerVisible, setIsPickerVisible] = useState(false);
-	const { selectedBoothId } = useBoothStore();
+	const { selectedBoothId, setSelectedBoothId } = useBoothStore();
 	const isAllMode = selectedBoothId === ALL_BOOTHS_ID;
 
 	// State for filters
@@ -237,6 +247,22 @@ export default function AlertsScreen() {
 		[alerts],
 	);
 
+	// Fleet-wide alerts (same source as the header bell) — only needed in
+	// single-booth mode, to explain the fleet badge that a booth-scoped
+	// "Mark all read" can't clear. Cheap: the query is shared/cached.
+	const { data: fleetAlertsData } = useAlerts(undefined, {
+		enabled: !isAllMode,
+	});
+	const otherBoothsUnread = useMemo(
+		() =>
+			isAllMode
+				? 0
+				: (fleetAlertsData?.alerts?.filter(
+						(a) => !a.isRead && a.boothId !== selectedBoothId,
+					).length ?? 0),
+		[isAllMode, fleetAlertsData?.alerts, selectedBoothId],
+	);
+
 	// Severity filter options
 	const severityFilters: {
 		value: FilterSeverity;
@@ -258,10 +284,67 @@ export default function AlertsScreen() {
 		{ value: "sales", label: "Sales" },
 	];
 
-	// Handle alert press (could mark as read via API in the future)
-	const handleAlertPress = (alertId: string) => {
-		// TODO: Implement mark as read API call when endpoint is available
+	// Mark-as-read mutations (optimistic — see api/alerts/queries.ts)
+	const markAlertRead = useMarkAlertRead();
+	const markAllAlertsRead = useMarkAllAlertsRead();
+
+	// Tapping an unread alert marks it read; no-op if already read.
+	const handleAlertPress = (alert: Alert) => {
+		if (alert.isRead) return;
+		markAlertRead.mutate({ alertId: alert.id, boothId: alert.boothId });
 	};
+
+	// Mark every alert read — scoped to the selected booth, or all booths.
+	const handleMarkAllRead = () => {
+		if (totalUnread === 0) return;
+		markAllAlertsRead.mutate(isAllMode ? null : selectedBoothId);
+	};
+
+	// Push-permission banner: nudge users whose OS notifications are off so they
+	// don't silently miss alerts. Denied → OS Settings; undetermined → prompt.
+	const registerDevice = useRegisterDevice();
+	const { state: pushState, refresh: refreshPushState } =
+		usePushPermission(isFocused);
+	const [bannerDismissed, setBannerDismissed] = useState(false);
+
+	const bannerBusy = useRef(false);
+	const handleEnableFromBanner = useCallback(async () => {
+		if (bannerBusy.current) return; // guard against double-tap (state lags a frame)
+		bannerBusy.current = true;
+		try {
+			// Attempt a request first — it re-prompts when the OS still allows it
+			// (Android canAskAgain) and resolves denied when it doesn't. Only then
+			// fall back to Settings.
+			const result = await acquireExpoPushToken({
+				requestIfUndetermined: true,
+			});
+			if (result.status === "granted") {
+				registerDevice.mutate({
+					expo_push_token: result.token,
+					device_id: result.deviceId,
+					platform: result.platform,
+				});
+			} else if (result.status === "denied") {
+				await Linking.openSettings();
+			} else {
+				// unsupported: simulator/web, or a real device with no EAS projectId.
+				RNAlert.alert(
+					"Not available",
+					"Push notifications aren't available on this device.",
+				);
+			}
+			refreshPushState();
+		} catch (e) {
+			// onPress won't surface a rejected promise — handle native failures here.
+			console.warn("[alerts] enable-push from banner failed:", e);
+		} finally {
+			bannerBusy.current = false;
+		}
+	}, [registerDevice, refreshPushState]);
+
+	const showPushBanner =
+		!bannerDismissed &&
+		(pushState === "denied" || pushState === "undetermined");
 
 	// Loading state - show skeleton instead of spinner
 	if (isLoading) {
@@ -320,13 +403,27 @@ export default function AlertsScreen() {
 				onBoothPress={() => setIsPickerVisible(true)}
 				rightAction={
 					totalUnread > 0 ? (
-						<View
-							style={[styles.unreadBadge, { backgroundColor: BRAND_COLOR }]}
+						<TouchableOpacity
+							style={styles.markAllButton}
+							onPress={handleMarkAllRead}
+							disabled={markAllAlertsRead.isPending}
+							accessibilityRole="button"
+							accessibilityLabel={
+								isAllMode
+									? `Mark all ${totalUnread} alerts as read`
+									: `Mark this booth's ${totalUnread} alerts as read`
+							}
+							hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
 						>
-							<ThemedText style={styles.unreadBadgeText}>
-								{totalUnread}
+							<IconSymbol
+								name="checkmark.circle"
+								size={16}
+								color={BRAND_COLOR}
+							/>
+							<ThemedText style={[styles.markAllText, { color: BRAND_COLOR }]}>
+								{isAllMode ? "Mark all read" : "Mark this booth read"}
 							</ThemedText>
-						</View>
+						</TouchableOpacity>
 					) : undefined
 				}
 			/>
@@ -342,6 +439,75 @@ export default function AlertsScreen() {
 					/>
 				}
 			>
+				{/* Other-booths hint — the fleet bell counts every booth, but this
+				    booth-scoped view can't clear alerts on the others. Offer a jump. */}
+				{otherBoothsUnread > 0 && (
+					<TouchableOpacity
+						style={[
+							styles.otherBoothsHint,
+							{
+								backgroundColor: withAlpha(BRAND_COLOR, 0.1),
+								borderColor: withAlpha(BRAND_COLOR, 0.35),
+							},
+						]}
+						onPress={() => setSelectedBoothId(ALL_BOOTHS_ID)}
+						accessibilityRole="button"
+						accessibilityLabel={`${otherBoothsUnread} unread alerts on other booths. Switch to All Booths.`}
+					>
+						<IconSymbol name="bell.badge" size={18} color={BRAND_COLOR} />
+						<ThemedText
+							style={[styles.otherBoothsHintText, { color: BRAND_COLOR }]}
+						>
+							{otherBoothsUnread} unread on other booths — view all
+						</ThemedText>
+						<IconSymbol name="chevron.right" size={16} color={BRAND_COLOR} />
+					</TouchableOpacity>
+				)}
+
+				{/* Push-off banner — alerts won't reach the device without permission */}
+				{showPushBanner && (
+					<View
+						style={[
+							styles.pushBanner,
+							{ backgroundColor: withAlpha(StatusColors.warning, 0.12), borderColor: withAlpha(StatusColors.warning, 0.4) },
+						]}
+					>
+						<IconSymbol
+							name="bell.slash"
+							size={20}
+							color={StatusColors.warning}
+						/>
+						<TouchableOpacity
+							style={styles.pushBannerBody}
+							onPress={handleEnableFromBanner}
+							accessibilityRole="button"
+							accessibilityLabel="Turn on push notifications"
+						>
+							<ThemedText type="defaultSemiBold" style={styles.pushBannerTitle}>
+								{pushState === "denied"
+									? "Notifications are off"
+									: "Turn on push alerts"}
+							</ThemedText>
+							<ThemedText
+								style={[styles.pushBannerSubtitle, { color: textSecondary }]}
+							>
+								{/* Behavior-agnostic: tapping re-prompts when the OS allows
+								    it (Android) and otherwise opens Settings. */}
+								Tap to turn on alerts so you know the instant a booth needs
+								attention
+							</ThemedText>
+						</TouchableOpacity>
+						<TouchableOpacity
+							onPress={() => setBannerDismissed(true)}
+							hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+							accessibilityRole="button"
+							accessibilityLabel="Dismiss"
+						>
+							<IconSymbol name="xmark" size={16} color={textSecondary} />
+						</TouchableOpacity>
+					</View>
+				)}
+
 				{/* Summary Card */}
 				<View
 					style={[styles.summaryCard, { backgroundColor: cardBg, borderColor }]}
@@ -499,7 +665,7 @@ export default function AlertsScreen() {
 								cardBg={cardBg}
 								borderColor={borderColor}
 								textSecondary={textSecondary}
-								onPress={() => handleAlertPress(alert.id)}
+								onPress={() => handleAlertPress(alert)}
 							/>
 						))
 					) : (
@@ -547,18 +713,47 @@ const styles = StyleSheet.create({
 	section: {
 		marginTop: Spacing.lg,
 	},
-	unreadBadge: {
-		minWidth: 24,
-		height: 24,
-		borderRadius: 12,
-		justifyContent: "center",
+	markAllButton: {
+		flexDirection: "row",
 		alignItems: "center",
-		paddingHorizontal: 8,
+		gap: 6,
 	},
-	unreadBadgeText: {
-		color: "#FFFFFF",
-		fontSize: scaleFont(12),
+	markAllText: {
+		fontSize: scaleFont(13),
 		fontWeight: "600",
+	},
+	pushBanner: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: Spacing.sm,
+		padding: Spacing.md,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+		marginTop: Spacing.md,
+	},
+	otherBoothsHint: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: Spacing.sm,
+		padding: Spacing.md,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+		marginTop: Spacing.md,
+	},
+	otherBoothsHintText: {
+		flex: 1,
+		fontSize: scaleFont(13),
+		fontWeight: "600",
+	},
+	pushBannerBody: {
+		flex: 1,
+	},
+	pushBannerTitle: {
+		fontSize: scaleFont(14),
+	},
+	pushBannerSubtitle: {
+		fontSize: scaleFont(12),
+		marginTop: 2,
 	},
 	summaryCard: {
 		padding: Spacing.md,

@@ -8,7 +8,11 @@
  * @see GET /api/v1/notifications/history
  */
 
-/** All 14 notification event types */
+/**
+ * Notification event types (16 total).
+ * The original 14 plus two push-only critical events added with the push
+ * channel: `stranded_paid_session`, `payment_result_invalid`.
+ */
 export type NotificationEventType =
 	| "license_activated"
 	| "license_deactivated"
@@ -23,10 +27,34 @@ export type NotificationEventType =
 	| "subscription_renewed"
 	| "printer_error"
 	| "supply_critical"
-	| "pcb_error";
+	| "pcb_error"
+	| "stranded_paid_session"
+	| "payment_result_invalid";
 
-/** Notification category groupings */
-export type NotificationCategory = "license" | "booth" | "billing" | "hardware";
+/**
+ * Notification category groupings. Widened to `string` because the backend
+ * owns the category taxonomy — the UI renders whatever categories arrive and
+ * falls back gracefully for unknown ones, so a new category can't crash the
+ * screen. The known values are documented in {@link KNOWN_NOTIFICATION_CATEGORIES}.
+ */
+export type NotificationCategory = string;
+
+/** Delivery channels a preference can toggle independently. */
+export type NotificationChannel = "email" | "push";
+
+/**
+ * Per-channel enabled state for a single event.
+ *
+ * A channel key is present ONLY if that channel is **offered** for this event.
+ * The backend omits `email` for operational events (booth/hardware) so users
+ * can disable what's provided but can never ADD email we don't want — this caps
+ * email volume (SendGrid quota) at the source. Render a toggle only for the
+ * keys that are present.
+ */
+export interface NotificationChannelState {
+	email?: boolean;
+	push?: boolean;
+}
 
 /** Single notification preference from API */
 export interface NotificationPreference {
@@ -34,7 +62,10 @@ export interface NotificationPreference {
 	label: string;
 	description: string;
 	category: NotificationCategory;
+	/** @deprecated Mirrors `channels.email`. Read `channels` instead. */
 	enabled: boolean;
+	/** Per-channel toggles (email + push). */
+	channels: NotificationChannelState;
 }
 
 /** GET /api/v1/notifications/preferences response */
@@ -54,6 +85,23 @@ export interface BulkUpdatePreferencesRequest {
 
 /** PUT /api/v1/notifications/preferences (bulk) response */
 export interface BulkUpdatePreferencesResponse {
+	updated: number;
+}
+
+/** One channel toggle in a PATCH preferences request. */
+export interface PreferenceChannelUpdate {
+	event_type: NotificationEventType;
+	channel: NotificationChannel;
+	enabled: boolean;
+}
+
+/** PATCH /api/v1/notifications/preferences request body */
+export interface PatchPreferencesRequest {
+	updates: PreferenceChannelUpdate[];
+}
+
+/** PATCH /api/v1/notifications/preferences response */
+export interface PatchPreferencesResponse {
 	updated: number;
 }
 

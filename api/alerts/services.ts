@@ -1,5 +1,10 @@
 import { apiClient } from "../client";
-import type { AlertsParams, AlertsResponse } from "./types";
+import type {
+	AlertsParams,
+	AlertsResponse,
+	MarkAlertReadResponse,
+	MarkAllAlertsReadResponse,
+} from "./types";
 
 /**
  * Alerts API Services
@@ -66,6 +71,51 @@ export async function getBoothAlerts(
 		`/api/v1/analytics/alerts/${boothId}${queryString}`,
 		{
 			method: "GET",
+		},
+	);
+	return response;
+}
+
+/**
+ * Mark a single alert read (or unread).
+ *
+ * Idempotent in both directions. The 422 error body is `{ detail: string }`
+ * (a plain string), not FastAPI's validation-error array.
+ *
+ * @param alertId - Canonical alert id, e.g. "printer-error-{booth_id}"
+ * @param isRead - true to mark read (default), false to mark unread
+ * @returns Promise resolving to the updated read-state
+ * @see PATCH /api/v1/analytics/alerts/{alert_id}/read
+ */
+export async function markAlertRead(
+	alertId: string,
+	isRead = true,
+): Promise<MarkAlertReadResponse> {
+	const response = await apiClient<MarkAlertReadResponse>(
+		`/api/v1/analytics/alerts/${encodeURIComponent(alertId)}/read`,
+		{
+			method: "PATCH",
+			body: JSON.stringify({ is_read: isRead }),
+		},
+	);
+	return response;
+}
+
+/**
+ * Mark every currently-active alert read.
+ *
+ * @param boothId - Scope to a booth, or null for all booths owned by the caller
+ * @returns Promise resolving to the count of alerts marked read
+ * @see PATCH /api/v1/analytics/alerts/read-all
+ */
+export async function markAllAlertsRead(
+	boothId: string | null,
+): Promise<MarkAllAlertsReadResponse> {
+	const response = await apiClient<MarkAllAlertsReadResponse>(
+		"/api/v1/analytics/alerts/read-all",
+		{
+			method: "PATCH",
+			body: JSON.stringify({ booth_id: boothId }),
 		},
 	);
 	return response;

@@ -18,15 +18,26 @@
 
 import { Tabs } from 'expo-router';
 
+import { PushPrimingModal } from '@/components/push-priming-modal';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, GeistFonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { usePushPriming } from '@/hooks/use-push-priming';
+import { useRegisterPushDevice } from '@/hooks/use-register-push-device';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
+  // Register this device for push once we're in the authed area (fires after
+  // in-session login, not just cold start).
+  useRegisterPushDevice();
+
+  // One-time push priming prompt, shown once the operator has a booth.
+  const { visible: primingVisible, dismiss: dismissPriming } = usePushPriming();
+
   return (
+    <>
     <Tabs
       screenOptions={{
         // Use theme colors for tab bar
@@ -111,5 +122,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    <PushPrimingModal visible={primingVisible} onClose={dismissPriming} />
+    </>
   );
 }

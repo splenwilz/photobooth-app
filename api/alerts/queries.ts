@@ -1,8 +1,13 @@
 import type { Alert as AppAlert } from "@/types/photobooth";
 import { mapAlertsApiAlertToAppAlert } from "@/utils/alert-mapping";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../utils/query-keys";
-import { getAlerts, getBoothAlerts } from "./services";
+import {
+	getAlerts,
+	getBoothAlerts,
+	markAlertRead,
+	markAllAlertsRead,
+} from "./services";
 import type { AlertSummary, AlertsParams } from "./types";
 
 /**
@@ -11,6 +16,12 @@ import type { AlertSummary, AlertsParams } from "./types";
  * React Query hooks for fetching alerts.
  * @see https://tanstack.com/query/latest/docs/react/guides/queries
  */
+
+/**
+ * Shared mutation key for the alert read-state mutations, so the onSettled
+ * reconcile gate counts ONLY these mutations (not unrelated app mutations).
+ */
+const ALERTS_MUTATION_KEY = ["alerts", "mutate"] as const;
 
 /**
  * Transformed alerts response with app Alert types
@@ -84,5 +95,166 @@ export function useBoothAlerts(
 		},
 		enabled: !!boothId,
 		staleTime: 1 * 60 * 1000,
+	});
+}
+
+/**
+ * Apply a per-alert patch to EVERY cached alerts query.
+ *
+ * The same alert can be cached under multiple keys — the Alerts screen
+ * (`['alerts','list',{limit:50}]`), the dashboard bell badge
+ * (`['alerts','list',undefined]`), and per-booth (`['alerts','booth',id]`).
+ * v5's `setQueriesData` with a prefix filter updates them all in one pass, so
+ * read-state (and the unread badge derived from it) never goes stale in one
+ * surface while another shows the old value.
+ *
+ * @see https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates
+ */
+function patchAllAlertsCaches(
+	queryClient: ReturnType<typeof useQueryClient>,
+	patch: (alert: AppAlert) => AppAlert,
+) {
+	queryClient.setQueriesData<TransformedAlertsResponse>(
+		{ queryKey: queryKeys.alerts.all() },
+		(old) => {
+			if (!old?.alerts) return old;
+			return { ...old, alerts: old.alerts.map(patch) };
+		},
+	);
+}
+
+/**
+ * Hook to mark a single alert read (or unread) with optimistic UI.
+ *
+ * Flips `isRead` across all cached alert queries immediately, rolls back on
+ * error, then reconciles with the server. Pass `boothId` (available on the
+ * tapped alert) so the booth's detail feed re-syncs too.
+ *
+ * @see PATCH /api/v1/analytics/alerts/{alert_id}/read
+ */
+export function useMarkAlertRead() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationKey: ALERTS_MUTATION_KEY,
+		retry: false, // optimistic → fail fast so rollback happens immediately
+		mutationFn: ({
+			alertId,
+			isRead = true,
+		}: {
+			alertId: string;
+			boothId?: string;
+			isRead?: boolean;
+		}) => markAlertRead(alertId, isRead),
+		onMutate: async ({ alertId, isRead = true }) => {
+			await queryClient.cancelQueries({ queryKey: queryKeys.alerts.all() });
+
+			// Capture ONLY this alert's prior read-state, so rollback flips just
+			// this alert and never clobbers a concurrent tap on a different one.
+			let previousIsRead: boolean | undefined;
+			for (const [, data] of queryClient.getQueriesData<TransformedAlertsResponse>(
+				{ queryKey: queryKeys.alerts.all() },
+			)) {
+				const found = data?.alerts?.find((a) => a.id === alertId);
+				if (found) {
+					previousIsRead = found.isRead;
+					break;
+				}
+			}
+
+			patchAllAlertsCaches(queryClient, (alert) =>
+				alert.id === alertId ? { ...alert, isRead } : alert,
+			);
+
+			return { alertId, previousIsRead };
+		},
+		onError: (_err, _variables, context) => {
+			// Per-alert rollback — restore only the affected alert's read-state.
+			if (context?.previousIsRead !== undefined) {
+				patchAllAlertsCaches(queryClient, (alert) =>
+					alert.id === context.alertId
+						? { ...alert, isRead: context.previousIsRead! }
+						: alert,
+				);
+			}
+		},
+		onSettled: (_data, _err, variables) => {
+			// Only the LAST in-flight mutation reconciles, so a settled mutation's
+			// refetch can't overwrite a still-pending sibling's optimistic update.
+			if (queryClient.isMutating({ mutationKey: ALERTS_MUTATION_KEY }) !== 1)
+				return;
+			return Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.overview() }),
+				// Broad prefix (not the single booth): the isMutating gate lets only
+				// the last settler reconcile, so it must cover the widest scope any
+				// in-flight sibling wanted — else a concurrent mark-all(null) drops
+				// its broad booth-detail refresh. refetchType:'active' keeps it cheap.
+				queryClient.invalidateQueries({ queryKey: queryKeys.booths.detailAll() }),
+			]);
+		},
+	});
+}
+
+/**
+ * Hook to mark every active alert read with optimistic UI.
+ *
+ * @param - `boothId` scopes to one booth; `null` marks all booths.
+ * @see PATCH /api/v1/analytics/alerts/read-all
+ */
+export function useMarkAllAlertsRead() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationKey: ALERTS_MUTATION_KEY,
+		retry: false, // optimistic → fail fast so rollback happens immediately
+		mutationFn: (boothId: string | null) => markAllAlertsRead(boothId),
+		onMutate: async (boothId) => {
+			await queryClient.cancelQueries({ queryKey: queryKeys.alerts.all() });
+
+			const inScope = (alert: AppAlert) =>
+				boothId === null || alert.boothId === boothId;
+
+			// Capture prior read-state for ONLY the in-scope alerts we're about to
+			// flip, so rollback can't clobber a concurrent mark-read of a different
+			// (out-of-scope) alert.
+			const priorRead = new Map<string, boolean>();
+			for (const [, data] of queryClient.getQueriesData<TransformedAlertsResponse>(
+				{ queryKey: queryKeys.alerts.all() },
+			)) {
+				for (const a of data?.alerts ?? []) {
+					if (inScope(a) && !priorRead.has(a.id)) priorRead.set(a.id, a.isRead);
+				}
+			}
+
+			patchAllAlertsCaches(queryClient, (alert) =>
+				inScope(alert) ? { ...alert, isRead: true } : alert,
+			);
+
+			return { priorRead };
+		},
+		onError: (_err, _boothId, context) => {
+			// Restore only the alerts this op flipped, to their prior read-state.
+			if (!context?.priorRead) return;
+			patchAllAlertsCaches(queryClient, (alert) =>
+				context.priorRead.has(alert.id)
+					? { ...alert, isRead: context.priorRead.get(alert.id)! }
+					: alert,
+			);
+		},
+		onSettled: (_data, _err, boothId) => {
+			// Only reconcile when this is the last in-flight mutation (see above).
+			if (queryClient.isMutating({ mutationKey: ALERTS_MUTATION_KEY }) !== 1)
+				return;
+			return Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.overview() }),
+				// Broad booth-detail prefix regardless of scope — booth detail carries
+				// `recent_alerts`/`alerts_count`. The isMutating gate lets only the last
+				// settler reconcile, so it must cover the widest scope; a per-booth key
+				// here would be dropped when a mark-all(null) settles first in a race.
+				queryClient.invalidateQueries({ queryKey: queryKeys.booths.detailAll() }),
+			]);
+		},
 	});
 }

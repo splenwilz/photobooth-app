@@ -7,7 +7,7 @@
  * deep links are intentionally absent.
  *
  * Supported URLs:
- * - boothiq://settings - Return from customer portal
+ * - boothiq://settings - Return from customer portal / license_* push taps
  * - boothiq://booths - Navigate to booths (optional booth_id param)
  * - boothiq://alerts - Navigate to alerts
  * - boothiq://billing - Navigate to billing settings
@@ -17,10 +17,81 @@
 
 import { useEffect, useCallback } from "react";
 import * as Linking from "expo-linking";
-import { useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { queryKeys } from "@/api/utils/query-keys";
 import { useBoothStore } from "@/stores/booth-store";
+
+/** Refresh subscription/access data (used by the settings + billing routes). */
+function invalidatePaymentQueries(queryClient: QueryClient): void {
+	queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
+	queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
+}
+
+/**
+ * Route a single `boothiq://` deep link to the right screen and refresh any
+ * data that screen depends on.
+ *
+ * Extracted so BOTH incoming universal links (`useDeepLinks`) and tapped push
+ * notifications (`usePushNotifications`) route identically — the push payload's
+ * `data.deep_link` is one of these same URLs.
+ *
+ * @param url - a `boothiq://...` URL
+ * @param queryClient - the active React Query client for cache invalidation
+ */
+export function routeDeepLink(url: string, queryClient: QueryClient): void {
+	if (!url) return;
+
+	try {
+		const parsed = Linking.parse(url);
+		// `||` (not `??`) so an empty-string path (trailing-slash URL) falls back
+		// to the hostname instead of dropping the link.
+		const path = parsed.path || parsed.hostname;
+
+		console.log("[DeepLink] Received:", url);
+		console.log("[DeepLink] Parsed path:", path);
+
+		switch (path) {
+			case "settings":
+				// Two callers land here: returning from the Stripe customer portal,
+				// and `license_*` push taps (contract routes those to boothiq://settings).
+				// Refresh subscription data AND navigate, so the push tap opens Settings.
+				invalidatePaymentQueries(queryClient);
+				router.replace("/(tabs)/settings");
+				break;
+
+			// Email notification / push deep links
+			case "booths": {
+				const targetBoothId = parsed.queryParams?.booth_id as
+					| string
+					| undefined;
+				if (targetBoothId) {
+					useBoothStore.getState().setSelectedBoothId(targetBoothId);
+					queryClient.invalidateQueries({
+						queryKey: queryKeys.booths.detail(targetBoothId),
+					});
+				}
+				router.replace("/(tabs)/booths");
+				break;
+			}
+
+			case "alerts":
+				router.replace("/(tabs)/alerts");
+				break;
+
+			case "billing":
+				invalidatePaymentQueries(queryClient);
+				router.replace("/(tabs)/settings");
+				break;
+
+			default:
+				// Unknown path - ignore
+				break;
+		}
+	} catch (error) {
+		console.error("[DeepLink] Error parsing URL:", error);
+	}
+}
 
 /**
  * Hook to handle all app deep links
@@ -38,62 +109,7 @@ export function useDeepLinks() {
 	const queryClient = useQueryClient();
 
 	const handleDeepLink = useCallback(
-		({ url }: { url: string }) => {
-			if (!url) return;
-
-			try {
-				const parsed = Linking.parse(url);
-				const path = parsed.path ?? parsed.hostname;
-
-				console.log("[DeepLink] Received:", url);
-				console.log("[DeepLink] Parsed path:", path);
-
-				switch (path) {
-					case "settings":
-						// Return from customer portal - refresh subscription data
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.access(),
-						});
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.subscription(),
-						});
-						break;
-
-					// Email notification deep links
-					case "booths": {
-						const targetBoothId = parsed.queryParams?.booth_id as string | undefined;
-						if (targetBoothId) {
-							useBoothStore.getState().setSelectedBoothId(targetBoothId);
-							queryClient.invalidateQueries({
-								queryKey: queryKeys.booths.detail(targetBoothId),
-							});
-						}
-						router.replace("/(tabs)/booths");
-						break;
-					}
-
-					case "alerts":
-						router.replace("/(tabs)/alerts");
-						break;
-
-					case "billing":
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.subscription(),
-						});
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.access(),
-						});
-						router.replace("/(tabs)/settings");
-						break;
-
-					default:
-						// Unknown path - ignore
-						break;
-				}
-			} catch (error) {
-				console.error("[DeepLink] Error parsing URL:", error);
-			}
-		},
+		({ url }: { url: string }) => routeDeepLink(url, queryClient),
 		[queryClient],
 	);
 
