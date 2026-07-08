@@ -320,12 +320,12 @@ export const queryKeys = {
     /**
      * Get single template by ID
      */
-    detail: (id: number) => ['templates', 'detail', id] as const,
+    detail: (id: string) => ['templates', 'detail', id] as const,
 
     /**
      * Get template reviews
      */
-    reviews: (templateId: number) =>
+    reviews: (templateId: string) =>
       ['templates', 'reviews', templateId] as const,
 
     /**

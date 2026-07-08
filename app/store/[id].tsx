@@ -39,13 +39,12 @@ import {
 	withAlpha,
 	scaleFont,
 } from "@/constants/theme";
-import { useAuthSession } from "@/hooks/use-auth-session";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
 export default function TemplateDetailScreen() {
 	const { id } = useLocalSearchParams<{ id: string }>();
-	const parsedId = id ? Number(id) : null;
-	const templateId = parsedId && !Number.isNaN(parsedId) ? parsedId : null;
+	// Template ids are UUID strings — use as-is (never coerce to Number).
+	const templateId = id && id.length > 0 ? id : null;
 
 	const backgroundColor = useThemeColor({}, "background");
 	const cardBg = useThemeColor({}, "card");
@@ -56,18 +55,18 @@ export default function TemplateDetailScreen() {
 	const { data: template, isLoading } = useTemplateById(templateId);
 	const { data: reviewsData, isLoading: isLoadingReviews } = useTemplateReviews(templateId);
 
-	const { session } = useAuthSession();
 	const submitReview = useSubmitReview();
 	const updateReview = useUpdateReview();
 	const [reviewRating, setReviewRating] = useState(0);
 	const [reviewTitle, setReviewTitle] = useState("");
 	const [reviewComment, setReviewComment] = useState("");
 
-	// Find the current user's existing review
+	// Find the current user's existing review. The reviews API flags the
+	// caller's own review with `is_own_review` (it does not return user ids).
 	const existingReview = useMemo(() => {
-		if (!session?.id || !reviewsData?.reviews) return null;
-		return reviewsData.reviews.find((r) => r.user_id === session.id) ?? null;
-	}, [session?.id, reviewsData?.reviews]);
+		if (!reviewsData?.reviews) return null;
+		return reviewsData.reviews.find((r) => r.is_own_review) ?? null;
+	}, [reviewsData?.reviews]);
 
 	// Pre-fill form when existing review is first found (not on refetches)
 	const hasPreFilled = useRef(false);
