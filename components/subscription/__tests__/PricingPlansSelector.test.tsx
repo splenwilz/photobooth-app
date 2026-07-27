@@ -6,6 +6,7 @@
  * chooses explicitly before the CTA activates.
  */
 import React from "react";
+import { Alert } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render } from "@testing-library/react-native";
 import * as WebBrowser from "expo-web-browser";
@@ -164,6 +165,64 @@ describe("PricingPlansSelector", () => {
       });
       expect(onCheckoutComplete).not.toHaveBeenCalled();
       expect(useBoothStore.getState().selectedBoothId).toBe(ALL_BOOTHS_ID);
+    });
+
+    it("browser rejection: invalidations still run and nothing is handed off", async () => {
+      mockPlans.mockReturnValue({
+        data: { plans: [plan(1, "BoothIQ Pro")], trial_period_days: 0 },
+        isLoading: false,
+        error: null,
+      });
+      let mutateOptions: { onSuccess: (d: unknown) => Promise<void> } | null =
+        null;
+      mutate.mockImplementation((_vars, opts) => {
+        mutateOptions = opts;
+      });
+      mockOpenAuth.mockRejectedValue(new Error("another session in progress"));
+      const onCheckoutComplete = jest.fn();
+      const { getByText, invalidateSpy } = renderSelector({
+        onCheckoutComplete,
+      });
+
+      fireEvent.press(getByText("Subscribe Now"));
+      // Must not surface as an unhandled rejection.
+      await act(async () => {
+        await mutateOptions!.onSuccess({
+          success: true,
+          checkout_url: "https://checkout.stripe.com/c/pay/cs_1",
+          session_id: "cs_1",
+        });
+      });
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ["payments", "access"],
+      });
+      expect(onCheckoutComplete).not.toHaveBeenCalled();
+    });
+
+    it("checkout-creation failure surfaces the error alert", () => {
+      const alertSpy = jest
+        .spyOn(Alert, "alert")
+        .mockImplementation(() => {});
+      mockPlans.mockReturnValue({
+        data: { plans: [plan(1, "BoothIQ Pro")], trial_period_days: 0 },
+        isLoading: false,
+        error: null,
+      });
+      let mutateOptions: { onError: (e: Error) => void } | null = null;
+      mutate.mockImplementation((_vars, opts) => {
+        mutateOptions = opts;
+      });
+      const { getByText } = renderSelector();
+
+      fireEvent.press(getByText("Subscribe Now"));
+      mutateOptions!.onError(new Error("Payment service unavailable"));
+
+      expect(alertSpy).toHaveBeenCalledWith(
+        "Error",
+        "Payment service unavailable",
+      );
+      alertSpy.mockRestore();
     });
   });
 

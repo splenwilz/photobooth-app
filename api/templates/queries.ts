@@ -205,7 +205,8 @@ export function useDownloadTemplate() {
  * Hook to create a template checkout session (US storefront only).
  *
  * No invalidation here — purchased-template queries are invalidated at the
- * browser-return site once the redirect confirms payment.
+ * browser-return site whenever the browser closes, success OR cancel: only
+ * the server knows whether the user actually paid.
  * @see POST /api/v1/payments/checkout/templates
  */
 export function useTemplateCheckout() {

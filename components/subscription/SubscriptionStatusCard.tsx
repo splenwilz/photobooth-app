@@ -144,6 +144,20 @@ export function SubscriptionStatusCard({
 	// so the user sees what happened to their previous subscription.
 	const isNeverSubscribed = !hasSubscription && status === null;
 
+	// Shared Subscribe CTA — US storefront only (external purchase gate).
+	// Rendered by both the never-subscribed empty state and lapsed statuses.
+	const subscribeCta = canPurchase && isPerBooth && !!boothId && (
+		<TouchableOpacity
+			accessibilityRole="button"
+			style={[styles.subscribeButton, { backgroundColor: BRAND_COLOR }]}
+			onPress={() =>
+				router.push({ pathname: "/subscribe", params: { boothId } })
+			}
+		>
+			<ThemedText style={styles.subscribeButtonText}>Subscribe</ThemedText>
+		</TouchableOpacity>
+	);
+
 	if (isLoading) {
 		return (
 			<View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
@@ -185,20 +199,7 @@ export function SubscriptionStatusCard({
 					</View>
 				</View>
 
-				{/* Subscribe CTA — US storefront only (external purchase gate) */}
-				{canPurchase && isPerBooth && !!boothId && (
-					<TouchableOpacity
-						accessibilityRole="button"
-						style={[styles.subscribeButton, { backgroundColor: BRAND_COLOR }]}
-						onPress={() =>
-							router.push({ pathname: "/subscribe", params: { boothId } })
-						}
-					>
-						<ThemedText style={styles.subscribeButtonText}>
-							Subscribe
-						</ThemedText>
-					</TouchableOpacity>
-				)}
+				{subscribeCta}
 			</View>
 		);
 	}
@@ -275,18 +276,7 @@ export function SubscriptionStatusCard({
 							: "No active subscription"}
 			</ThemedText>
 
-			{/* Subscribe CTA — US storefront only (external purchase gate) */}
-			{canPurchase && isPerBooth && !!boothId && !hasSubscription && (
-				<TouchableOpacity
-					accessibilityRole="button"
-					style={[styles.subscribeButton, { backgroundColor: BRAND_COLOR }]}
-					onPress={() =>
-						router.push({ pathname: "/subscribe", params: { boothId } })
-					}
-				>
-					<ThemedText style={styles.subscribeButtonText}>Subscribe</ThemedText>
-				</TouchableOpacity>
-			)}
+			{!hasSubscription && subscribeCta}
 		</View>
 	);
 }

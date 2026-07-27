@@ -156,11 +156,19 @@ export function SubscriptionDetailsModal({
 						Alert.alert("Error", "Could not open the billing portal.");
 						return;
 					}
-					await WebBrowser.openAuthSessionAsync(
-						data.portal_url,
-						"boothiq://settings",
-						{ preferEphemeralSession: true },
-					);
+					try {
+						await WebBrowser.openAuthSessionAsync(
+							data.portal_url,
+							"boothiq://settings",
+							{ preferEphemeralSession: true },
+						);
+					} catch {
+						// Session couldn't open/complete (e.g. another auth session
+						// active). Surface it, then still refresh below — we can't
+						// distinguish "never opened" from "died mid-portal", and a
+						// spurious refresh is harmless.
+						Alert.alert("Error", "Could not open the billing portal.");
+					}
 					// Whatever happened in the portal (cancel, plan change,
 					// nothing) is only knowable server-side — refresh on any
 					// return, whatever the browser result type.

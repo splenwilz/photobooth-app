@@ -15,7 +15,10 @@ import {
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
-export type BillingInterval = "month" | "year";
+// Single source of truth for the interval union is the pricing API types;
+// re-exported here so existing component-layer imports keep working.
+import type { BillingInterval } from "@/api/pricing";
+export type { BillingInterval };
 
 interface BillingIntervalToggleProps {
 	/** Current selected interval */

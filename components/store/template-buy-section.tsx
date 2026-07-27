@@ -87,6 +87,9 @@ export function TemplateBuySection({ template }: { template: Template }) {
 				return (
 					<TouchableOpacity
 						key={booth.booth_id}
+						accessibilityRole="radio"
+						accessibilityLabel={booth.booth_name}
+						accessibilityState={{ checked: isSelected }}
 						style={[
 							styles.boothPickerItem,
 							{
