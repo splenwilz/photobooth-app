@@ -1,9 +1,10 @@
 /**
  * Cart removal contract
  *
- * The cart screen and cart store have been deleted. There is no
- * in-app purchase surface for templates; users browse and use
- * already-owned templates only.
+ * The cart screen and cart store stay deleted BY DESIGN: template purchases
+ * are single-item, direct from the template detail screen
+ * (TemplateBuySection, US storefront only). Reintroducing a cart would
+ * complicate the per-booth checkout flow for no benefit.
  */
 import { existsSync } from "fs";
 import { join } from "path";

@@ -1,13 +1,14 @@
 /**
  * Booth-create copy contract
  *
- * After a booth is created, the screen MUST NOT show any
- * "Subscribe to This Booth" / "Subscribe to Activate" CTA.
- * Replaced by a neutral "Booth Connection Steps" info card.
+ * Post-creation flow: subscribe (US-storefront-gated CTA), then activate by
+ * scanning the QR code on the physical booth. Connection credentials
+ * (registration code / API key / booth id copy UI) are GONE — activation is
+ * scan-based, and raw credentials must not be shown to the user.
  *
- * Verified via source inspection (rendering the success state
- * requires triggering the createBooth mutation, which is unnecessary
- * complexity for a copy-contract test).
+ * Verified via source inspection (rendering the success state requires
+ * triggering the createBooth mutation, which is unnecessary complexity for
+ * a copy-contract test).
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -17,42 +18,53 @@ const CREATE_SOURCE = readFileSync(
 	"utf8",
 );
 
-describe("app/booths/create.tsx — Apple-compliance copy", () => {
-	it('does not contain "Subscribe to This Booth" CTA', () => {
-		expect(CREATE_SOURCE).not.toMatch(/Subscribe to This Booth/);
+describe("app/booths/create.tsx — post-creation flow contract", () => {
+	describe("credentials UI removed (scan-based activation)", () => {
+		it("does not render a Connection Credentials card", () => {
+			expect(CREATE_SOURCE).not.toMatch(/Connection Credentials/);
+		});
+
+		it("does not display the registration code", () => {
+			expect(CREATE_SOURCE).not.toMatch(/registration_code/);
+			expect(CREATE_SOURCE).not.toMatch(/Registration Code/);
+		});
+
+		it("does not display the API key", () => {
+			expect(CREATE_SOURCE).not.toMatch(/API Key/);
+			expect(CREATE_SOURCE).not.toMatch(/api_key/);
+		});
 	});
 
-	it('does not contain "Subscribe to Activate" header', () => {
-		expect(CREATE_SOURCE).not.toMatch(/Subscribe to Activate/);
+	describe("scan-to-activate flow", () => {
+		it("routes subscribed booths to the QR activation scanner", () => {
+			expect(CREATE_SOURCE).toMatch(/\/licensing\/scan/);
+			expect(CREATE_SOURCE).toMatch(/Scan QR/);
+		});
 	});
 
-	it("does not import PricingPlansSelector", () => {
-		expect(CREATE_SOURCE).not.toMatch(/PricingPlansSelector/);
-	});
-
-	it("still renders the registration code section (regression guard)", () => {
-		expect(CREATE_SOURCE).toMatch(/registration_code/);
-		expect(CREATE_SOURCE).toMatch(/Registration Code/);
-	});
-
-	it('renders the replacement "Booth Connection Steps" info card', () => {
-		// Positive assertion locks in the new copy that took the place of the
-		// removed "Subscribe to This Booth" CTA — fails if the heading is
-		// renamed or the info card is dropped.
-		expect(CREATE_SOURCE).toMatch(/Booth Connection Steps/);
-	});
-
-	it("gates the connection credentials on an active subscription", () => {
-		// Credentials/steps are useless without a subscription (the booth can't be
-		// activated), so they must be gated on subscription status.
+	it("still gates the connection flow on an active subscription", () => {
 		expect(CREATE_SOURCE).toMatch(/useBoothSubscription/);
 		expect(CREATE_SOURCE).toMatch(/is_active/);
 	});
 
-	it("shows a neutral no-subscription state with no subscribe CTA", () => {
-		// Descriptive state only — never instruct the user to subscribe (Apple
-		// anti-steering) and never point to the website.
+	it("keeps the neutral no-subscription message", () => {
+		// Descriptive state shown on every storefront; never points to the
+		// website in copy.
 		expect(CREATE_SOURCE).toMatch(/needs an active subscription/);
-		expect(CREATE_SOURCE).not.toMatch(/subscribe/i);
+	});
+
+	it("gates the plan CTA behind the external-purchase (US storefront) check", () => {
+		expect(CREATE_SOURCE).toMatch(/useExternalPurchases/);
+		// The CTA must sit inside the gate — a `canPurchase &&` guard precedes it.
+		expect(CREATE_SOURCE).toMatch(/canPurchase && \(/);
+		expect(CREATE_SOURCE).toMatch(/Choose a Plan/);
+	});
+
+	it("gates the imperative subscribe step title (anti-steering off-US)", () => {
+		// "Start a subscription" is an instruction to purchase — it may only
+		// render behind the gate; non-US storefronts get the descriptive title.
+		expect(CREATE_SOURCE).toMatch(
+			/canPurchase \? "Start a subscription" : "Subscription required"/,
+		);
 	});
 });

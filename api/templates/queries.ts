@@ -9,6 +9,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../utils/query-keys";
 import {
+  createTemplateCheckout,
   deleteReview,
   downloadTemplate,
   getCategories,
@@ -198,4 +199,15 @@ export function useDownloadTemplate() {
   return useMutation({
     mutationFn: (id: string) => downloadTemplate(id),
   });
+}
+
+/**
+ * Hook to create a template checkout session (US storefront only).
+ *
+ * No invalidation here — purchased-template queries are invalidated at the
+ * browser-return site once the redirect confirms payment.
+ * @see POST /api/v1/payments/checkout/templates
+ */
+export function useTemplateCheckout() {
+  return useMutation({ mutationFn: createTemplateCheckout });
 }

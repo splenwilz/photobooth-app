@@ -2,7 +2,9 @@
  * Store Screen
  *
  * Template marketplace with search, filter modal, sorting, and a 2-column grid.
- * Browse-only on iOS — purchases happen on the web (Apple compliance).
+ * The grid is browse-only; purchasing lives on the template detail screen and
+ * is US-storefront only (Guideline 3.1.1(a)) — other storefronts stay
+ * browse-only with purchases happening on the web.
  *
  * @see /api/templates/queries.ts - useTemplates hook
  */

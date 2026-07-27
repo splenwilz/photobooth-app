@@ -74,7 +74,8 @@
           "color": "#069494",
           "defaultChannel": "default"
         }
-      ]
+      ],
+      "expo-iap"
     ],
     "experiments": {
       "typedRoutes": true,

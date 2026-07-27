@@ -9,8 +9,9 @@ jest.mock("expo-secure-store", () => ({
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
-  router: { replace: mockReplace, push: mockPush },
+  router: { replace: mockReplace, push: mockPush, back: jest.fn() },
   useRouter: () => ({ replace: mockReplace, push: mockPush }),
+  useLocalSearchParams: jest.fn(() => ({})),
 }));
 
 // Mock expo-linking — parse just enough of `scheme://host?a=b` for routing.
@@ -29,6 +30,23 @@ jest.mock("expo-linking", () => ({
     return { path: null, hostname, queryParams };
   }),
 }));
+
+// expo-iap: only getStorefront is used (US-storefront gate for external
+// purchases). Default to non-US so tests exercise the fail-closed path unless
+// they opt in.
+jest.mock("expo-iap", () => ({
+  getStorefront: jest.fn().mockResolvedValue("CAN"),
+}));
+
+// react-native-safe-area-context: keep real components, but let
+// useSafeAreaInsets work without a SafeAreaProvider in the tree.
+jest.mock("react-native-safe-area-context", () => {
+  const actual = jest.requireActual("react-native-safe-area-context");
+  return {
+    ...actual,
+    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  };
+});
 
 // --- Push notification native modules ---
 

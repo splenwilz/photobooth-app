@@ -1,13 +1,18 @@
 /**
  * Subscription Details Modal
  *
- * Full-screen, READ-ONLY view of detailed subscription information (status,
- * billing period, auto-renewal, subscription id). There are no management
- * actions — managing or canceling a subscription happens on the web
- * (Apple App Store compliance).
+ * Content-height bottom sheet with subscription state (status, renewal date,
+ * auto-renewal). On the US storefront a "Manage on web" button opens the
+ * Stripe customer portal (Guideline 3.1.1(a)); on every other storefront
+ * the sheet stays read-only with no management affordance.
  */
 
-import { useBoothSubscription, useSubscriptionDetails } from "@/api/payments";
+import {
+	useBoothSubscription,
+	useCustomerPortal,
+	useSubscriptionDetails,
+} from "@/api/payments";
+import { queryKeys } from "@/api/utils/query-keys";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
@@ -18,15 +23,22 @@ import {
 	withAlpha,
 	scaleFont,
 } from "@/constants/theme";
+import { EXTERNAL_PURCHASES } from "@/constants/config";
+import { useExternalPurchases } from "@/hooks/use-external-purchases";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { useQueryClient } from "@tanstack/react-query";
+import * as WebBrowser from "expo-web-browser";
 import {
 	ActivityIndicator,
+	Alert,
 	Modal,
+	Pressable,
 	ScrollView,
 	StyleSheet,
 	TouchableOpacity,
 	View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface SubscriptionDetailsModalProps {
 	visible: boolean;
@@ -48,9 +60,9 @@ function formatDate(dateString: string | null | undefined): string {
 		if (Number.isNaN(date.getTime())) {
 			return "—";
 		}
+		// Short format — the long weekday form wraps the detail row on phones.
 		return date.toLocaleDateString("en-US", {
-			weekday: "long",
-			month: "long",
+			month: "short",
 			day: "numeric",
 			year: "numeric",
 		});
@@ -86,6 +98,7 @@ export function SubscriptionDetailsModal({
 	const cardBg = useThemeColor({}, "card");
 	const borderColor = useThemeColor({}, "border");
 	const textSecondary = useThemeColor({}, "textSecondary");
+	const insets = useSafeAreaInsets();
 
 	// Use booth subscription if boothId provided, otherwise user-level subscription
 	const isPerBooth = !!boothId;
@@ -125,29 +138,96 @@ export function SubscriptionDetailsModal({
 		? getStatusInfo(subscription.status)
 		: { color: StatusColors.neutral, text: "Unknown" };
 
+	// US storefront only — the billing portal is an external purchase surface.
+	const { enabled: canManageOnWeb } = useExternalPurchases();
+	const portal = useCustomerPortal();
+	const queryClient = useQueryClient();
+
+	const handleManageOnWeb = () => {
+		portal.mutate(
+			// Stripe requires an http(s) return_url (the backend forwards it
+			// verbatim) — a custom scheme would 400 the session creation. The
+			// web dashboard is the return target; closing the browser brings
+			// the user back here.
+			{ return_url: `${EXTERNAL_PURCHASES.WEBSITE_URL}/dashboard/booths` },
+			{
+				onSuccess: async (data) => {
+					if (!data?.portal_url) {
+						Alert.alert("Error", "Could not open the billing portal.");
+						return;
+					}
+					await WebBrowser.openAuthSessionAsync(
+						data.portal_url,
+						"boothiq://settings",
+						{ preferEphemeralSession: true },
+					);
+					// Whatever happened in the portal (cancel, plan change,
+					// nothing) is only knowable server-side — refresh on any
+					// return, whatever the browser result type.
+					queryClient.invalidateQueries({
+						queryKey: queryKeys.payments.access(),
+					});
+					queryClient.invalidateQueries({
+						queryKey: queryKeys.payments.subscription(),
+					});
+					queryClient.invalidateQueries({
+						queryKey: queryKeys.payments.boothSubscriptions(),
+					});
+					if (boothId) {
+						queryClient.invalidateQueries({
+							queryKey: queryKeys.payments.boothSubscription(boothId),
+						});
+					}
+				},
+				onError: (error) => {
+					Alert.alert(
+						"Error",
+						error.message || "Could not open the billing portal.",
+					);
+				},
+			},
+		);
+	};
+
 	return (
 		<Modal
 			visible={visible}
+			transparent
 			animationType="slide"
-			presentationStyle="pageSheet"
+			// Android: dim the area under the status bar too.
+			statusBarTranslucent
 			onRequestClose={onClose}
 		>
-			<View style={[styles.container, { backgroundColor }]}>
-				{/* Header */}
-				<View style={[styles.header, { borderColor }]}>
-					<ThemedText type="subtitle">Subscription Details</ThemedText>
-					<TouchableOpacity
-						onPress={onClose}
-						hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-					>
-						<IconSymbol name="xmark" size={20} color={textSecondary} />
-					</TouchableOpacity>
-				</View>
-
-				<ScrollView
-					style={styles.content}
-					showsVerticalScrollIndicator={false}
+			{/* Content-height bottom sheet — a full pageSheet left the screen
+			    mostly empty for three rows of content. */}
+			<View style={styles.overlay}>
+				<Pressable
+					style={styles.backdrop}
+					onPress={onClose}
+					accessibilityLabel="Close"
+				/>
+				<View
+					style={[
+						styles.sheet,
+						{ backgroundColor, paddingBottom: insets.bottom + Spacing.md },
+					]}
 				>
+					{/* Header */}
+					<View style={[styles.header, { borderColor }]}>
+						<ThemedText type="subtitle">Subscription Details</ThemedText>
+						<TouchableOpacity
+							onPress={onClose}
+							hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+						>
+							<IconSymbol name="xmark" size={20} color={textSecondary} />
+						</TouchableOpacity>
+					</View>
+
+					<ScrollView
+						style={styles.content}
+						contentContainerStyle={styles.contentPadding}
+						showsVerticalScrollIndicator={false}
+					>
 					{/* Loading State */}
 					{isLoading && (
 						<View style={styles.loadingContainer}>
@@ -181,7 +261,7 @@ export function SubscriptionDetailsModal({
 					{/* Subscription Details */}
 					{subscription && !isLoading && (
 						<>
-							{/* Status Card */}
+							{/* Status header — name + status pill in one compact row */}
 							<View
 								style={[
 									styles.statusCard,
@@ -196,25 +276,31 @@ export function SubscriptionDetailsModal({
 								>
 									<IconSymbol
 										name="checkmark.seal.fill"
-										size={32}
+										size={22}
 										color={statusInfo.color}
 									/>
 								</View>
-								<View
-									style={[
-										styles.statusBadge,
-										{ backgroundColor: statusInfo.color },
-									]}
+								<ThemedText
+									type="defaultSemiBold"
+									style={styles.statusName}
+									numberOfLines={1}
 								>
-									<ThemedText style={styles.statusBadgeText}>
-										{statusInfo.text}
-									</ThemedText>
-								</View>
-								<ThemedText style={[styles.planName, { color: textSecondary }]}>
 									{isPerBooth && subscription && "booth_name" in subscription
 										? subscription.booth_name
 										: "Premium Subscription"}
 								</ThemedText>
+								<View
+									style={[
+										styles.statusPill,
+										{ backgroundColor: withAlpha(statusInfo.color, 0.15) },
+									]}
+								>
+									<ThemedText
+										style={[styles.statusPillText, { color: statusInfo.color }]}
+									>
+										{statusInfo.text}
+									</ThemedText>
+								</View>
 							</View>
 
 							{/* Details Section */}
@@ -226,7 +312,7 @@ export function SubscriptionDetailsModal({
 							>
 								<View style={styles.detailRow}>
 									<ThemedText style={[styles.detailLabel, { color: textSecondary }]}>
-										Billing Period Ends
+										{subscription.cancel_at_period_end ? "Ends on" : "Renews on"}
 									</ThemedText>
 									<ThemedText type="defaultSemiBold" style={styles.detailValue}>
 										{formatDate(subscription.current_period_end)}
@@ -244,19 +330,6 @@ export function SubscriptionDetailsModal({
 									</ThemedText>
 								</View>
 
-								<View style={[styles.divider, { backgroundColor: borderColor }]} />
-
-								<View style={styles.detailRow}>
-									<ThemedText style={[styles.detailLabel, { color: textSecondary }]}>
-										Subscription ID
-									</ThemedText>
-									<ThemedText
-										style={[styles.subscriptionId, { color: textSecondary }]}
-										numberOfLines={1}
-									>
-										{subscription.subscription_id}
-									</ThemedText>
-								</View>
 							</View>
 
 							{/* Warning if canceling */}
@@ -281,17 +354,64 @@ export function SubscriptionDetailsModal({
 									</ThemedText>
 								</View>
 							)}
+
+							{/* Manage on web — US storefront only (external purchase gate) */}
+							{canManageOnWeb && (
+								<TouchableOpacity
+									accessibilityRole="button"
+									style={[
+										styles.manageButton,
+										{ backgroundColor: BRAND_COLOR },
+										portal.isPending && styles.manageButtonDisabled,
+									]}
+									onPress={handleManageOnWeb}
+									disabled={portal.isPending}
+								>
+									{portal.isPending ? (
+										<ActivityIndicator size="small" color="white" />
+									) : (
+										<ThemedText style={styles.manageButtonText}>
+											Manage Subscription on Web
+										</ThemedText>
+									)}
+								</TouchableOpacity>
+							)}
 						</>
 					)}
-				</ScrollView>
+					</ScrollView>
+				</View>
 			</View>
 		</Modal>
 	);
 }
 
 const styles = StyleSheet.create({
-	container: {
+	overlay: {
 		flex: 1,
+		justifyContent: "flex-end",
+		backgroundColor: "rgba(0, 0, 0, 0.5)",
+	},
+	backdrop: {
+		...StyleSheet.absoluteFillObject,
+	},
+	sheet: {
+		borderTopLeftRadius: BorderRadius.xl,
+		borderTopRightRadius: BorderRadius.xl,
+		maxHeight: "85%",
+	},
+	manageButton: {
+		marginTop: Spacing.md,
+		borderRadius: BorderRadius.md,
+		paddingVertical: Spacing.md,
+		alignItems: "center",
+	},
+	manageButtonDisabled: {
+		opacity: 0.6,
+	},
+	manageButtonText: {
+		color: "#fff",
+		fontSize: scaleFont(15),
+		fontWeight: "700",
 	},
 	header: {
 		flexDirection: "row",
@@ -300,8 +420,14 @@ const styles = StyleSheet.create({
 		padding: Spacing.lg,
 		borderBottomWidth: 1,
 	},
+	// The sheet is content-height: the scroll area must size to its children
+	// (flexGrow: 0) but SHRINK when the sheet's maxHeight clamps it — RN's
+	// default flexShrink is 0, which would clip instead of scroll.
 	content: {
-		flex: 1,
+		flexGrow: 0,
+		flexShrink: 1,
+	},
+	contentPadding: {
 		padding: Spacing.lg,
 	},
 	loadingContainer: {
@@ -331,33 +457,33 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 	},
 	statusCard: {
+		flexDirection: "row",
 		alignItems: "center",
-		padding: Spacing.xl,
+		gap: Spacing.sm,
+		padding: Spacing.md,
 		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
 		marginBottom: Spacing.md,
 	},
 	statusIcon: {
-		width: 64,
-		height: 64,
-		borderRadius: 32,
+		width: 40,
+		height: 40,
+		borderRadius: 20,
 		justifyContent: "center",
 		alignItems: "center",
-		marginBottom: Spacing.md,
 	},
-	statusBadge: {
-		paddingHorizontal: Spacing.md,
-		paddingVertical: Spacing.xs,
-		borderRadius: BorderRadius.md,
-		marginBottom: Spacing.xs,
+	statusName: {
+		flex: 1,
+		fontSize: scaleFont(16),
 	},
-	statusBadgeText: {
-		color: "white",
-		fontSize: scaleFont(14),
-		fontWeight: "600",
+	statusPill: {
+		paddingHorizontal: Spacing.sm,
+		paddingVertical: 4,
+		borderRadius: BorderRadius.lg,
 	},
-	planName: {
-		fontSize: scaleFont(14),
+	statusPillText: {
+		fontSize: scaleFont(13),
+		fontWeight: "700",
 	},
 	detailsCard: {
 		padding: Spacing.md,
@@ -384,11 +510,6 @@ const styles = StyleSheet.create({
 	divider: {
 		height: 1,
 		marginVertical: Spacing.xs,
-	},
-	subscriptionId: {
-		fontSize: scaleFont(12),
-		maxWidth: 150,
-		textAlign: "right",
 	},
 	warningCard: {
 		flexDirection: "row",

@@ -2,8 +2,8 @@
  * TemplateCard Component
  *
  * Displays a template in the store grid with preview image, name, price,
- * and rating. The catalog is read-only — no in-app purchase action. Users
- * sync their already-purchased templates from /store/purchased.
+ * and rating. The card itself stays read-only — the purchase CTA lives on
+ * the template detail screen (TemplateBuySection, US storefront only).
  *
  * Consumes the lean `TemplateListItem` shape returned by `GET /templates`
  * (no nested category/layout/photo_areas, no `is_featured`).

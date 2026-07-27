@@ -1,21 +1,27 @@
 /**
  * Payments API Services
  *
- * Service functions for READING subscription state only. Purchase initiation
- * (checkout creation) AND subscription management (cancel, customer portal) are
- * deliberately absent — the iOS app neither initiates purchases nor manages
- * subscriptions per Apple compliance. Users manage/cancel on the web.
+ * Subscription reads plus external (Stripe web) checkout and customer-portal
+ * session creation. Checkout/portal may only be REACHED from UI gated behind
+ * useExternalPurchases() — US storefront only per Guideline 3.1.1(a); all
+ * other storefronts stay browse-only.
  *
  * @see GET /api/v1/payments/access - Check subscription access
  * @see GET /api/v1/payments/subscription - Get subscription details
  * @see GET /api/v1/payments/booths/subscriptions - List booth subscriptions
  * @see GET /api/v1/booths/{boothId}/subscription - Get booth subscription
+ * @see POST /api/v1/booths/{boothId}/subscription/checkout - Booth checkout
+ * @see POST /api/v1/payments/portal - Customer portal session
  */
 
 import { apiClient } from "../client";
 import type {
 	BoothSubscriptionItem,
 	BoothSubscriptionsListResponse,
+	CreateBoothCheckoutRequest,
+	CreateCheckoutResponse,
+	CustomerPortalRequest,
+	CustomerPortalResponse,
 	SubscriptionAccessResponse,
 	SubscriptionDetailsResponse,
 } from "./types";
@@ -110,4 +116,37 @@ export async function getBoothSubscription(
 		{ method: "GET" },
 	);
 	return response;
+}
+
+// ============================================================================
+// EXTERNAL CHECKOUT + PORTAL (US storefront only)
+// ============================================================================
+
+/**
+ * Create a Stripe Checkout session for a per-booth subscription.
+ *
+ * The returned checkout_url is opened in the in-app browser; the outcome
+ * comes back via the success/cancel redirect (see use-deep-links.ts).
+ */
+export async function createBoothCheckout(
+	data: CreateBoothCheckoutRequest,
+): Promise<CreateCheckoutResponse> {
+	const response = await apiClient<CreateCheckoutResponse>(
+		`/api/v1/booths/${data.booth_id}/subscription/checkout`,
+		{ method: "POST", body: JSON.stringify(data) },
+	);
+	return response;
+}
+
+/**
+ * Create a Stripe customer-portal session for managing/canceling
+ * subscriptions on the web.
+ */
+export async function getCustomerPortal(
+	data: CustomerPortalRequest,
+): Promise<CustomerPortalResponse> {
+	return apiClient<CustomerPortalResponse>("/api/v1/payments/portal", {
+		method: "POST",
+		body: JSON.stringify(data),
+	});
 }

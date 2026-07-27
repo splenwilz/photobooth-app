@@ -1,24 +1,23 @@
 /**
  * Templates API surface contract
  *
- * The paid-template purchase initiation has been removed for Apple
- * compliance. Catalog browse + purchased-template download remain.
+ * Dual-storefront policy (Guideline 3.1.1(a)): template checkout services
+ * and hooks ARE exported — purchase initiation is legal on the US
+ * storefront — but the only UI entry point (TemplateBuySection) sits
+ * behind useExternalPurchases(). Catalog browse + downloads unchanged.
  */
 import * as templates from "@/api/templates";
 
 const templatesExports = templates as unknown as Record<string, unknown>;
 
-describe("api/templates — Apple-compliance contract", () => {
-	describe("removed (purchase initiation)", () => {
-		// Use `not.toHaveProperty` rather than `toBeUndefined` so the assertion
-		// fails even if the symbol is re-introduced as a stub like
-		// `export const useTemplateCheckout = undefined`.
-		it("does not export useTemplateCheckout", () => {
-			expect(templatesExports).not.toHaveProperty("useTemplateCheckout");
+describe("api/templates — external-purchase surface contract", () => {
+	describe("present (US-storefront external checkout)", () => {
+		it("exports useTemplateCheckout", () => {
+			expect(typeof templatesExports.useTemplateCheckout).toBe("function");
 		});
 
-		it("does not export createTemplateCheckout", () => {
-			expect(templatesExports).not.toHaveProperty("createTemplateCheckout");
+		it("exports createTemplateCheckout", () => {
+			expect(typeof templatesExports.createTemplateCheckout).toBe("function");
 		});
 	});
 

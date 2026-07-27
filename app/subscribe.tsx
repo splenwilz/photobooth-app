@@ -1,0 +1,112 @@
+/**
+ * Subscribe Screen — per-booth subscription plans (US storefront only).
+ *
+ * Hosts PricingPlansSelector for the booth passed via ?boothId=. Entry
+ * points (SubscriptionStatusCard, booth create) only link here when the
+ * external-purchase gate is open, but the gate is enforced again on this
+ * screen: off the US storefront it renders the neutral browse-only message
+ * (Guideline 3.1.1(a)) — never the checkout UI.
+ */
+
+import { router, useLocalSearchParams } from "expo-router";
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { PricingPlansSelector } from "@/components/subscription";
+import { ThemedText } from "@/components/themed-text";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Spacing, scaleFont } from "@/constants/theme";
+import { useExternalPurchases } from "@/hooks/use-external-purchases";
+import { useThemeColor } from "@/hooks/use-theme-color";
+
+export default function SubscribeScreen() {
+	const { boothId } = useLocalSearchParams<{ boothId: string }>();
+	const backgroundColor = useThemeColor({}, "background");
+	const borderColor = useThemeColor({}, "border");
+	const textColor = useThemeColor({}, "text");
+	const textSecondary = useThemeColor({}, "textSecondary");
+
+	const { enabled, isLoading } = useExternalPurchases();
+
+	const showSelector = enabled && !isLoading && !!boothId;
+
+	return (
+		<SafeAreaView style={[styles.container, { backgroundColor }]} edges={["top"]}>
+			<View style={[styles.header, { borderColor }]}>
+				<TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+					<IconSymbol name="chevron.left" size={20} color={textColor} />
+				</TouchableOpacity>
+				<ThemedText style={styles.headerTitle}>Subscription Plans</ThemedText>
+				<View style={styles.backButton} />
+			</View>
+
+			{showSelector ? (
+				<View style={styles.content}>
+					<PricingPlansSelector
+						boothId={boothId}
+						onCancel={() => router.back()}
+						onCheckoutComplete={() => {
+							// Host owns post-checkout UX: back() returns to the
+							// entry point (booth-create timeline advances to
+							// "Scan to activate"; Settings shows the refreshed
+							// subscription card).
+							Alert.alert(
+								"Payment Successful",
+								"Your subscription has been activated!",
+							);
+							router.back();
+						}}
+					/>
+				</View>
+			) : (
+				!isLoading && (
+					<View style={styles.unavailableContainer}>
+						<ThemedText
+							style={[styles.unavailableText, { color: textSecondary }]}
+						>
+							{boothId
+								? "Purchases are not available in the app."
+								: "No booth selected."}
+						</ThemedText>
+					</View>
+				)
+			)}
+		</SafeAreaView>
+	);
+}
+
+const styles = StyleSheet.create({
+	container: {
+		flex: 1,
+	},
+	header: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		paddingHorizontal: Spacing.md,
+		paddingVertical: Spacing.sm,
+		borderBottomWidth: 1,
+	},
+	backButton: {
+		width: 36,
+		alignItems: "flex-start",
+	},
+	headerTitle: {
+		fontSize: scaleFont(17),
+		fontWeight: "600",
+	},
+	content: {
+		flex: 1,
+		padding: Spacing.lg,
+	},
+	unavailableContainer: {
+		flex: 1,
+		alignItems: "center",
+		justifyContent: "center",
+		padding: Spacing.xl,
+	},
+	unavailableText: {
+		fontSize: scaleFont(14),
+		textAlign: "center",
+	},
+});

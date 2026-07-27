@@ -1,23 +1,25 @@
 /**
  * Payments React Query Hooks
  *
- * Hooks for READING subscription state only. Purchase initiation AND
- * subscription management (cancel, billing portal) are intentionally absent —
- * the iOS app neither initiates purchases nor manages subscriptions per Apple
- * compliance. Users manage/cancel on the web.
+ * Subscription reads plus external checkout/portal mutations. The mutations
+ * may only be reached from UI gated behind useExternalPurchases() — US
+ * storefront only per Guideline 3.1.1(a).
  *
- * Cache note: nothing in-app mutates subscription state, so there are no
- * invalidations here — these reads intentionally rely on a 5-minute staleTime
- * to pick up web-side changes (cancel/upgrade reflect within that window).
+ * Cache note: the reads rely on a 5-minute staleTime to pick up web-side
+ * changes. The checkout mutations deliberately do NOT invalidate anything in
+ * onSuccess — creating a session isn't a purchase; invalidation happens at
+ * the browser-return site once the redirect confirms the outcome.
  *
  * @see https://tanstack.com/query/latest - React Query docs
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/api/utils/query-keys";
 import {
+	createBoothCheckout,
 	getBoothSubscription,
 	getBoothSubscriptions,
+	getCustomerPortal,
 	getSubscriptionAccess,
 	getSubscriptionDetails,
 } from "./services";
@@ -127,4 +129,33 @@ export function useBoothSubscription(boothId: string | null) {
 		staleTime: 5 * 60 * 1000,
 		gcTime: 10 * 60 * 1000,
 	});
+}
+
+// ============================================================================
+// EXTERNAL CHECKOUT + PORTAL MUTATIONS (US storefront only)
+// ============================================================================
+
+/**
+ * Create a per-booth subscription checkout session.
+ *
+ * No cache invalidation here — the caller invalidates subscription/booth
+ * queries after the browser redirect confirms payment (or the deep-link
+ * fallback does, on cold-start returns).
+ *
+ * @example
+ * const checkout = useCreateBoothCheckout();
+ * const { checkout_url } = await checkout.mutateAsync({ booth_id, price_id, success_url, cancel_url });
+ */
+export function useCreateBoothCheckout() {
+	return useMutation({ mutationFn: createBoothCheckout });
+}
+
+/**
+ * Create a Stripe customer-portal session (manage/cancel on the web).
+ *
+ * No invalidation — returning from the portal lands on boothiq://settings,
+ * which refreshes payment queries (see use-deep-links.ts).
+ */
+export function useCustomerPortal() {
+	return useMutation({ mutationFn: getCustomerPortal });
 }
