@@ -30,6 +30,7 @@ import {
 	withAlpha,
 	scaleFont,
 } from "@/constants/theme";
+import { PURCHASES_UNAVAILABLE_COPY } from "@/constants/config";
 import { useExternalPurchases } from "@/hooks/use-external-purchases";
 import { useTemplatePurchase } from "@/hooks/use-template-purchase";
 import { useThemeColor } from "@/hooks/use-theme-color";
@@ -43,7 +44,8 @@ export function TemplateBuySection({ template }: { template: Template }) {
 	const { enabled, isLoading: isGateLoading } = useExternalPurchases();
 
 	const selectedBoothId = useBoothStore((s) => s.selectedBoothId);
-	const { data: boothOverview } = useBoothOverview();
+	const { data: boothOverview, isLoading: isBoothsLoading } =
+		useBoothOverview();
 	const booths = boothOverview?.booths ?? [];
 	const isAllMode = selectedBoothId === ALL_BOOTHS_ID;
 	const [pickedBoothId, setPickedBoothId] = useState<string | null>(null);
@@ -152,13 +154,15 @@ export function TemplateBuySection({ template }: { template: Template }) {
 			<View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
 				{boothPicker}
 				<ThemedText style={[styles.unavailableText, { color: textSecondary }]}>
-					Purchases are not available in the app.
+					{PURCHASES_UNAVAILABLE_COPY}
 				</ThemedText>
 			</View>
 		);
 	}
 
 	if (booths.length === 0) {
+		// Don't flash "create a booth" at users whose booths are still loading.
+		if (isBoothsLoading) return null;
 		// A template purchase is per-booth — nothing to buy for without one.
 		return (
 			<View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>

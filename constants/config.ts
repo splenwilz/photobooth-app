@@ -42,6 +42,15 @@ export const EXTERNAL_PURCHASES = {
     WEBSITE_URL: process.env.EXPO_PUBLIC_WEBSITE_URL || 'https://boothiq.com',
 } as const;
 
+/**
+ * The one approved line for non-US storefronts. Deliberately single-sourced:
+ * it must never grow a link, URL, or instruction (Guideline 3.1.1), so every
+ * surface renders this exact constant. Lives here (not in the gate hook)
+ * because tests routinely mock the hook module wholesale.
+ */
+export const PURCHASES_UNAVAILABLE_COPY =
+    'Purchases are not available in the app.';
+
 /** Read at call time so tests can vary the env var per case. */
 export function isExternalPurchasesFlagEnabled(): boolean {
     return process.env.EXPO_PUBLIC_EXTERNAL_PURCHASES_ENABLED === 'true';

@@ -16,6 +16,7 @@ import { PricingPlansSelector } from "@/components/subscription";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Spacing, scaleFont } from "@/constants/theme";
+import { PURCHASES_UNAVAILABLE_COPY } from "@/constants/config";
 import { useExternalPurchases } from "@/hooks/use-external-purchases";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -76,9 +77,7 @@ export default function SubscribeScreen() {
 						<ThemedText
 							style={[styles.unavailableText, { color: textSecondary }]}
 						>
-							{boothId
-								? "Purchases are not available in the app."
-								: "No booth selected."}
+							{boothId ? PURCHASES_UNAVAILABLE_COPY : "No booth selected."}
 						</ThemedText>
 					</View>
 				)

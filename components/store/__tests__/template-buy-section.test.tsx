@@ -169,6 +169,12 @@ describe("TemplateBuySection", () => {
     expect(queryByText("Buy for $4.99")).toBeNull();
   });
 
+  it("renders nothing while booths are still loading (no create-booth flash)", () => {
+    mockBoothOverview.mockReturnValue({ data: undefined, isLoading: true });
+    const { toJSON } = render(<TemplateBuySection template={paidTemplate} />);
+    expect(toJSON()).toBeNull();
+  });
+
   it("keeps the booth picker visible in the purchased state (buy for another booth)", () => {
     mockBoothOverview.mockReturnValue({ data: twoBooths });
     mockPurchased.mockReturnValue({
