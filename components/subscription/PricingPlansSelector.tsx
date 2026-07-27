@@ -25,7 +25,11 @@ import {
 	withAlpha,
 	scaleFont,
 } from "@/constants/theme";
-import { EXTERNAL_PURCHASES } from "@/constants/config";
+import {
+	CHECKOUT_RETURN_PATHS,
+	checkoutReturnDeepLink,
+	EXTERNAL_PURCHASES,
+} from "@/constants/config";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { useBoothStore } from "@/stores/booth-store";
 import { useQueryClient } from "@tanstack/react-query";
@@ -150,7 +154,7 @@ export function PricingPlansSelector({
 							data.checkout_url,
 							// Bare scheme URL — iOS matches on scheme; query params
 							// in the return URL make matching fragile elsewhere.
-							"boothiq://payment-success",
+							checkoutReturnDeepLink(CHECKOUT_RETURN_PATHS.PAYMENT_SUCCESS),
 							{ preferEphemeralSession: true },
 						);
 					} catch {
@@ -181,7 +185,7 @@ export function PricingPlansSelector({
 					if (
 						browserResult &&
 						browserResult.type === "success" &&
-						browserResult.url?.includes("payment-success")
+						browserResult.url?.includes(CHECKOUT_RETURN_PATHS.PAYMENT_SUCCESS)
 					) {
 						// Select the subscribed booth as active; the HOST owns
 						// navigation and the success message (a replace() here

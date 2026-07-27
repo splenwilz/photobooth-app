@@ -19,11 +19,17 @@ import * as WebBrowser from "expo-web-browser";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTemplateCheckout } from "@/api/templates/queries";
 import { queryKeys } from "@/api/utils/query-keys";
-import { EXTERNAL_PURCHASES } from "@/constants/config";
+import {
+	CHECKOUT_RETURN_PATHS,
+	checkoutReturnDeepLink,
+	EXTERNAL_PURCHASES,
+} from "@/constants/config";
 
 export type TemplatePurchaseOutcome = "success" | "cancelled";
 
-const SUCCESS_REDIRECT = "boothiq://template-purchase-success";
+const SUCCESS_REDIRECT = checkoutReturnDeepLink(
+	CHECKOUT_RETURN_PATHS.TEMPLATE_PURCHASE_SUCCESS,
+);
 
 export function useTemplatePurchase(): {
 	purchase: (args: {
@@ -87,7 +93,7 @@ export function useTemplatePurchase(): {
 			// are intercepted as type "success" — the URL decides the outcome.
 			if (
 				result.type === "success" &&
-				result.url.includes("template-purchase-success")
+				result.url.includes(CHECKOUT_RETURN_PATHS.TEMPLATE_PURCHASE_SUCCESS)
 			) {
 				return "success";
 			}

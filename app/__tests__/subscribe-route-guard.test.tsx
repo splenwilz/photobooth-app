@@ -62,4 +62,13 @@ describe("app/subscribe — storefront gate", () => {
     getByText("No booth selected.");
     expect(queryByText("PLAN_SELECTOR")).toBeNull();
   });
+
+  it("gate closed without a boothId still shows the neutral compliance copy", () => {
+    mockParams.mockReturnValue({});
+    mockGate.mockReturnValue({ enabled: false, isLoading: false });
+    const { getByText, queryByText } = render(<SubscribeScreen />);
+    getByText("Purchases are not available in the app.");
+    expect(queryByText("No booth selected.")).toBeNull();
+    expect(queryByText("PLAN_SELECTOR")).toBeNull();
+  });
 });

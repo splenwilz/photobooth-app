@@ -103,6 +103,14 @@ describe("SubscriptionStatusCard Subscribe CTA", () => {
     expect(queryByText("Subscribe")).toBeNull();
   });
 
+  it("hides Subscribe while the storefront gate is still resolving", () => {
+    mockGate.mockReturnValue({ enabled: false, isLoading: true });
+    const { queryByText } = renderWithClient(
+      <SubscriptionStatusCard boothId="booth-1" />,
+    );
+    expect(queryByText("Subscribe")).toBeNull();
+  });
+
   it("hides Subscribe when the booth already has an active subscription", () => {
     mockBoothSub.mockReturnValue(activeSubscription);
     const { queryByText } = renderWithClient(

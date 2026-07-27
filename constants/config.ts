@@ -67,3 +67,22 @@ export const OAUTH_CONFIG = {
     // Response type for OAuth flow
     RESPONSE_TYPE: 'code',
 } as const;
+
+/**
+ * Checkout-return deep-link path names — single source of truth shared by
+ * the purchase hooks (browser return URLs), the deep-link router
+ * (cold-start fallback), and +native-intent (route rewriting). These are
+ * compliance-relevant strings: the website's checkout pages redirect to
+ * exactly these paths.
+ */
+export const CHECKOUT_RETURN_PATHS = {
+    PAYMENT_SUCCESS: 'payment-success',
+    PAYMENT_CANCEL: 'payment-cancel',
+    TEMPLATE_PURCHASE_SUCCESS: 'template-purchase-success',
+    TEMPLATE_PURCHASE_CANCEL: 'template-purchase-cancel',
+} as const;
+
+/** Build the app-scheme deep link for a checkout-return path. */
+export function checkoutReturnDeepLink(path: string): string {
+    return `${OAUTH_CONFIG.REDIRECT_SCHEME}://${path}`;
+}

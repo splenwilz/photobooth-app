@@ -190,11 +190,15 @@ export function SubscriptionStatusCard({
 						<ThemedText style={[styles.emptyMessage, { color: textSecondary }]}>
 							{/* Imperative "Subscribe…" only where purchasing is allowed
 							    (US storefront) — descriptive elsewhere (anti-steering). */}
+							{/* Server copy is unreviewable — only render it where
+							    purchasing exists (it may reference the website). */}
 							{canPurchase && isPerBooth
 								? "Subscribe to activate this booth."
 								: isPerBooth
 									? "This booth isn't activated."
-									: userAccess?.message || "No active subscription."}
+									: canPurchase
+										? userAccess?.message || "No active subscription."
+										: "No active subscription."}
 						</ThemedText>
 					</View>
 				</View>

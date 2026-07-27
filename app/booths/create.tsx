@@ -156,11 +156,17 @@ export default function CreateBoothScreen() {
 		}[] = [
 			{ title: "Booth created", sub: null, status: "done" },
 			{
-				// Imperative "Start a subscription" only where purchasing is
-				// allowed (US storefront) — descriptive elsewhere (anti-steering).
-				title: canPurchase ? "Start a subscription" : "Subscription required",
+				// Completed state wins regardless of storefront; otherwise the
+				// imperative "Start a subscription" renders only where purchasing
+				// is allowed (US storefront) — descriptive elsewhere
+				// (anti-steering).
+				title: hasActiveSubscription
+					? "Subscription active"
+					: canPurchase
+						? "Start a subscription"
+						: "Subscription required",
 				sub: hasActiveSubscription
-					? "Subscription is active."
+					? null
 					: `"${createdBooth.name}" needs an active subscription before you can connect and activate it.`,
 				status: hasActiveSubscription ? "done" : "current",
 			},

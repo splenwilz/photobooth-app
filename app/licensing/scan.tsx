@@ -199,9 +199,12 @@ export default function ScanScreen() {
 						setShowConflictWarning(false);
 
 						if (result.success) {
+							// Raw license keys are support-desk material, not user
+							// information — same policy as the retired connection
+							// credentials (see connection-details-removed contract).
 							Alert.alert(
 								"Booth Activated!",
-								`${result.message}\n\nLicense Key: ${result.license_key}`,
+								result.message,
 								[
 									{
 										text: "Done",

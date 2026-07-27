@@ -77,7 +77,10 @@ export default function SubscribeScreen() {
 						<ThemedText
 							style={[styles.unavailableText, { color: textSecondary }]}
 						>
-							{boothId ? PURCHASES_UNAVAILABLE_COPY : "No booth selected."}
+							{/* Gate-closed visits always get the neutral compliance line,
+							    with or without a boothId; "No booth selected." only makes
+							    sense where purchasing exists. */}
+							{!enabled ? PURCHASES_UNAVAILABLE_COPY : "No booth selected."}
 						</ThemedText>
 					</View>
 				)

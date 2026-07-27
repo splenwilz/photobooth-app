@@ -31,4 +31,15 @@ describe("Connection details — retired in favor of QR activation", () => {
 	it("the QR activation scanner still exists (replacement flow)", () => {
 		expect(existsSync(join(REPO, "app", "licensing", "scan.tsx"))).toBe(true);
 	});
+
+	it("the scanner does not disclose raw license keys to the user", () => {
+		const scanSource = readFileSync(
+			join(REPO, "app", "licensing", "scan.tsx"),
+			"utf8",
+		);
+		expect(scanSource).not.toMatch(/License Key/);
+		// The activation response field may exist in types, but must never be
+		// interpolated into user-visible UI in this screen.
+		expect(scanSource).not.toMatch(/\$\{result\.license_key\}/);
+	});
 });

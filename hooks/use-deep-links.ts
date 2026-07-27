@@ -30,6 +30,7 @@ import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Alert } from "react-native";
 import { queryKeys } from "@/api/utils/query-keys";
+import { CHECKOUT_RETURN_PATHS } from "@/constants/config";
 import { useBoothStore } from "@/stores/booth-store";
 
 /** Refresh subscription/access data (used by the settings + billing routes). */
@@ -99,7 +100,7 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 
 			// External checkout returns (US storefront) — cold-start fallback for
 			// the auth-session interception in the purchase hooks.
-			case "payment-success": {
+			case CHECKOUT_RETURN_PATHS.PAYMENT_SUCCESS: {
 				const boothId = parsed.queryParams?.booth_id as string | undefined;
 				invalidatePaymentQueries(queryClient);
 				queryClient.invalidateQueries({
@@ -124,11 +125,11 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 				break;
 			}
 
-			case "payment-cancel":
+			case CHECKOUT_RETURN_PATHS.PAYMENT_CANCEL:
 				Alert.alert("Checkout Canceled", "Your subscription was not started.");
 				break;
 
-			case "template-purchase-success":
+			case CHECKOUT_RETURN_PATHS.TEMPLATE_PURCHASE_SUCCESS:
 				queryClient.invalidateQueries({
 					queryKey: queryKeys.templates.purchasedAll(),
 				});
@@ -136,7 +137,7 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 				Alert.alert("Checkout Complete", "We're updating your purchases.");
 				break;
 
-			case "template-purchase-cancel":
+			case CHECKOUT_RETURN_PATHS.TEMPLATE_PURCHASE_CANCEL:
 				Alert.alert("Checkout Canceled", "Your template was not purchased.");
 				break;
 

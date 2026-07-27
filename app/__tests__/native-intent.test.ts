@@ -40,4 +40,31 @@ describe("+native-intent — external checkout return links", () => {
 			"/booths",
 		);
 	});
+
+	it("passes prototype-member segment names through untouched", () => {
+		// A plain object index would resolve these via the prototype chain and
+		// hand Expo Router a function/object instead of a route string.
+		for (const hostile of ["constructor", "__proto__", "toString"]) {
+			expect(
+				redirectSystemPath({ path: `boothiq://${hostile}`, initial: false }),
+			).toBe(`boothiq://${hostile}`);
+		}
+	});
+
+	it("matches only the leading path segment, not substrings elsewhere", () => {
+		// A checkout-return name in a query param is NOT a checkout return.
+		expect(
+			redirectSystemPath({
+				path: "/store?ref=payment-success",
+				initial: false,
+			}),
+		).toBe("/store?ref=payment-success");
+		// Nor is one buried in a deeper segment.
+		expect(
+			redirectSystemPath({
+				path: "boothiq://checkout/payment-success",
+				initial: false,
+			}),
+		).toBe("boothiq://checkout/payment-success");
+	});
 });

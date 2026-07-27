@@ -55,9 +55,11 @@ describe("app/booths/create.tsx — post-creation flow contract", () => {
 
 	it("gates the plan CTA behind the external-purchase (US storefront) check", () => {
 		expect(CREATE_SOURCE).toMatch(/useExternalPurchases/);
-		// The CTA must sit inside the gate — a `canPurchase &&` guard precedes it.
-		expect(CREATE_SOURCE).toMatch(/canPurchase && \(/);
-		expect(CREATE_SOURCE).toMatch(/Choose a Plan/);
+		// The CTA must sit INSIDE the gated branch — assert proximity, not just
+		// that a guard and the label both exist somewhere in the file.
+		expect(CREATE_SOURCE).toMatch(
+			/canPurchase && \([\s\S]{0,200}?Choose a Plan/,
+		);
 	});
 
 	it("gates the imperative subscribe step title (anti-steering off-US)", () => {

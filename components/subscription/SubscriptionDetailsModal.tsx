@@ -157,16 +157,15 @@ export function SubscriptionDetailsModal({
 						return;
 					}
 					try {
-						await WebBrowser.openAuthSessionAsync(
-							data.portal_url,
-							"boothiq://settings",
-							{ preferEphemeralSession: true },
-						);
+						// Plain browser, not an auth session: the portal's https
+						// return_url never fires an app-scheme redirect, so an
+						// auth session's returnUrl would be dead weight. The
+						// browser resolves when the user dismisses it.
+						await WebBrowser.openBrowserAsync(data.portal_url);
 					} catch {
-						// Session couldn't open/complete (e.g. another auth session
-						// active). Surface it, then still refresh below — we can't
-						// distinguish "never opened" from "died mid-portal", and a
-						// spurious refresh is harmless.
+						// Browser couldn't open. Surface it, then still refresh
+						// below — we can't distinguish "never opened" from "died
+						// mid-portal", and a spurious refresh is harmless.
 						Alert.alert("Error", "Could not open the billing portal.");
 					}
 					// Whatever happened in the portal (cancel, plan change,
