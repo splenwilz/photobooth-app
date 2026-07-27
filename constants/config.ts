@@ -31,8 +31,11 @@ export const WEB_URLS = {
  * browse-only with no links or calls to action. The storefront check lives in
  * hooks/use-external-purchases.ts — this flag is the business kill switch on
  * top of it (e.g. if Apple's 0%-commission status changes). EXPO_PUBLIC_*
- * values are inlined when the JS bundle is built, so the flag can be flipped
- * with an `eas update` — no store release required.
+ * values are inlined when the JS bundle is built. eas.json `env` covers
+ * `eas build` ONLY — an OTA flip via `eas update` uses the environment at
+ * update time, so run it with EAS server-side env vars (--environment
+ * production); a plain `eas update` from a dev machine would inline the
+ * local .env (ngrok URLs) into the production bundle.
  */
 export const EXTERNAL_PURCHASES = {
     /** Base URL for checkout success/cancel redirect pages on the website. */

@@ -142,35 +142,44 @@ export function PricingPlansSelector({
 						return;
 					}
 
-					const browserResult = await WebBrowser.openAuthSessionAsync(
-						data.checkout_url,
-						// Bare scheme URL — iOS matches on scheme; query params in
-						// the return URL make matching fragile on other platforms.
-						"boothiq://payment-success",
-						{ preferEphemeralSession: true },
-					);
-
-					// Refresh on ANY browser return: the user may have paid and
-					// dismissed the sheet before the success redirect fired —
-					// only the server knows the outcome. Invalidation is cheap
-					// and idempotent; success-only UX stays below.
-					queryClient.invalidateQueries({
-						queryKey: queryKeys.payments.access(),
-					});
-					queryClient.invalidateQueries({
-						queryKey: queryKeys.payments.subscription(),
-					});
-					queryClient.invalidateQueries({
-						queryKey: queryKeys.booths.detail(boothId),
-					});
-					queryClient.invalidateQueries({
-						queryKey: queryKeys.payments.boothSubscription(boothId),
-					});
-					queryClient.invalidateQueries({
-						queryKey: queryKeys.payments.boothSubscriptions(),
-					});
+					let browserResult: Awaited<
+						ReturnType<typeof WebBrowser.openAuthSessionAsync>
+					> | null = null;
+					try {
+						browserResult = await WebBrowser.openAuthSessionAsync(
+							data.checkout_url,
+							// Bare scheme URL — iOS matches on scheme; query params
+							// in the return URL make matching fragile elsewhere.
+							"boothiq://payment-success",
+							{ preferEphemeralSession: true },
+						);
+					} catch {
+						// Session couldn't open/complete (e.g. another auth session
+						// active) — fall through and refresh anyway.
+					} finally {
+						// Refresh on ANY browser return: the user may have paid
+						// and dismissed the sheet before the success redirect
+						// fired — only the server knows the outcome. Invalidation
+						// is cheap and idempotent; success-only UX stays below.
+						queryClient.invalidateQueries({
+							queryKey: queryKeys.payments.access(),
+						});
+						queryClient.invalidateQueries({
+							queryKey: queryKeys.payments.subscription(),
+						});
+						queryClient.invalidateQueries({
+							queryKey: queryKeys.booths.detail(boothId),
+						});
+						queryClient.invalidateQueries({
+							queryKey: queryKeys.payments.boothSubscription(boothId),
+						});
+						queryClient.invalidateQueries({
+							queryKey: queryKeys.payments.boothSubscriptions(),
+						});
+					}
 
 					if (
+						browserResult &&
 						browserResult.type === "success" &&
 						browserResult.url?.includes("payment-success")
 					) {

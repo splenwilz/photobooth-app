@@ -28,12 +28,21 @@ export default function SubscribeScreen() {
 
 	const { enabled, isLoading } = useExternalPurchases();
 
+	// Deep-link cold starts land here with no history — fall back to Booths.
+	const goBack = () => {
+		if (router.canGoBack()) {
+			router.back();
+		} else {
+			router.replace("/(tabs)/booths");
+		}
+	};
+
 	const showSelector = enabled && !isLoading && !!boothId;
 
 	return (
 		<SafeAreaView style={[styles.container, { backgroundColor }]} edges={["top"]}>
 			<View style={[styles.header, { borderColor }]}>
-				<TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+				<TouchableOpacity onPress={goBack} style={styles.backButton}>
 					<IconSymbol name="chevron.left" size={20} color={textColor} />
 				</TouchableOpacity>
 				<ThemedText style={styles.headerTitle}>Subscription Plans</ThemedText>
@@ -44,7 +53,7 @@ export default function SubscribeScreen() {
 				<View style={styles.content}>
 					<PricingPlansSelector
 						boothId={boothId}
-						onCancel={() => router.back()}
+						onCancel={goBack}
 						onCheckoutComplete={() => {
 							// Host owns post-checkout UX: back() returns to the
 							// entry point (booth-create timeline advances to
@@ -54,7 +63,7 @@ export default function SubscribeScreen() {
 								"Payment Successful",
 								"Your subscription has been activated!",
 							);
-							router.back();
+							goBack();
 						}}
 					/>
 				</View>

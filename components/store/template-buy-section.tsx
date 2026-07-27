@@ -74,11 +74,13 @@ export function TemplateBuySection({ template }: { template: Template }) {
 	)?.booth_name;
 
 	// Booth picker — shown whenever a choice exists, INCLUDING the purchased
-	// state (owning it for booth A must not block buying it for booth B).
+	// and off-US states (owning it for booth A must not block buying it for
+	// booth B, and off-US users still need to resolve a booth to see the
+	// owned state). "Buy for booth:" phrasing only where purchasing exists.
 	const boothPicker = isAllMode && booths.length > 1 && (
 		<View style={styles.boothPickerList}>
 			<ThemedText style={[styles.boothPickerLabel, { color: textSecondary }]}>
-				{isPurchasedForBooth ? "Booth:" : "Buy for booth:"}
+				{enabled && !isPurchasedForBooth ? "Buy for booth:" : "Booth:"}
 			</ThemedText>
 			{booths.map((booth) => {
 				const isSelected = pickedBoothId === booth.booth_id;
@@ -119,7 +121,7 @@ export function TemplateBuySection({ template }: { template: Template }) {
 	if (isPurchasedForBooth) {
 		return (
 			<View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
-				{enabled && boothPicker}
+				{boothPicker}
 				<View style={styles.purchasedRow}>
 					<IconSymbol
 						name="checkmark.circle.fill"
@@ -141,8 +143,11 @@ export function TemplateBuySection({ template }: { template: Template }) {
 	if (!enabled) {
 		// Non-US storefronts: informational only. Never add a link, URL, or
 		// instruction here — that would be a 3.1.1 violation outside the US.
+		// The picker stays so multi-booth owners can resolve a booth and see
+		// the owned state above.
 		return (
 			<View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
+				{boothPicker}
 				<ThemedText style={[styles.unavailableText, { color: textSecondary }]}>
 					Purchases are not available in the app.
 				</ThemedText>

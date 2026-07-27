@@ -133,6 +133,28 @@ describe("TemplateBuySection", () => {
     expect(queryByText("Purchases are not available in the app.")).toBeNull();
   });
 
+  it("lets off-US multi-booth owners resolve a booth and see the owned state", () => {
+    mockGate.mockReturnValue({ enabled: false, isLoading: false });
+    mockBoothOverview.mockReturnValue({ data: twoBooths });
+    // Param-aware mock: like the real hook, no booth_id resolves no data.
+    mockPurchased.mockImplementation(({ booth_id }: { booth_id?: string }) =>
+      booth_id
+        ? { data: { purchases: [{ template_id: "tpl-1" }] } }
+        : { data: undefined },
+    );
+    const { getByText, queryByText } = render(
+      <TemplateBuySection template={paidTemplate} />,
+    );
+
+    // Picker present with neutral label — no purchase phrasing off-US.
+    getByText("Booth:");
+    expect(queryByText("Buy for booth:")).toBeNull();
+    getByText("Purchases are not available in the app.");
+
+    fireEvent.press(getByText("Mall Booth"));
+    getByText(/purchased/i);
+  });
+
   it("dead-ends into a create-booth message when the user has no booths", () => {
     mockBoothOverview.mockReturnValue({ data: { booths: [] } });
     const { getByText, queryByText } = render(
