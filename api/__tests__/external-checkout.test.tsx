@@ -103,10 +103,10 @@ describe("services", () => {
       portal_url: "https://billing.stripe.com/p/session",
     });
 
-    await getCustomerPortal({ return_url: "boothiq://settings" });
+    await getCustomerPortal({ return_url: "https://boothiq.com/dashboard/booths" });
     expect(mockApiClient).toHaveBeenCalledWith("/api/v1/payments/portal", {
       method: "POST",
-      body: JSON.stringify({ return_url: "boothiq://settings" }),
+      body: JSON.stringify({ return_url: "https://boothiq.com/dashboard/booths" }),
     });
   });
 });
@@ -161,7 +161,7 @@ describe("mutation hooks", () => {
     mockApiClient.mockResolvedValue(response);
 
     const { result } = renderHook(() => useCustomerPortal(), { wrapper });
-    result.current.mutate({ return_url: "boothiq://settings" });
+    result.current.mutate({ return_url: "https://boothiq.com/dashboard/booths" });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(response);

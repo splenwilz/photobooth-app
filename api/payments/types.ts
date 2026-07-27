@@ -159,7 +159,12 @@ export interface CreateCheckoutResponse {
  * POST /api/v1/payments/portal request
  */
 export interface CustomerPortalRequest {
-	/** URL the portal returns to when the user is done (deep link) */
+	/**
+	 * URL the portal returns to when the user is done. Must be an absolute
+	 * https:// URL — the backend forwards it verbatim to Stripe, which
+	 * rejects custom schemes. Use a website page; the in-app browser closing
+	 * brings the user back to the app.
+	 */
 	return_url: string;
 }
 

@@ -20,7 +20,10 @@ import { useExternalPurchases } from "@/hooks/use-external-purchases";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
 export default function SubscribeScreen() {
-	const { boothId } = useLocalSearchParams<{ boothId: string }>();
+	const { boothId: rawBoothId } = useLocalSearchParams<{ boothId: string }>();
+	// Params can arrive as string[] on crafted/repeated deep links — the
+	// selector must only ever receive a single booth id.
+	const boothId = Array.isArray(rawBoothId) ? rawBoothId[0] : rawBoothId;
 	const backgroundColor = useThemeColor({}, "background");
 	const borderColor = useThemeColor({}, "border");
 	const textColor = useThemeColor({}, "text");

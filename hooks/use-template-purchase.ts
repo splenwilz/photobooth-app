@@ -77,7 +77,7 @@ export function useTemplatePurchase(): {
 			// the sheet before the success redirect fired — only the server
 			// knows the outcome. Invalidation is cheap and idempotent.
 			queryClient.invalidateQueries({
-				queryKey: ["templates", "purchased"],
+				queryKey: queryKeys.templates.purchasedAll(),
 			});
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.templates.detail(templateId),

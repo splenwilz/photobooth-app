@@ -353,6 +353,12 @@ export const queryKeys = {
      * Get user's purchased templates
      */
     purchased: (boothId: string) => ['templates', 'purchased', boothId] as const,
+
+    /**
+     * Prefix covering purchased-template queries for ALL booths — use for
+     * broad invalidation after a purchase (prefix-matches purchased(boothId)).
+     */
+    purchasedAll: () => ['templates', 'purchased'] as const,
   },
 } as const;
 

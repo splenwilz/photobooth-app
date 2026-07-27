@@ -50,6 +50,8 @@ export function BillingIntervalToggle({
 				]}
 			>
 				<TouchableOpacity
+					accessibilityRole="radio"
+					accessibilityState={{ checked: isMonthly, disabled }}
 					style={[
 						styles.toggleOption,
 						isMonthly && styles.toggleOptionActive,
@@ -72,6 +74,8 @@ export function BillingIntervalToggle({
 				</TouchableOpacity>
 
 				<TouchableOpacity
+					accessibilityRole="radio"
+					accessibilityState={{ checked: isAnnual, disabled }}
 					style={[
 						styles.toggleOption,
 						isAnnual && styles.toggleOptionActive,

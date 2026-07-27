@@ -76,7 +76,8 @@ export default function CreateBoothScreen() {
 
 	// A newly created booth needs an active subscription before it can be
 	// activated, so the post-creation flow is gated on subscription status.
-	const { enabled: canPurchase } = useExternalPurchases();
+	const { enabled: canPurchase, isLoading: isGateLoading } =
+		useExternalPurchases();
 	const { data: createdBoothSubscription } = useBoothSubscription(
 		createdBooth?.id ?? null,
 	);
@@ -306,14 +307,16 @@ export default function CreateBoothScreen() {
 							}
 						/>
 					)}
-					{!hasActiveSubscription && !canPurchase && (
+					{/* Wait for the gate before choosing between "Choose a Plan" and
+					    "Go to Booths" — otherwise the CTA flickers on US devices. */}
+					{!hasActiveSubscription && !canPurchase && !isGateLoading && (
 						<PrimaryButton text="Go to Booths" onPress={handleGoToBooths} />
 					)}
 
 					<View style={styles.footerLinks}>
 						{(hasActiveSubscription || canPurchase) && (
 							<>
-								<TouchableOpacity onPress={handleGoToBooths} hitSlop={8}>
+								<TouchableOpacity accessibilityRole="button" onPress={handleGoToBooths} hitSlop={8}>
 									<ThemedText
 										style={[styles.footerLink, { color: textSecondary }]}
 									>
@@ -323,7 +326,7 @@ export default function CreateBoothScreen() {
 								<ThemedText style={{ color: textSecondary }}>·</ThemedText>
 							</>
 						)}
-						<TouchableOpacity onPress={handleAddAnother} hitSlop={8}>
+						<TouchableOpacity accessibilityRole="button" onPress={handleAddAnother} hitSlop={8}>
 							<ThemedText style={[styles.footerLink, { color: BRAND_COLOR }]}>
 								Add another booth
 							</ThemedText>

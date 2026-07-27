@@ -130,7 +130,7 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 
 			case "template-purchase-success":
 				queryClient.invalidateQueries({
-					queryKey: ["templates", "purchased"],
+					queryKey: queryKeys.templates.purchasedAll(),
 				});
 				router.replace("/(tabs)/store");
 				Alert.alert("Checkout Complete", "We're updating your purchases.");

@@ -59,6 +59,10 @@ const mockPurchase = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Default resolution so any test that presses Buy gets a thenable —
+  // clearAllMocks does NOT reset implementations, so without this, tests
+  // silently depended on an earlier test's mockResolvedValue.
+  mockPurchase.mockResolvedValue("cancelled");
   mockGate.mockReturnValue({ enabled: true, isLoading: false });
   mockPurchaseHook.mockReturnValue({
     purchase: mockPurchase,

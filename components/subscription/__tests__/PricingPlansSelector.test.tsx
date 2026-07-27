@@ -7,9 +7,11 @@
  */
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render } from "@testing-library/react-native";
+import { act, fireEvent, render } from "@testing-library/react-native";
+import * as WebBrowser from "expo-web-browser";
 import { usePricingPlans } from "@/api/pricing";
 import { useCreateBoothCheckout } from "@/api/payments";
+import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 import { PricingPlansSelector } from "../PricingPlansSelector";
 
 jest.mock("@/api/pricing", () => ({ usePricingPlans: jest.fn() }));
@@ -39,18 +41,20 @@ function plan(id: number, name: string) {
   };
 }
 
-function renderSelector() {
+function renderSelector(props: { onCheckoutComplete?: () => void } = {}) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0 },
       mutations: { retry: false, gcTime: 0 },
     },
   });
-  return render(
+  const invalidateSpy = jest.spyOn(client, "invalidateQueries");
+  const utils = render(
     <QueryClientProvider client={client}>
-      <PricingPlansSelector boothId="booth-1" />
+      <PricingPlansSelector boothId="booth-1" {...props} />
     </QueryClientProvider>,
   );
+  return { ...utils, invalidateSpy };
 }
 
 const mutate = jest.fn();
@@ -75,6 +79,92 @@ describe("PricingPlansSelector", () => {
       expect.objectContaining({ booth_id: "booth-1", price_id: "price_1" }),
       expect.any(Object),
     );
+  });
+
+  describe("checkout browser return flow", () => {
+    const mockOpenAuth = WebBrowser.openAuthSessionAsync as jest.Mock;
+
+    beforeEach(() => {
+      useBoothStore.setState({ selectedBoothId: ALL_BOOTHS_ID });
+    });
+
+    it("confirmed success: invalidates, selects the booth, and hands off to the host", async () => {
+      mockPlans.mockReturnValue({
+        data: { plans: [plan(1, "BoothIQ Pro")], trial_period_days: 0 },
+        isLoading: false,
+        error: null,
+      });
+      let mutateOptions: { onSuccess: (d: unknown) => Promise<void> } | null =
+        null;
+      mutate.mockImplementation((_vars, opts) => {
+        mutateOptions = opts;
+      });
+      mockOpenAuth.mockResolvedValue({
+        type: "success",
+        url: "boothiq://payment-success?session_id=cs_1",
+      });
+      const onCheckoutComplete = jest.fn();
+      const { getByText, invalidateSpy } = renderSelector({
+        onCheckoutComplete,
+      });
+
+      fireEvent.press(getByText("Subscribe Now"));
+      await act(async () => {
+        await mutateOptions!.onSuccess({
+          success: true,
+          checkout_url: "https://checkout.stripe.com/c/pay/cs_1",
+          session_id: "cs_1",
+        });
+      });
+
+      expect(mockOpenAuth).toHaveBeenCalledWith(
+        "https://checkout.stripe.com/c/pay/cs_1",
+        "boothiq://payment-success",
+        { preferEphemeralSession: true },
+      );
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ["payments", "access"],
+      });
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ["payments", "boothSubscription", "booth-1"],
+      });
+      expect(useBoothStore.getState().selectedBoothId).toBe("booth-1");
+      expect(onCheckoutComplete).toHaveBeenCalled();
+    });
+
+    it("dismissed browser: still invalidates but does NOT hand off", async () => {
+      mockPlans.mockReturnValue({
+        data: { plans: [plan(1, "BoothIQ Pro")], trial_period_days: 0 },
+        isLoading: false,
+        error: null,
+      });
+      let mutateOptions: { onSuccess: (d: unknown) => Promise<void> } | null =
+        null;
+      mutate.mockImplementation((_vars, opts) => {
+        mutateOptions = opts;
+      });
+      mockOpenAuth.mockResolvedValue({ type: "cancel" });
+      const onCheckoutComplete = jest.fn();
+      const { getByText, invalidateSpy } = renderSelector({
+        onCheckoutComplete,
+      });
+
+      fireEvent.press(getByText("Subscribe Now"));
+      await act(async () => {
+        await mutateOptions!.onSuccess({
+          success: true,
+          checkout_url: "https://checkout.stripe.com/c/pay/cs_1",
+          session_id: "cs_1",
+        });
+      });
+
+      // Only the server knows whether the user paid — refresh regardless.
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ["payments", "access"],
+      });
+      expect(onCheckoutComplete).not.toHaveBeenCalled();
+      expect(useBoothStore.getState().selectedBoothId).toBe(ALL_BOOTHS_ID);
+    });
   });
 
   it("still requires an explicit choice when there are multiple plans", () => {

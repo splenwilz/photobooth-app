@@ -60,6 +60,8 @@ export function PlanCard({
 
 	return (
 		<TouchableOpacity
+			accessibilityRole="radio"
+			accessibilityState={{ checked: isSelected, disabled }}
 			style={[
 				styles.card,
 				{

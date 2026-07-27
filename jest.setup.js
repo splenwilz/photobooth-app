@@ -8,14 +8,15 @@ jest.mock("expo-secure-store", () => ({
 // Mock expo-router with stable references
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
+const mockBack = jest.fn();
 jest.mock("expo-router", () => ({
   router: {
     replace: mockReplace,
     push: mockPush,
-    back: jest.fn(),
+    back: mockBack,
     canGoBack: jest.fn(() => true),
   },
-  useRouter: () => ({ replace: mockReplace, push: mockPush }),
+  useRouter: () => ({ replace: mockReplace, push: mockPush, back: mockBack }),
   useLocalSearchParams: jest.fn(() => ({})),
 }));
 

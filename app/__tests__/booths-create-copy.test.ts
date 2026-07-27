@@ -63,8 +63,11 @@ describe("app/booths/create.tsx — post-creation flow contract", () => {
 	it("gates the imperative subscribe step title (anti-steering off-US)", () => {
 		// "Start a subscription" is an instruction to purchase — it may only
 		// render behind the gate; non-US storefronts get the descriptive title.
+		// Whitespace-tolerant so a formatter re-wrap can't break the contract.
+		expect(CREATE_SOURCE).toMatch(/"Start a subscription"/);
+		expect(CREATE_SOURCE).toMatch(/"Subscription required"/);
 		expect(CREATE_SOURCE).toMatch(
-			/canPurchase \? "Start a subscription" : "Subscription required"/,
+			/canPurchase[\s\S]{0,80}?"Start a subscription"[\s\S]{0,80}?"Subscription required"/,
 		);
 	});
 });

@@ -373,6 +373,7 @@ export function PricingPlansSelector({
 						value={billingInterval}
 						onChange={setBillingInterval}
 						savingsPercent={maxDiscount}
+						disabled={isPending}
 					/>
 				</View>
 			)}
@@ -410,6 +411,7 @@ export function PricingPlansSelector({
 					</TouchableOpacity>
 				)}
 				<TouchableOpacity
+					accessibilityRole="button"
 					style={[
 						styles.button,
 						styles.subscribeBtn,
