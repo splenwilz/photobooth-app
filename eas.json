@@ -26,11 +26,19 @@
       "android": {
         "buildType": "apk"
       },
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_EXTERNAL_PURCHASES_ENABLED": "true",
+        "EXPO_PUBLIC_WEBSITE_URL": "https://boothiq.com"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_EXTERNAL_PURCHASES_ENABLED": "true",
+        "EXPO_PUBLIC_WEBSITE_URL": "https://boothiq.com"
+      }
     }
   },
   "submit": {

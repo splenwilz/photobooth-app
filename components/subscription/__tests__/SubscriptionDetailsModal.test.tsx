@@ -60,7 +60,8 @@ describe("SubscriptionDetailsModal — Apple-compliance contract", () => {
 
 		// Read-only details are present
 		expect(getByText("Auto-Renewal")).toBeTruthy();
-		expect(getByText("Subscription ID")).toBeTruthy();
+		// Raw Stripe IDs are support-desk material, not user information.
+		expect(queryByText("Subscription ID")).toBeNull();
 
 		// Management actions are not allowed in-app (Apple compliance)
 		expect(queryByText("Manage Payment Method")).toBeNull();

@@ -1,11 +1,12 @@
 /**
  * useDeepLinks tests
  *
- * Apple-compliance contract: deep links that exist only to support an
- * in-app purchase round-trip (`payment-success`, `payment-cancel`,
- * `pricing`, `template-purchase-success`, `template-purchase-cancel`)
- * MUST be no-ops. Account-management paths (`settings`, `billing`,
- * `booths`, `alerts`) MUST still work.
+ * Purchase round-trip deep links (`payment-success`, `payment-cancel`,
+ * `template-purchase-success`, `template-purchase-cancel`) are the
+ * cold-start fallback for the US-storefront external checkout flow — they
+ * refresh the affected caches and land the user on the right screen.
+ * `pricing` stays a no-op (not restored). Account-management paths
+ * (`settings`, `billing`, `booths`, `alerts`) keep working.
  */
 import React from "react";
 import { Alert } from "react-native";
@@ -95,49 +96,66 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 		return { invalidateSpy };
 	}
 
-	it("payment-success is a no-op (no alert, no navigation, no cache/store mutation)", async () => {
+	it("payment-success refreshes subscription state, selects the booth, and opens Booths", async () => {
 		const { invalidateSpy } = await fireDeepLink(
 			"boothiq://payment-success?booth_id=abc",
 		);
-		expect(alertSpy).not.toHaveBeenCalled();
-		expect(mockReplace).not.toHaveBeenCalled();
-		expect(invalidateSpy).not.toHaveBeenCalled();
-		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ["payments", "access"],
+		});
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ["payments", "boothSubscription", "abc"],
+		});
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ["booths", "detail", "abc"],
+		});
+		expect(mockSetSelectedBoothId).toHaveBeenCalledWith("abc");
+		expect(mockReplace).toHaveBeenCalledWith("/(tabs)/booths");
+		expect(alertSpy).toHaveBeenCalled();
 	});
 
-	it("payment-cancel is a no-op", async () => {
+	it("payment-success without booth_id still refreshes and navigates (no booth selection)", async () => {
+		const { invalidateSpy } = await fireDeepLink("boothiq://payment-success");
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ["payments", "access"],
+		});
+		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
+		expect(mockReplace).toHaveBeenCalledWith("/(tabs)/booths");
+	});
+
+	it("payment-cancel informs the user but mutates nothing", async () => {
 		const { invalidateSpy } = await fireDeepLink("boothiq://payment-cancel");
-		expect(alertSpy).not.toHaveBeenCalled();
+		expect(alertSpy).toHaveBeenCalled();
 		expect(mockReplace).not.toHaveBeenCalled();
 		expect(invalidateSpy).not.toHaveBeenCalled();
 		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
 	});
 
-	it("pricing is a no-op", async () => {
+	it("pricing stays a no-op (not restored)", async () => {
 		const { invalidateSpy } = await fireDeepLink("boothiq://pricing");
 		expect(mockReplace).not.toHaveBeenCalled();
 		expect(invalidateSpy).not.toHaveBeenCalled();
 		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
 	});
 
-	it("template-purchase-success is a no-op", async () => {
+	it("template-purchase-success refreshes purchased templates and opens the store", async () => {
 		const { invalidateSpy } = await fireDeepLink(
 			"boothiq://template-purchase-success",
 		);
-		expect(alertSpy).not.toHaveBeenCalled();
-		expect(mockReplace).not.toHaveBeenCalled();
-		expect(invalidateSpy).not.toHaveBeenCalled();
-		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ["templates", "purchased"],
+		});
+		expect(mockReplace).toHaveBeenCalledWith("/(tabs)/store");
+		expect(alertSpy).toHaveBeenCalled();
 	});
 
-	it("template-purchase-cancel is a no-op", async () => {
+	it("template-purchase-cancel informs the user but mutates nothing", async () => {
 		const { invalidateSpy } = await fireDeepLink(
 			"boothiq://template-purchase-cancel",
 		);
-		expect(alertSpy).not.toHaveBeenCalled();
+		expect(alertSpy).toHaveBeenCalled();
 		expect(mockReplace).not.toHaveBeenCalled();
 		expect(invalidateSpy).not.toHaveBeenCalled();
-		expect(mockSetSelectedBoothId).not.toHaveBeenCalled();
 	});
 
 	it("settings triggers query invalidation AND navigates (license_* push taps)", async () => {

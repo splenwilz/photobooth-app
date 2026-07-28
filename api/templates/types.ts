@@ -212,3 +212,34 @@ export interface PurchasesResponse {
   per_page: number;
   total_pages: number;
 }
+
+// External checkout (US storefront only — Stripe web checkout)
+
+export interface TemplateCheckoutLineItem {
+  /** Template UUID (Template.id) */
+  template_id: string;
+  quantity: number;
+}
+
+/**
+ * POST /api/v1/payments/checkout/templates request.
+ * success_url/cancel_url are web pages that bounce back into the app via
+ * the boothiq:// scheme.
+ */
+export interface TemplateCheckoutRequest {
+  /** Booth the purchased templates belong to */
+  booth_id: string;
+  items: TemplateCheckoutLineItem[];
+  success_url: string;
+  cancel_url: string;
+  customer_email?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface TemplateCheckoutResponse {
+  success: boolean;
+  /** Stripe-hosted checkout page to open in the in-app browser */
+  checkout_url: string;
+  session_id: string;
+  error_message: string | null;
+}

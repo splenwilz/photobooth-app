@@ -13,10 +13,27 @@ import type {
   PurchasesResponse,
   ReviewsResponse,
   Template,
+  TemplateCheckoutRequest,
+  TemplateCheckoutResponse,
   TemplateReview,
   TemplatesQueryParams,
   TemplatesResponse,
 } from "./types";
+
+/**
+ * Create a Stripe Checkout session for template purchases (US storefront
+ * only — the Buy CTA is gated behind useExternalPurchases()). The outcome
+ * comes back via the success/cancel redirect, not this call.
+ * @see POST /api/v1/payments/checkout/templates
+ */
+export async function createTemplateCheckout(
+  data: TemplateCheckoutRequest,
+): Promise<TemplateCheckoutResponse> {
+  return apiClient<TemplateCheckoutResponse>(
+    "/api/v1/payments/checkout/templates",
+    { method: "POST", body: JSON.stringify(data) },
+  );
+}
 
 const BASE = "/api/v1/templates";
 

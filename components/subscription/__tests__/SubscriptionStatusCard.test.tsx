@@ -130,10 +130,9 @@ describe("SubscriptionStatusCard — Apple-compliance contract", () => {
 		expect(queryByText(/upgrade/i)).toBeNull();
 	});
 
-	it("does not import or expose the deleted purchase hooks via the payments module", () => {
+	it("exposes the restored booth-checkout hook via the payments module (US-storefront flow)", () => {
 		const exports = payments as unknown as Record<string, unknown>;
-		expect(exports.useCreateCheckout).toBeUndefined();
-		expect(exports.useCreateBoothCheckout).toBeUndefined();
+		expect(typeof exports.useCreateBoothCheckout).toBe("function");
 	});
 
 	it("renders no management action for past-due subscriptions", () => {

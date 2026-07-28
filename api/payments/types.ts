@@ -1,13 +1,14 @@
 /**
  * Payments API Types
  *
- * Type definitions for subscription read + manage endpoints. Checkout
- * (purchase initiation) types are deliberately absent — the iOS app does
- * not initiate purchases per Apple compliance.
+ * Type definitions for subscription read endpoints plus external (Stripe web)
+ * checkout and customer-portal endpoints. Purchase initiation is US-storefront
+ * only (Guideline 3.1.1(a)) — every UI entry point must be gated behind
+ * useExternalPurchases(); other storefronts stay browse-only.
  *
  * @see GET /api/v1/payments/access - Check subscription access
  * @see GET /api/v1/payments/subscription - Get subscription details
- * @see POST /api/v1/payments/subscription/cancel - Cancel subscription
+ * @see POST /api/v1/booths/{booth_id}/subscription/checkout - Booth checkout
  * @see POST /api/v1/payments/portal - Get customer portal URL
  */
 
@@ -112,4 +113,67 @@ export interface BoothSubscriptionsListResponse {
 	items: BoothSubscriptionItem[];
 	/** Total number of booths */
 	total: number;
+}
+
+// ============================================================================
+// EXTERNAL CHECKOUT (US storefront only — Stripe web checkout)
+// ============================================================================
+
+/**
+ * POST /api/v1/booths/{booth_id}/subscription/checkout request
+ *
+ * Creates a Stripe Checkout session for a per-booth subscription.
+ * success_url/cancel_url are web pages that redirect back into the app
+ * via the boothiq:// scheme.
+ */
+export interface CreateBoothCheckoutRequest {
+	/** Booth to subscribe */
+	booth_id: string;
+	/** Stripe price ID of the selected plan/interval */
+	price_id?: string;
+	/** Web URL Stripe redirects to on completed payment */
+	success_url: string;
+	/** Web URL Stripe redirects to on abandoned checkout */
+	cancel_url: string;
+	/** Optional trial period in days */
+	trial_period_days?: number;
+}
+
+/**
+ * Checkout session creation response (subscription checkout endpoints)
+ */
+export interface CreateCheckoutResponse {
+	/** Whether the session was created */
+	success: boolean;
+	/** Stripe-hosted checkout page to open in the in-app browser */
+	checkout_url: string;
+	/** Stripe checkout session ID */
+	session_id: string;
+}
+
+// ============================================================================
+// CUSTOMER PORTAL (subscription management on the web)
+// ============================================================================
+
+/**
+ * POST /api/v1/payments/portal request
+ */
+export interface CustomerPortalRequest {
+	/**
+	 * URL the portal returns to when the user is done. Must be an absolute
+	 * https:// URL — the backend forwards it verbatim to Stripe, which
+	 * rejects custom schemes. Use a website page; the in-app browser closing
+	 * brings the user back to the app.
+	 */
+	return_url: string;
+}
+
+/**
+ * POST /api/v1/payments/portal response
+ */
+export interface CustomerPortalResponse {
+	/** Whether the portal session was created */
+	success: boolean;
+	/** Stripe-hosted billing portal URL */
+	portal_url: string;
 }

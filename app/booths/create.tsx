@@ -2,16 +2,15 @@
  * Create Booth Screen
  *
  * Screen for creating a new photobooth.
- * Displays booth name and address form, then shows API key and QR code on success.
+ * Shows the booth form, then a post-creation flow: subscribe the booth
+ * (US-storefront-gated CTA), then scan the QR on its screen to activate.
  *
  * @see https://docs.expo.dev/router/introduction/ - Expo Router docs
  */
 
-import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -36,6 +35,7 @@ import {
   withAlpha,
   scaleFont,
 } from "@/constants/theme";
+import { useExternalPurchases } from "@/hooks/use-external-purchases";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { useBoothStore } from "@/stores/booth-store";
 
@@ -63,13 +63,10 @@ export default function CreateBoothScreen() {
 	});
 	const [errors, setErrors] = useState<FormErrors>({});
 
-	// Success state - shows API key, registration code, and QR code after booth creation
+	// Success state — drives the subscribe/scan-to-activate follow-up flow
 	const [createdBooth, setCreatedBooth] = useState<CreateBoothResponse | null>(
 		null,
 	);
-	const [copiedField, setCopiedField] = useState<
-		"id" | "apiKey" | "code" | null
-	>(null);
 
 	// API mutation hook
 	const { mutate: createBooth, isPending, error: apiError } = useCreateBooth();
@@ -77,8 +74,10 @@ export default function CreateBoothScreen() {
 	// Booth store for auto-selecting created booth
 	const { setSelectedBoothId } = useBoothStore();
 
-	// A newly created booth needs an active subscription before its connection
-	// details are usable (it can't be activated otherwise), so gate them.
+	// A newly created booth needs an active subscription before it can be
+	// activated, so the post-creation flow is gated on subscription status.
+	const { enabled: canPurchase, isLoading: isGateLoading } =
+		useExternalPurchases();
 	const { data: createdBoothSubscription } = useBoothSubscription(
 		createdBooth?.id ?? null,
 	);
@@ -127,17 +126,6 @@ export default function CreateBoothScreen() {
 		);
 	};
 
-	// Copy to clipboard
-	const handleCopy = async (text: string, field: "id" | "apiKey" | "code") => {
-		try {
-			await Clipboard.setStringAsync(text);
-			setCopiedField(field);
-			setTimeout(() => setCopiedField(null), 2000);
-		} catch {
-			Alert.alert("Error", "Failed to copy to clipboard");
-		}
-	};
-
 	// Navigate back to booths with the newly created booth selected
 	const handleGoToBooths = () => {
 		if (createdBooth) {
@@ -157,8 +145,69 @@ export default function CreateBoothScreen() {
 		router.back();
 	};
 
-	// Success state - show booth credentials
+	// Success state — progress timeline + a single step-matched primary CTA
 	if (createdBooth) {
+		type StepStatus = "done" | "current" | "upcoming";
+
+		const steps: {
+			title: string;
+			sub: string | null;
+			status: StepStatus;
+		}[] = [
+			{ title: "Booth created", sub: null, status: "done" },
+			{
+				// Completed state wins regardless of storefront; otherwise the
+				// imperative "Start a subscription" renders only where purchasing
+				// is allowed (US storefront) — descriptive elsewhere
+				// (anti-steering).
+				title: hasActiveSubscription
+					? "Subscription active"
+					: canPurchase
+						? "Start a subscription"
+						: "Subscription required",
+				sub: hasActiveSubscription
+					? null
+					: `"${createdBooth.name}" needs an active subscription before you can connect and activate it.`,
+				status: hasActiveSubscription ? "done" : "current",
+			},
+			{
+				title: "Scan to activate",
+				sub: "Scan the QR code on your booth's screen to bring it online.",
+				status: hasActiveSubscription ? "current" : "upcoming",
+			},
+		];
+
+		const renderBadge = (index: number, status: StepStatus) => {
+			if (status === "done") {
+				return (
+					<View
+						style={[
+							styles.stepBadge,
+							{ backgroundColor: withAlpha(successColor, 0.15) },
+						]}
+					>
+						<IconSymbol name="checkmark" size={14} color={successColor} />
+					</View>
+				);
+			}
+			if (status === "current") {
+				return (
+					<View style={[styles.stepBadge, { backgroundColor: BRAND_COLOR }]}>
+						<ThemedText style={[styles.stepBadgeText, { color: "#fff" }]}>
+							{index + 1}
+						</ThemedText>
+					</View>
+				);
+			}
+			return (
+				<View style={[styles.stepBadge, styles.stepBadgeUpcoming, { borderColor }]}>
+					<ThemedText style={[styles.stepBadgeText, { color: textSecondary }]}>
+						{index + 1}
+					</ThemedText>
+				</View>
+			);
+		};
+
 		return (
 			<SafeAreaView style={[styles.container, { backgroundColor }]}>
 				<ScrollView
@@ -182,182 +231,114 @@ export default function CreateBoothScreen() {
 					<ThemedText
 						style={[styles.successSubtitle, { color: textSecondary }]}
 					>
-						Your booth &quot;{createdBooth.name}&quot; has been created successfully.
+						&quot;{createdBooth.name}&quot; is almost ready — two quick steps
+						left.
 					</ThemedText>
 
-					{hasActiveSubscription ? (
-						<>
-					{/* Credentials Card */}
+					{/* Progress timeline */}
 					<View
 						style={[
-							styles.credentialsCard,
+							styles.timelineCard,
 							{ backgroundColor: cardBg, borderColor },
 						]}
 					>
-						<ThemedText style={styles.credentialsTitle}>
-							Connection Credentials
-						</ThemedText>
-						<ThemedText
-							style={[styles.credentialsSubtitle, { color: textSecondary }]}
-						>
-							Use these to connect your physical booth
-						</ThemedText>
-
-						{/* Registration Code - Prominent display for easy entry */}
-						{createdBooth.registration_code && (
-							<View style={styles.registrationCodeSection}>
-								<ThemedText
-									style={[styles.credentialLabel, { color: textSecondary }]}
-								>
-									Registration Code
-								</ThemedText>
-								<TouchableOpacity
-									style={[
-										styles.registrationCodeBox,
-										{
-											backgroundColor: withAlpha(BRAND_COLOR, 0.15),
-											borderColor: BRAND_COLOR,
-										},
-									]}
-									onPress={() =>
-										handleCopy(createdBooth.registration_code, "code")
-									}
-								>
-									<ThemedText style={styles.registrationCodeText}>
-										{createdBooth.registration_code}
+						{steps.map((step, index) => (
+							<View key={step.title} style={styles.stepRow}>
+								<View style={styles.stepRail}>
+									{renderBadge(index, step.status)}
+									{index < steps.length - 1 && (
+										<View
+											style={[
+												styles.stepConnector,
+												{
+													backgroundColor:
+														step.status === "done"
+															? withAlpha(successColor, 0.4)
+															: borderColor,
+												},
+											]}
+										/>
+									)}
+								</View>
+								<View style={styles.stepTextWrap}>
+									<ThemedText
+										type="defaultSemiBold"
+										style={[
+											styles.stepTitle,
+											step.status === "upcoming" && {
+												color: textSecondary,
+											},
+										]}
+									>
+										{step.title}
 									</ThemedText>
-									<IconSymbol
-										name={copiedField === "code" ? "checkmark" : "doc.on.doc"}
-										size={20}
-										color={copiedField === "code" ? successColor : BRAND_COLOR}
-									/>
-								</TouchableOpacity>
-								<ThemedText
-									style={[
-										styles.registrationCodeHint,
-										{ color: textSecondary },
-									]}
-								>
-									Enter this code on your booth to connect
-								</ThemedText>
+									{step.sub && (
+										<ThemedText
+											style={[styles.stepSub, { color: textSecondary }]}
+										>
+											{step.sub}
+										</ThemedText>
+									)}
+								</View>
 							</View>
-						)}
-
-						{/* Booth ID */}
-						<View style={styles.credentialRow}>
-							<ThemedText
-								style={[styles.credentialLabel, { color: textSecondary }]}
-							>
-								Booth ID
-							</ThemedText>
-							<TouchableOpacity
-								style={[
-									styles.credentialValue,
-									{ backgroundColor: withAlpha(BRAND_COLOR, 0.1), borderColor },
-								]}
-								onPress={() => handleCopy(createdBooth.id, "id")}
-							>
-								<ThemedText style={styles.credentialText} numberOfLines={1}>
-									{createdBooth.id}
-								</ThemedText>
-								<IconSymbol
-									name={copiedField === "id" ? "checkmark" : "doc.on.doc"}
-									size={18}
-									color={copiedField === "id" ? successColor : BRAND_COLOR}
-								/>
-							</TouchableOpacity>
-						</View>
-
-						{/* API Key */}
-						<View style={styles.credentialRow}>
-							<ThemedText
-								style={[styles.credentialLabel, { color: textSecondary }]}
-							>
-								API Key
-							</ThemedText>
-							<TouchableOpacity
-								style={[
-									styles.credentialValue,
-									{ backgroundColor: withAlpha(BRAND_COLOR, 0.1), borderColor },
-								]}
-								onPress={() => handleCopy(createdBooth.api_key, "apiKey")}
-							>
-								<ThemedText style={styles.credentialText} numberOfLines={1}>
-									{createdBooth.api_key.slice(0, 20)}...
-								</ThemedText>
-								<IconSymbol
-									name={copiedField === "apiKey" ? "checkmark" : "doc.on.doc"}
-									size={18}
-									color={copiedField === "apiKey" ? successColor : BRAND_COLOR}
-								/>
-							</TouchableOpacity>
-						</View>
+						))}
 					</View>
+				</ScrollView>
 
-					{/* Next Steps — neutral connection guidance */}
-					<View
-						style={[
-							styles.nextStepsCard,
-							{ backgroundColor: cardBg, borderColor },
-						]}
-					>
-						<View style={styles.nextStepsHeader}>
-							<IconSymbol name="info.circle" size={20} color={BRAND_COLOR} />
-							<ThemedText type="defaultSemiBold" style={styles.nextStepsTitle}>
-								Booth Connection Steps
-							</ThemedText>
-						</View>
-						<ThemedText
-							style={[styles.nextStepsLine, { color: textSecondary }]}
-						>
-							1. Enter the registration code on your booth.
-						</ThemedText>
-						<ThemedText
-							style={[styles.nextStepsLine, { color: textSecondary }]}
-						>
-							2. When the booth is ready, return to Settings and tap &quot;Activate Booth License&quot; to scan its QR code.
-						</ThemedText>
-					</View>
-						</>
-					) : (
-						<View
-							style={[
-								styles.nextStepsCard,
-								{ backgroundColor: cardBg, borderColor },
-							]}
-						>
-							<View style={styles.nextStepsHeader}>
-								<IconSymbol
-									name="info.circle"
-									size={20}
-									color={BRAND_COLOR}
-								/>
-								<ThemedText type="defaultSemiBold" style={styles.nextStepsTitle}>
-									One more step to go live
-								</ThemedText>
-							</View>
-							<ThemedText style={[styles.nextStepsLine, { color: textSecondary }]}>
-								{`"${createdBooth.name}" needs an active subscription before you can connect and activate it.`}
-							</ThemedText>
-						</View>
+				{/* One primary CTA matched to the current step; the rest are links */}
+				<View style={styles.successFooter}>
+					{hasActiveSubscription && (
+						<PrimaryButton
+							text="Scan QR to Activate"
+							onPress={() =>
+								router.push({
+									pathname: "/licensing/scan",
+									params: {
+										boothId: createdBooth.id,
+										boothName: createdBooth.name,
+									},
+								})
+							}
+						/>
+					)}
+					{/* Subscribe CTA — US storefront only (external purchase gate) */}
+					{!hasActiveSubscription && canPurchase && (
+						<PrimaryButton
+							text="Choose a Plan"
+							onPress={() =>
+								router.push({
+									pathname: "/subscribe",
+									params: { boothId: createdBooth.id },
+								})
+							}
+						/>
+					)}
+					{/* Wait for the gate before choosing between "Choose a Plan" and
+					    "Go to Booths" — otherwise the CTA flickers on US devices. */}
+					{!hasActiveSubscription && !canPurchase && !isGateLoading && (
+						<PrimaryButton text="Go to Booths" onPress={handleGoToBooths} />
 					)}
 
-					{/* Action Buttons */}
-					<View style={styles.actionButtons}>
-						<PrimaryButton text="Go to Booths" onPress={handleGoToBooths} />
-						<TouchableOpacity
-							style={[styles.secondaryButton, { borderColor }]}
-							onPress={handleAddAnother}
-						>
-							<IconSymbol name="plus" size={18} color={BRAND_COLOR} />
-							<ThemedText
-								style={[styles.secondaryButtonText, { color: BRAND_COLOR }]}
-							>
-								Add Another Booth
+					<View style={styles.footerLinks}>
+						{(hasActiveSubscription || canPurchase) && (
+							<>
+								<TouchableOpacity accessibilityRole="button" onPress={handleGoToBooths} hitSlop={8}>
+									<ThemedText
+										style={[styles.footerLink, { color: textSecondary }]}
+									>
+										Set up later
+									</ThemedText>
+								</TouchableOpacity>
+								<ThemedText style={{ color: textSecondary }}>·</ThemedText>
+							</>
+						)}
+						<TouchableOpacity accessibilityRole="button" onPress={handleAddAnother} hitSlop={8}>
+							<ThemedText style={[styles.footerLink, { color: BRAND_COLOR }]}>
+								Add another booth
 							</ThemedText>
 						</TouchableOpacity>
 					</View>
-				</ScrollView>
+				</View>
 			</SafeAreaView>
 		);
 	}
@@ -441,8 +422,8 @@ export default function CreateBoothScreen() {
 					>
 						<IconSymbol name="info.circle" size={20} color={BRAND_COLOR} />
 						<ThemedText style={[styles.infoText, { color: textSecondary }]}>
-							After creating the booth, you&apos;ll receive an API Key and registration
-							code to connect your physical photobooth device.
+							After creating the booth, activate it by scanning the QR code on
+							your physical photobooth&apos;s screen.
 						</ThemedText>
 					</View>
 				</ScrollView>
@@ -510,91 +491,6 @@ const styles = StyleSheet.create({
 		textAlign: "center",
 		marginBottom: Spacing.xl,
 	},
-	credentialsCard: {
-		width: "100%",
-		padding: Spacing.lg,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 1,
-		marginBottom: Spacing.xl,
-	},
-	credentialsTitle: {
-		fontSize: scaleFont(18),
-		fontWeight: "600",
-		marginBottom: Spacing.xs,
-	},
-	credentialsSubtitle: {
-		fontSize: scaleFont(14),
-		marginBottom: Spacing.lg,
-	},
-	credentialRow: {
-		marginBottom: Spacing.md,
-	},
-	credentialLabel: {
-		fontSize: scaleFont(13),
-		fontWeight: "500",
-		marginBottom: Spacing.xs,
-	},
-	credentialValue: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		padding: Spacing.md,
-		borderRadius: BorderRadius.md,
-		borderWidth: 1,
-	},
-	credentialText: {
-		flex: 1,
-		fontSize: scaleFont(14),
-		fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-		marginRight: Spacing.sm,
-	},
-	registrationCodeSection: {
-		marginBottom: Spacing.lg,
-		width: "100%",
-		alignItems: "center",
-	},
-	registrationCodeBox: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		paddingHorizontal: Spacing.lg,
-		paddingVertical: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 2,
-		marginTop: Spacing.xs,
-		gap: Spacing.sm,
-		width: "100%",
-	},
-	registrationCodeText: {
-		fontSize: scaleFont(28),
-		fontWeight: "bold",
-		letterSpacing: 6,
-		fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-    paddingVertical: 3,
-    marginTop:4
-	},
-	registrationCodeHint: {
-		fontSize: scaleFont(12),
-		marginTop: Spacing.xs,
-		textAlign: "center",
-	},
-	actionButtons: {
-		width: "100%",
-		gap: Spacing.md,
-	},
-	secondaryButton: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		padding: Spacing.md,
-		borderRadius: BorderRadius.lg,
-		borderWidth: 1,
-		gap: Spacing.xs,
-	},
-	secondaryButtonText: {
-		fontSize: scaleFont(16),
-		fontWeight: "600",
-	},
 	errorBanner: {
 		backgroundColor: "rgba(255, 82, 82, 0.15)",
 		borderRadius: 8,
@@ -627,25 +523,71 @@ const styles = StyleSheet.create({
 		lineHeight: 18,
 	},
 	// Next Steps card
-	nextStepsCard: {
+	timelineCard: {
 		width: "100%",
-		padding: Spacing.lg,
-		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
-		marginBottom: Spacing.xl,
+		borderRadius: BorderRadius.lg,
+		padding: Spacing.lg,
+		marginTop: Spacing.lg,
+	},
+	stepRow: {
+		flexDirection: "row",
+		alignItems: "stretch",
 		gap: Spacing.sm,
 	},
-	nextStepsHeader: {
+	stepRail: {
+		alignItems: "center",
+		width: 28,
+	},
+	stepBadge: {
+		width: 28,
+		height: 28,
+		borderRadius: 14,
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	stepBadgeUpcoming: {
+		borderWidth: 1.5,
+		backgroundColor: "transparent",
+	},
+	stepBadgeText: {
+		fontSize: scaleFont(14),
+		fontWeight: "700",
+	},
+	stepConnector: {
+		width: 2,
+		flex: 1,
+		minHeight: 16,
+		borderRadius: 1,
+		marginVertical: 4,
+	},
+	stepTextWrap: {
+		flex: 1,
+		gap: 2,
+		paddingBottom: Spacing.md,
+	},
+	stepTitle: {
+		fontSize: scaleFont(15),
+		lineHeight: scaleFont(22),
+	},
+	stepSub: {
+		fontSize: scaleFont(13),
+		lineHeight: scaleFont(19),
+	},
+	successFooter: {
+		paddingHorizontal: Spacing.lg,
+		paddingTop: Spacing.sm,
+		paddingBottom: Spacing.md,
+		gap: Spacing.md,
+	},
+	footerLinks: {
 		flexDirection: "row",
 		alignItems: "center",
+		justifyContent: "center",
 		gap: Spacing.sm,
-		marginBottom: Spacing.xs,
 	},
-	nextStepsTitle: {
-		fontSize: scaleFont(16),
-	},
-	nextStepsLine: {
-		fontSize: scaleFont(13),
-		lineHeight: 20,
+	footerLink: {
+		fontSize: scaleFont(14),
+		fontWeight: "600",
 	},
 });

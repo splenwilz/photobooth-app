@@ -1,10 +1,12 @@
 /**
  * Template Detail Screen
  *
- * Shows full template details and reviews. Read-only — no purchase
- * affordances (Apple compliance).
+ * Shows full template details and reviews. Purchases are US-storefront only
+ * (Guideline 3.1.1(a)): TemplateBuySection renders a Buy CTA behind the
+ * useExternalPurchases() gate and stays neutral/browse-only everywhere else.
  *
  * @see /api/templates/queries.ts - useTemplateById, useTemplateReviews
+ * @see /components/store/template-buy-section.tsx - gated purchase CTA
  */
 
 import { Image } from "expo-image";
@@ -28,6 +30,7 @@ import {
 	useTemplateReviews,
 	useUpdateReview,
 } from "@/api/templates/queries";
+import { TemplateBuySection } from "@/components/store/template-buy-section";
 import { TemplateReviewCard } from "@/components/store/template-review-card";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -295,6 +298,9 @@ export default function TemplateDetailScreen() {
 						</ThemedText>
 					)}
 				</View>
+
+				{/* Purchase (US storefront only — hidden or neutral elsewhere) */}
+				<TemplateBuySection template={template} />
 
 				{/* Write a Review */}
 				<View

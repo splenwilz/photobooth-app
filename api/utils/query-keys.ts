@@ -242,6 +242,17 @@ export const queryKeys = {
   },
 
   /**
+   * Pricing-related query keys
+   * @see GET /api/v1/pricing/plans
+   */
+  pricing: {
+    /**
+     * Get all pricing plans
+     */
+    plans: () => ['pricing', 'plans'] as const,
+  },
+
+  /**
    * Licensing-related query keys
    * @see POST /api/v1/licensing/activate-booth
    */
@@ -342,6 +353,12 @@ export const queryKeys = {
      * Get user's purchased templates
      */
     purchased: (boothId: string) => ['templates', 'purchased', boothId] as const,
+
+    /**
+     * Prefix covering purchased-template queries for ALL booths — use for
+     * broad invalidation after a purchase (prefix-matches purchased(boothId)).
+     */
+    purchasedAll: () => ['templates', 'purchased'] as const,
   },
 } as const;
 

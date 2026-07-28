@@ -1,48 +1,42 @@
 /**
  * Payments API surface contract
  *
- * Asserts that subscription PURCHASE hooks/services and subscription
- * MANAGEMENT hooks/services (billing portal + cancel) have been removed
- * (Apple compliance), while the subscription READ surface remains exported.
+ * Dual-storefront policy (Guideline 3.1.1(a)): external checkout and
+ * customer-portal services/hooks ARE exported — purchase initiation is
+ * legal on the US storefront — but every UI entry point must sit behind
+ * useExternalPurchases(). Native cancel endpoints stay removed: canceling
+ * happens in the Stripe customer portal, not via an in-app API.
  */
 import * as payments from "@/api/payments";
 
 const paymentsExports = payments as unknown as Record<string, unknown>;
 
-describe("api/payments — Apple-compliance contract", () => {
-	describe("removed (purchase initiation)", () => {
-		it("does not export useCreateCheckout", () => {
-			expect(paymentsExports.useCreateCheckout).toBeUndefined();
+describe("api/payments — external-purchase surface contract", () => {
+	describe("present (US-storefront external checkout + portal)", () => {
+		it("exports useCreateBoothCheckout", () => {
+			expect(typeof paymentsExports.useCreateBoothCheckout).toBe("function");
 		});
 
-		it("does not export useCreateBoothCheckout", () => {
-			expect(paymentsExports.useCreateBoothCheckout).toBeUndefined();
+		it("exports createBoothCheckout", () => {
+			expect(typeof paymentsExports.createBoothCheckout).toBe("function");
 		});
 
-		it("does not export createSubscriptionCheckout", () => {
-			expect(paymentsExports.createSubscriptionCheckout).toBeUndefined();
+		it("exports useCustomerPortal", () => {
+			expect(typeof paymentsExports.useCustomerPortal).toBe("function");
 		});
 
-		it("does not export createBoothCheckout", () => {
-			expect(paymentsExports.createBoothCheckout).toBeUndefined();
+		it("exports getCustomerPortal", () => {
+			expect(typeof paymentsExports.getCustomerPortal).toBe("function");
 		});
 	});
 
-	describe("removed (subscription management)", () => {
-		it("does not export useCustomerPortal", () => {
-			expect(paymentsExports.useCustomerPortal).toBeUndefined();
-		});
-
+	describe("still removed (no in-app cancel — the portal owns management)", () => {
 		it("does not export useCancelSubscription", () => {
 			expect(paymentsExports.useCancelSubscription).toBeUndefined();
 		});
 
 		it("does not export useCancelBoothSubscription", () => {
 			expect(paymentsExports.useCancelBoothSubscription).toBeUndefined();
-		});
-
-		it("does not export getCustomerPortal", () => {
-			expect(paymentsExports.getCustomerPortal).toBeUndefined();
 		});
 
 		it("does not export cancelSubscription", () => {

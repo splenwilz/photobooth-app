@@ -1,10 +1,10 @@
 /**
  * Subscription Status Card
  *
- * Read-only display of subscription state. Shows status, plan name, and
- * renewal/expiry date. There are NO management actions and NO purchase
- * initiation — managing or canceling a subscription happens on the web
- * (Apple App Store compliance).
+ * Displays subscription state (status, plan name, renewal/expiry date).
+ * On the US storefront a Subscribe CTA appears for booths without an active
+ * subscription (external Stripe checkout, Guideline 3.1.1(a)); on every
+ * other storefront the card stays read-only with no purchase affordance.
  */
 
 import { useBoothSubscription, useSubscriptionAccess } from "@/api/payments";
@@ -18,7 +18,9 @@ import {
 	withAlpha,
 	scaleFont,
 } from "@/constants/theme";
+import { useExternalPurchases } from "@/hooks/use-external-purchases";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { router } from "expo-router";
 import {
 	ActivityIndicator,
 	StyleSheet,
@@ -114,6 +116,7 @@ export function SubscriptionStatusCard({
 	const { data: boothSubscription, isLoading: isBoothLoading } =
 		useBoothSubscription(boothId ?? null);
 	const { data: userAccess, isLoading: isUserLoading } = useSubscriptionAccess();
+	const { enabled: canPurchase } = useExternalPurchases();
 
 	// Determine which subscription data to use
 	const isPerBooth = !!boothId;
@@ -136,6 +139,25 @@ export function SubscriptionStatusCard({
 	const statusColor = getStatusColor(status);
 	const statusText = getStatusText(status);
 
+	// Dedicated empty state for "never subscribed" (status === null). Lapsed
+	// states (canceled / past_due / unpaid) keep the status-badge layout below
+	// so the user sees what happened to their previous subscription.
+	const isNeverSubscribed = !hasSubscription && status === null;
+
+	// Shared Subscribe CTA — US storefront only (external purchase gate).
+	// Rendered by both the never-subscribed empty state and lapsed statuses.
+	const subscribeCta = canPurchase && isPerBooth && !!boothId && (
+		<TouchableOpacity
+			accessibilityRole="button"
+			style={[styles.subscribeButton, { backgroundColor: BRAND_COLOR }]}
+			onPress={() =>
+				router.push({ pathname: "/subscribe", params: { boothId } })
+			}
+		>
+			<ThemedText style={styles.subscribeButtonText}>Subscribe</ThemedText>
+		</TouchableOpacity>
+	);
+
 	if (isLoading) {
 		return (
 			<View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
@@ -145,6 +167,43 @@ export function SubscriptionStatusCard({
 						Loading subscription...
 					</ThemedText>
 				</View>
+			</View>
+		);
+	}
+
+	if (isNeverSubscribed) {
+		return (
+			<View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+				<View style={styles.emptyRow}>
+					<View
+						style={[
+							styles.iconContainer,
+							{ backgroundColor: withAlpha(BRAND_COLOR, 0.12) },
+						]}
+					>
+						<IconSymbol name="star.fill" size={24} color={BRAND_COLOR} />
+					</View>
+					<View style={styles.emptyTextWrap}>
+						<ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+							No active subscription
+						</ThemedText>
+						<ThemedText style={[styles.emptyMessage, { color: textSecondary }]}>
+							{/* Imperative "Subscribe…" only where purchasing is allowed
+							    (US storefront) — descriptive elsewhere (anti-steering). */}
+							{/* Server copy is unreviewable — only render it where
+							    purchasing exists (it may reference the website). */}
+							{canPurchase && isPerBooth
+								? "Subscribe to activate this booth."
+								: isPerBooth
+									? "This booth isn't activated."
+									: canPurchase
+										? userAccess?.message || "No active subscription."
+										: "No active subscription."}
+						</ThemedText>
+					</View>
+				</View>
+
+				{subscribeCta}
 			</View>
 		);
 	}
@@ -220,6 +279,8 @@ export function SubscriptionStatusCard({
 							? "Subscription canceled"
 							: "No active subscription"}
 			</ThemedText>
+
+			{!hasSubscription && subscribeCta}
 		</View>
 	);
 }
@@ -229,6 +290,34 @@ const styles = StyleSheet.create({
 		padding: Spacing.md,
 		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
+	},
+	subscribeButton: {
+		marginTop: Spacing.sm,
+		borderRadius: BorderRadius.md,
+		paddingVertical: Spacing.sm,
+		alignItems: "center",
+	},
+	subscribeButtonText: {
+		color: "#fff",
+		fontSize: scaleFont(15),
+		fontWeight: "700",
+	},
+	emptyRow: {
+		flexDirection: "row",
+		alignItems: "flex-start",
+		gap: Spacing.sm,
+		marginBottom: Spacing.sm,
+	},
+	emptyTextWrap: {
+		flex: 1,
+		gap: 2,
+	},
+	emptyTitle: {
+		fontSize: scaleFont(15),
+	},
+	emptyMessage: {
+		fontSize: scaleFont(13),
+		lineHeight: scaleFont(19),
 	},
 	loadingContainer: {
 		flexDirection: "row",

@@ -43,6 +43,12 @@ jest.mock("@/api/templates/queries", () => ({
 	useDeleteReview: () => ({ mutate: jest.fn(), isPending: false }),
 }));
 
+// The purchase section has its own suite (template-buy-section.test.tsx) and
+// needs a QueryClient — stub it out; this file is about reviews.
+jest.mock("@/components/store/template-buy-section", () => ({
+	TemplateBuySection: () => null,
+}));
+
 function makeReview(overrides: Record<string, unknown> = {}) {
 	return {
 		id: 6,
