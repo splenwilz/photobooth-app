@@ -116,6 +116,14 @@ export const queryKeys = {
       ['booths', 'criticalEvents', boothId, params] as const,
 
     /**
+     * Infinite (paginated) variant of the critical-events feed.
+     * Shares the ['booths', 'criticalEvents', boothId] prefix so the refund
+     * mutation's prefix invalidation refreshes both variants at once.
+     */
+    criticalEventsInfinite: (boothId: string) =>
+      ['booths', 'criticalEvents', boothId, 'infinite'] as const,
+
+    /**
      * Get booth cash-collection history (paginated)
      * Invalidate with the 3-element prefix ['booths', 'cashCollections', boothId]
      * so every paginated cache entry matches.

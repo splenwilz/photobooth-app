@@ -17,7 +17,7 @@
 
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { router } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	Pressable,
 	RefreshControl,
@@ -30,7 +30,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 // API
 import { useAlerts } from "@/api/alerts/queries";
-import { useBoothOverview } from "@/api/booths/queries";
+import {
+	useBoothOverview,
+	useBoothsCriticalEvents,
+} from "@/api/booths/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import type { BoothOverviewItem } from "@/api/booths/types";
 import { useBoothSubscriptions } from "@/api/payments/queries";
 import { CustomHeader } from "@/components/custom-header";
@@ -50,7 +54,9 @@ import {
 	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { useAttentionStore } from "@/stores/attention-store";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
+import { countCriticalAttention } from "@/utils";
 import type { Booth, BoothStatus, OperationMode } from "@/types/photobooth";
 
 type FilterStatus = "all" | "online" | "offline";
@@ -77,6 +83,9 @@ function mapApiBoothToLocal(apiBooth: BoothOverviewItem): Booth {
 		// Additional fields from API - with null safety
 		credits: apiBooth.credits?.balance ?? 0,
 		lastUpdated: apiBooth.last_updated,
+		// Hardware error state — drives BoothCard's error badge/details row
+		has_error: apiBooth.has_error,
+		error_details: apiBooth.error_details ?? undefined,
 	};
 
 	return mappedBooth;
@@ -95,6 +104,7 @@ export default function BoothsScreen() {
 
 	// Track if screen is focused - prevents refresh indicator from freezing when navigating
 	const isFocused = useIsFocused();
+	const queryClient = useQueryClient();
 
 	// Fetch booth data from API
 	const {
@@ -166,6 +176,50 @@ export default function BoothsScreen() {
 		return boothData.booths.map(mapApiBoothToLocal);
 	}, [boothData?.booths]);
 
+	// Per-booth critical-event fan-out for the attention badges. Gated on
+	// screen focus (v5 `subscribed`): an unfocused Booths tab neither
+	// fetches nor re-renders. Cache entries are shared with the per-booth
+	// critical-events screen.
+	const boothIds = useMemo(() => booths.map((booth) => booth.id), [booths]);
+	const {
+		eventsByBooth,
+		truncatedByBooth,
+		isError: attentionUnavailable,
+	} = useBoothsCriticalEvents(boothIds, {
+		subscribed: isFocused,
+	});
+	const lastSeenEventIdByBooth = useAttentionStore(
+		(state) => state.lastSeenEventIdByBooth,
+	);
+	const seenHydrated = useAttentionStore((state) => state.hasHydrated);
+	const attentionByBooth = useMemo(() => {
+		const counts: Record<string, number> = {};
+		for (const [boothId, events] of Object.entries(eventsByBooth)) {
+			const attention = countCriticalAttention(
+				events,
+				lastSeenEventIdByBooth[boothId],
+			);
+			// Before the seen-markers hydrate, only count refund-actionable
+			// events so cold starts don't flash already-seen incidents.
+			counts[boothId] = seenHydrated ? attention.total : attention.needsRefund;
+		}
+		return counts;
+	}, [eventsByBooth, lastSeenEventIdByBooth, seenHydrated]);
+
+	// Drop seen-markers for booths that no longer exist — the overview list
+	// is the authoritative fleet roster.
+	const pruneBoothMarkers = useAttentionStore(
+		(state) => state.pruneBoothMarkers,
+	);
+	useEffect(() => {
+		// Run whenever the roster has LOADED — including the zero-booth case,
+		// where every marker is orphaned and should be pruned. `undefined`
+		// (still loading / no data) must not prune.
+		if (boothData?.booths) {
+			pruneBoothMarkers(boothData.booths.map((booth) => booth.booth_id));
+		}
+	}, [boothData?.booths, pruneBoothMarkers]);
+
 	// Get aggregated stats from API summary
 	const aggregatedStats = useMemo(() => {
 		if (!boothData?.summary) {
@@ -234,8 +288,18 @@ export default function BoothsScreen() {
 
 	// Pull to refresh
 	const handleRefresh = useCallback(async () => {
-		await Promise.all([refetch(), refetchSubscriptions()]);
-	}, [refetch, refetchSubscriptions]);
+		await Promise.all([
+			refetch(),
+			refetchSubscriptions(),
+			// The attention badges ride per-booth critical-events queries —
+			// without this, pull-to-refresh would show fresh revenue next to
+			// stale badges. Prefix matches every booth's entry.
+			queryClient.refetchQueries({
+				queryKey: ["booths", "criticalEvents"],
+				type: "active",
+			}),
+		]);
+	}, [refetch, refetchSubscriptions, queryClient]);
 
 	// Loading state
 	// Loading state - show skeleton instead of spinner
@@ -441,12 +505,36 @@ export default function BoothsScreen() {
 						subtitle={`${filteredBooths.length} booth${filteredBooths.length !== 1 ? "s" : ""}`}
 					/>
 
+					{/* A failed critical-events fetch leaves a booth badge-less —
+					    say so, since "no badge" otherwise reads as "no problems". */}
+					{attentionUnavailable && (
+						<ThemedText
+							style={[styles.attentionUnavailable, { color: textSecondary }]}
+						>
+							Couldn&apos;t check critical events for some booths. Pull to retry.
+						</ThemedText>
+					)}
+
 					{filteredBooths.map((booth) => (
 						<BoothCard
 							key={booth.id}
 							booth={booth}
 							isSelected={selectedBoothId === booth.id}
 							subscriptionStatus={subscriptionMap.get(booth.id)}
+							attentionCount={attentionByBooth[booth.id] ?? 0}
+							attentionOverflow={
+								// "N+" only when a badge shows: a truncated feed whose
+								// first page needs no attention stays badge-less (the
+								// paginated screen is the full-fidelity view).
+								!!truncatedByBooth[booth.id] &&
+								(attentionByBooth[booth.id] ?? 0) > 0
+							}
+							onAttentionPress={() => {
+								// Select the booth too, so the dashboard the user
+								// returns to matches the events they just triaged.
+								setSelectedBoothId(booth.id);
+								router.push(`/booths/${booth.id}/critical-events`);
+							}}
 							onPress={() => {
 								// Set as active booth (no navigation — user can switch screens via tabs)
 								setSelectedBoothId(booth.id);
@@ -579,6 +667,10 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		paddingVertical: Spacing.xxl,
 		gap: Spacing.md,
+	},
+	attentionUnavailable: {
+		fontSize: scaleFont(12),
+		marginBottom: Spacing.sm,
 	},
 	emptyTitle: {
 		fontSize: scaleFont(16),

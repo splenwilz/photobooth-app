@@ -43,11 +43,15 @@ export {
 	getCashBoxRefundGap,
 } from "./cash-box";
 
-// Stranded paid sessions
+// Critical events (stranded paid sessions + operational incidents)
 export {
-	type StrandedSessionRow,
+	type CriticalAttentionCounts,
+	type CriticalEventRow,
+	countCriticalAttention,
+	criticalEventGuidance,
 	formatCriticalEventTag,
 	formatStrandedReason,
+	isTransactionEvent,
 	joinCriticalEventsWithTransactions,
-} from "./stranded-sessions";
+} from "./critical-events";
 

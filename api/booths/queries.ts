@@ -1,9 +1,12 @@
 import {
 	useInfiniteQuery,
 	useMutation,
+	useQueries,
 	useQuery,
 	useQueryClient,
+	type UseQueryResult,
 } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { queryKeys } from "../utils/query-keys";
 import {
 	cancelBoothRestart,
@@ -34,6 +37,7 @@ import {
 import type {
 	BoothBusinessSettingsResponse,
 	BoothCredentialsResponse,
+	BoothCriticalEvent,
 	BoothCriticalEventsResponse,
 	BoothDetailResponse,
 	BoothListResponse,
@@ -738,6 +742,140 @@ export function useBoothCriticalEvents(
 			? queryKeys.booths.criticalEvents(boothId, params)
 			: ["booths", "criticalEvents", null, params],
 		queryFn: () => getBoothCriticalEvents(boothId!, params),
+		enabled: !!boothId,
+		staleTime: 30 * 1000,
+	});
+}
+
+/** Combined result of the per-booth critical-events fan-out. */
+export interface BoothsCriticalEventsResult {
+	/** Fetched events keyed by booth id; a booth is absent until its fetch resolves. */
+	eventsByBooth: Record<string, BoothCriticalEvent[]>;
+	/**
+	 * True per booth when the server holds more events than the fetched page
+	 * (`count > events.length`) — badge counts are then a lower bound.
+	 */
+	truncatedByBooth: Record<string, boolean>;
+	/** True while any booth's first fetch is actually in flight. */
+	isPending: boolean;
+	/**
+	 * True when any booth's fetch has failed. A failed booth is absent from
+	 * `eventsByBooth`, so without this flag "no badge" would be
+	 * indistinguishable from "no problems".
+	 */
+	isError: boolean;
+}
+
+// Hoisted so the reference is stable — an inline `combine` re-runs on every
+// render (per the useQueries docs). Keyed off the response's own booth_id,
+// which is what lets this live at module scope without closing over the
+// caller's id array.
+function combineBoothsCriticalEvents(
+	results: UseQueryResult<BoothCriticalEventsResponse>[],
+): BoothsCriticalEventsResult {
+	const eventsByBooth: Record<string, BoothCriticalEvent[]> = {};
+	const truncatedByBooth: Record<string, boolean> = {};
+	for (const result of results) {
+		if (result.data) {
+			eventsByBooth[result.data.booth_id] = result.data.events;
+			truncatedByBooth[result.data.booth_id] =
+				result.data.count > result.data.events.length;
+		}
+	}
+	return {
+		eventsByBooth,
+		truncatedByBooth,
+		// Disabled (unsubscribed) queries sit at status "pending" with
+		// fetchStatus "idle" in v5 — only count real in-flight first fetches.
+		isPending: results.some(
+			(result) => result.isPending && result.fetchStatus !== "idle",
+		),
+		isError: results.some((result) => result.isError),
+	};
+}
+
+/**
+ * Hook to fetch critical events for a fleet of booths in parallel — powers
+ * the per-booth attention badges on the booth list.
+ *
+ * Uses the same query keys as `useBoothCriticalEvents(boothId)` with default
+ * pagination, so the list badges and the single-booth screen share one cache
+ * entry per booth.
+ *
+ * @param boothIds - Booth ids to fetch (deduplicated; empty array fetches
+ *   nothing). Pass a referentially stable array (useMemo) to avoid
+ *   rebuilding the query definitions every render.
+ * @param options.subscribed - Pass screen focus here (v5 `subscribed` option)
+ *   so an unfocused list neither fetches nor re-renders.
+ * @see https://tanstack.com/query/latest/docs/framework/react/reference/useQueries
+ */
+export function useBoothsCriticalEvents(
+	boothIds: string[],
+	options?: { subscribed?: boolean },
+): BoothsCriticalEventsResult {
+	const subscribed = options?.subscribed ?? true;
+	// Duplicate keys in one useQueries call are documented as unsupported
+	// ("may cause some data to be shared between queries") — dedupe first.
+	// Memoized so useQueries' internal query-observer sync doesn't re-run on
+	// every parent render (e.g. each search-box keystroke on the Booths tab).
+	const queries = useMemo(
+		() =>
+			Array.from(new Set(boothIds)).map((boothId) => ({
+				queryKey: queryKeys.booths.criticalEvents(boothId),
+				queryFn: () => getBoothCriticalEvents(boothId),
+				staleTime: 30 * 1000,
+				// `subscribed: false` (below) already prevents the mount fetch —
+				// an unsubscribed observer never runs its queryFn. `enabled` is
+				// kept in sync as an explicit, testable statement of intent:
+				// unfocused ⇒ no fetching, refocus ⇒ refetch when stale.
+				enabled: subscribed,
+			})),
+		[boothIds, subscribed],
+	);
+	return useQueries({
+		queries,
+		combine: combineBoothsCriticalEvents,
+		// Hook-level, not per-query: useQueries strips `subscribed` from the
+		// per-query options and only honors it here. When false, this observer
+		// detaches from the cache entirely — no fetches, no re-renders.
+		subscribed,
+	});
+}
+
+/**
+ * Infinite (paginated) critical-events feed for one booth — powers the
+ * critical-events screen, which must be able to reach events beyond the
+ * first page (the badge hooks intentionally read only page 1 as a preview).
+ *
+ * Pages by offset until the server-reported `count` is covered. Lives under
+ * the ['booths', 'criticalEvents', boothId] prefix so the refund mutation's
+ * invalidation refreshes it together with the page-1 badge caches.
+ *
+ * @param boothId - The booth ID (null disables the query)
+ * @param pageSize - Events per page (server max 100; default 50)
+ */
+export function useBoothCriticalEventsInfinite(
+	boothId: string | null,
+	pageSize = 50,
+) {
+	return useInfiniteQuery({
+		queryKey: boothId
+			? queryKeys.booths.criticalEventsInfinite(boothId)
+			: ["booths", "criticalEvents", null, "infinite"],
+		queryFn: ({ pageParam }) =>
+			getBoothCriticalEvents(boothId!, { limit: pageSize, offset: pageParam }),
+		initialPageParam: 0,
+		getNextPageParam: (lastPage) => {
+			const loaded = lastPage.offset + lastPage.events.length;
+			// Assumes `count` is the TOTAL matching events (standard
+			// limit/offset envelope). If the server ever returns the page's
+			// item count instead, this degrades gracefully: loaded === count
+			// → no next page (single-page behavior, never a loop).
+			// Guard events.length > 0 so a short/empty page can never loop.
+			return lastPage.events.length > 0 && loaded < lastPage.count
+				? loaded
+				: undefined;
+		},
 		enabled: !!boothId,
 		staleTime: 30 * 1000,
 	});

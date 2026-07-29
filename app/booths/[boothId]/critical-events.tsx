@@ -1,15 +1,18 @@
 /**
- * Stranded Paid Sessions Screen
+ * Critical Events Screen ("Needs Attention")
  *
- * Lists the critical events for one booth that represent sessions where
- * payment was taken but the post-payment flow failed. Each row is the
- * entry point to issuing a refund out-of-band (Stripe / open till).
+ * Lists ALL critical events for one booth, newest first:
+ * - Transaction events (stranded paid sessions, bad payments): each row is
+ *   the entry point to recording an out-of-band refund.
+ * - Operational events (print stuck, printer recovery exhausted, …): each
+ *   row is an incident report; viewing this screen marks them seen, which
+ *   clears their share of the attention badges.
  *
  * Data sources:
  *   - useBoothCriticalEvents — the alert trigger (authoritative, fast)
  *   - useBoothTransactions  — amount + payment_method for the refund line
  *
- * @see docs stranded-sessions API
+ * @see GET /api/v1/booths/{booth_id}/critical-events
  */
 
 import { router, useLocalSearchParams } from "expo-router";
@@ -25,10 +28,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
-	useBoothCriticalEvents,
+	useBoothCriticalEventsInfinite,
 	useBoothTransactions,
 } from "@/api/booths/queries";
-import { StrandedSessionDetailsModal } from "@/components/booths";
+import { CriticalEventDetailsModal } from "@/components/booths";
 import { ThemedText } from "@/components/themed-text";
 import { ErrorState } from "@/components/ui/error-state";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -41,16 +44,19 @@ import {
 	scaleFont,
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { useAttentionStore } from "@/stores/attention-store";
 import {
+	criticalEventGuidance,
 	formatCriticalEventTag,
 	formatCurrency,
 	formatPaymentMethod,
 	formatRelativeTime,
+	isTransactionEvent,
 	joinCriticalEventsWithTransactions,
-	type StrandedSessionRow,
+	type CriticalEventRow,
 } from "@/utils";
 
-export default function StrandedSessionsScreen() {
+export default function CriticalEventsScreen() {
 	const { boothId } = useLocalSearchParams<{ boothId: string }>();
 
 	const backgroundColor = useThemeColor({}, "background");
@@ -64,22 +70,31 @@ export default function StrandedSessionsScreen() {
 	// post-refund invalidation, focus refetch, pull-to-refresh).
 	const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
+	// Paginated feed: the screen must reach events beyond the first page —
+	// the badge hooks read only page 1 as a preview, but an unrefunded
+	// stranded session pushed past the page boundary still needs a way to
+	// be found and refunded here.
+	const eventsQuery = useBoothCriticalEventsInfinite(boothId ?? null);
 	// Fetch 200 transactions so we can resolve the refund amount/method for
 	// critical events (doc's suggested limit). The critical-events feed is
 	// authoritative; transactions is just the lookup table.
-	const eventsQuery = useBoothCriticalEvents(boothId ?? null);
 	const transactionsQuery = useBoothTransactions(boothId ?? null, {
 		limit: 200,
 		offset: 0,
 	});
 
+	const events = useMemo(
+		() => eventsQuery.data?.pages.flatMap((page) => page.events),
+		[eventsQuery.data?.pages],
+	);
+
 	const rows = useMemo(
 		() =>
 			joinCriticalEventsWithTransactions(
-				eventsQuery.data?.events ?? [],
+				events ?? [],
 				transactionsQuery.data?.transactions ?? [],
 			),
-		[eventsQuery.data?.events, transactionsQuery.data?.transactions],
+		[events, transactionsQuery.data?.transactions],
 	);
 
 	const selectedRow = useMemo(
@@ -96,17 +111,47 @@ export default function StrandedSessionsScreen() {
 	}, [selectedEventId, selectedRow]);
 
 	const boothName =
-		eventsQuery.data?.booth_name ?? transactionsQuery.data?.booth_name ?? "";
+		eventsQuery.data?.pages[0]?.booth_name ??
+		transactionsQuery.data?.booth_name ??
+		"";
 
-	const unrefundedCount = rows.filter((r) => r.event.refund === null).length;
-	const refundedCount = rows.length - unrefundedCount;
+	// Viewing this screen IS the read-receipt for operational events: record
+	// the newest event id so the attention badges stop counting them. The
+	// marker covers every LOADED page (ids aren't page-ordered — the feed
+	// sorts by occurred_at); events beyond the loaded pages were never
+	// badge-counted (badges read page 1 only), so this can't hide anything
+	// the operator was told about.
+	const markBoothEventsSeen = useAttentionStore(
+		(state) => state.markBoothEventsSeen,
+	);
+	// Gate on !error to mirror the render branch: when a refetch failed, the
+	// screen shows ErrorState over the cached data — the operator did NOT see
+	// the list, so the (monotonic, irreversible) marker must not advance.
+	const eventsVisible = !eventsQuery.error;
+	useEffect(() => {
+		if (!boothId || !eventsVisible || !events?.length) return;
+		// Iterative max — spreading into Math.max hits engine argument limits
+		// on very large arrays (many loaded pages).
+		markBoothEventsSeen(
+			boothId,
+			events.reduce((max, event) => (event.id > max ? event.id : max), 0),
+		);
+	}, [boothId, events, eventsVisible, markBoothEventsSeen]);
+
+	const transactionRows = rows.filter((r) => isTransactionEvent(r.event));
+	const needsReviewCount = transactionRows.filter(
+		(r) => r.event.refund === null,
+	).length;
+	const refundedCount = transactionRows.length - needsReviewCount;
+	const incidentCount = rows.length - transactionRows.length;
 	const subtitle = [
-		unrefundedCount > 0
-			? `${unrefundedCount} need${unrefundedCount === 1 ? "s" : ""} review`
+		needsReviewCount > 0
+			? `${needsReviewCount} need${needsReviewCount === 1 ? "s" : ""} review`
 			: null,
-		refundedCount > 0
-			? `${refundedCount} refunded`
+		incidentCount > 0
+			? `${incidentCount} incident${incidentCount === 1 ? "" : "s"}`
 			: null,
+		refundedCount > 0 ? `${refundedCount} refunded` : null,
 	]
 		.filter(Boolean)
 		.join(" · ");
@@ -126,8 +171,8 @@ export default function StrandedSessionsScreen() {
 	const error = eventsQuery.error;
 
 	const renderItem = useCallback(
-		({ item }: { item: StrandedSessionRow }) => (
-			<SessionCard
+		({ item }: { item: CriticalEventRow }) => (
+			<EventCard
 				row={item}
 				cardBg={cardBg}
 				borderColor={borderColor}
@@ -139,7 +184,7 @@ export default function StrandedSessionsScreen() {
 	);
 
 	const keyExtractor = useCallback(
-		(item: StrandedSessionRow) => String(item.event.id),
+		(item: CriticalEventRow) => String(item.event.id),
 		[],
 	);
 
@@ -177,21 +222,36 @@ export default function StrandedSessionsScreen() {
 				<View style={styles.centered}>
 					<ActivityIndicator size="large" color={BRAND_COLOR} />
 					<ThemedText style={[styles.loadingText, { color: textSecondary }]}>
-						Loading sessions…
+						Loading events…
 					</ThemedText>
 				</View>
 			) : error ? (
 				<ErrorState
-					title="Failed to load sessions"
+					title="Failed to load events"
 					message={error.message || "An unexpected error occurred"}
 					onRetry={onRefresh}
 				/>
 			) : (
 				<FlatList
+					testID="critical-events-list"
 					data={rows}
 					keyExtractor={keyExtractor}
 					renderItem={renderItem}
 					contentContainerStyle={styles.listContent}
+					onEndReached={() => {
+						if (eventsQuery.hasNextPage && !eventsQuery.isFetchingNextPage) {
+							eventsQuery.fetchNextPage();
+						}
+					}}
+					onEndReachedThreshold={0.5}
+					ListFooterComponent={
+						eventsQuery.isFetchingNextPage ? (
+							<ActivityIndicator
+								style={styles.footerSpinner}
+								color={BRAND_COLOR}
+							/>
+						) : null
+					}
 					refreshControl={
 						<RefreshControl
 							refreshing={isRefreshing}
@@ -207,10 +267,11 @@ export default function StrandedSessionsScreen() {
 								color={StatusColors.success}
 							/>
 							<ThemedText type="subtitle" style={styles.emptyTitle}>
-								No sessions need review
+								Nothing needs attention
 							</ThemedText>
 							<ThemedText style={[styles.emptyBody, { color: textSecondary }]}>
-								Stranded paid sessions will show up here. Pull to refresh.
+								Stranded sessions and booth incidents will show up here.
+								Pull to refresh.
 							</ThemedText>
 						</View>
 					}
@@ -218,7 +279,7 @@ export default function StrandedSessionsScreen() {
 				/>
 			)}
 
-			<StrandedSessionDetailsModal
+			<CriticalEventDetailsModal
 				visible={!!selectedRow}
 				boothId={boothId ?? ""}
 				row={selectedRow}
@@ -228,21 +289,101 @@ export default function StrandedSessionsScreen() {
 	);
 }
 
-interface SessionCardProps {
-	row: StrandedSessionRow;
+interface EventCardProps {
+	row: CriticalEventRow;
 	cardBg: string;
 	borderColor: string;
 	textSecondary: string;
 	onPress: () => void;
 }
 
-function SessionCard({
+function EventCard(props: EventCardProps) {
+	return isTransactionEvent(props.row.event) ? (
+		<TransactionEventCard {...props} />
+	) : (
+		<OperationalEventCard {...props} />
+	);
+}
+
+/**
+ * Operational incident row: no transaction, no refund workflow. The
+ * `details` text is the payload; PRINTER_RECOVERY_FAILED additionally gets
+ * the on-site guidance line.
+ */
+function OperationalEventCard({
 	row,
 	cardBg,
 	borderColor,
 	textSecondary,
 	onPress,
-}: SessionCardProps) {
+}: EventCardProps) {
+	const { event } = row;
+	const guidance = criticalEventGuidance(event.tag);
+	const tagLabel = formatCriticalEventTag(event.tag);
+	// details can be a 500-char exception dump — keep the row label short for
+	// screen readers; the modal carries the full text.
+	const a11yDetails =
+		event.details.length > 120
+			? `${event.details.slice(0, 120)}…`
+			: event.details;
+
+	return (
+		<TouchableOpacity
+			style={[styles.card, { backgroundColor: cardBg, borderColor }]}
+			onPress={onPress}
+			activeOpacity={0.7}
+			accessibilityRole="button"
+			accessibilityLabel={`${tagLabel} incident, ${a11yDetails}`}
+		>
+			<View style={styles.cardRow}>
+				<View style={styles.cardLeft}>
+					<View
+						style={[
+							styles.tagBadge,
+							{ backgroundColor: withAlpha(StatusColors.error, 0.12) },
+						]}
+					>
+						<IconSymbol
+							name="wrench.and.screwdriver.fill"
+							size={11}
+							color={StatusColors.error}
+						/>
+						<ThemedText
+							style={[styles.tagText, { color: StatusColors.error }]}
+							numberOfLines={1}
+						>
+							{tagLabel}
+						</ThemedText>
+					</View>
+					<ThemedText style={styles.detailsText} numberOfLines={3}>
+						{event.details || "No details reported."}
+					</ThemedText>
+					{guidance && (
+						<ThemedText
+							style={[styles.guidanceText, { color: StatusColors.error }]}
+						>
+							{guidance}
+						</ThemedText>
+					)}
+					<ThemedText style={[styles.relativeTime, { color: textSecondary }]}>
+						{formatRelativeTime(event.occurred_at)}
+					</ThemedText>
+				</View>
+				<View style={styles.cardRight}>
+					<IconSymbol name="chevron.right" size={16} color={textSecondary} />
+				</View>
+			</View>
+		</TouchableOpacity>
+	);
+}
+
+function TransactionEventCard({
+	row,
+	cardBg,
+	borderColor,
+	textSecondary,
+	onPress,
+}: EventCardProps) {
 	const { event, transaction } = row;
 
 	// Prefer the server-joined refund on the event, but fall back to the
@@ -432,6 +573,13 @@ const styles = StyleSheet.create({
 	codeText: { fontSize: scaleFont(14) },
 	relativeTime: { fontSize: scaleFont(12) },
 	amountText: { fontSize: scaleFont(13) },
+	detailsText: { fontSize: scaleFont(13), lineHeight: 18 },
+	footerSpinner: { paddingVertical: Spacing.md },
+	guidanceText: {
+		fontSize: scaleFont(12),
+		lineHeight: 17,
+		fontWeight: "600",
+	},
 	refundedBadge: {
 		flexDirection: "row",
 		alignItems: "center",

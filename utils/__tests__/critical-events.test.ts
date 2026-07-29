@@ -1,15 +1,18 @@
 /**
- * Stranded Sessions Utilities Tests
+ * Critical Events Utilities Tests
  */
 import type {
 	BoothCriticalEvent,
 	SyncedTransaction,
 } from "@/api/booths/types";
 import {
+	countCriticalAttention,
+	criticalEventGuidance,
 	formatCriticalEventTag,
 	formatStrandedReason,
+	isTransactionEvent,
 	joinCriticalEventsWithTransactions,
-} from "../stranded-sessions";
+} from "../critical-events";
 
 const makeEvent = (
 	overrides: Partial<BoothCriticalEvent>,
@@ -147,10 +150,140 @@ describe("joinCriticalEventsWithTransactions", () => {
 	});
 });
 
+describe("isTransactionEvent", () => {
+	it("is true for events referencing a transaction", () => {
+		expect(isTransactionEvent(makeEvent({ transaction_code: "TXN-A" }))).toBe(
+			true,
+		);
+	});
+
+	it("is false for operational events (no transaction_code)", () => {
+		expect(
+			isTransactionEvent(
+				makeEvent({ tag: "PRINTER_RECOVERY_FAILED", transaction_code: null }),
+			),
+		).toBe(false);
+	});
+});
+
+describe("countCriticalAttention", () => {
+	const stranded = (id: number, refunded = false) =>
+		makeEvent({
+			id,
+			tag: "STRANDED_PAID_SESSION",
+			transaction_code: `TXN-${id}`,
+			refund: refunded
+				? {
+						refunded_at: "2026-04-22T10:00:00Z",
+						refunded_by_user_id: "user_1",
+						refund_amount: 5,
+						refund_method: "cash",
+					}
+				: null,
+		});
+	const printer = (id: number) =>
+		makeEvent({
+			id,
+			tag: "PRINTER_RECOVERY_FAILED",
+			transaction_code: null,
+		});
+
+	it("counts unrefunded transaction events regardless of seen state", () => {
+		const counts = countCriticalAttention([stranded(1), stranded(2)], 999);
+
+		expect(counts.needsRefund).toBe(2);
+		expect(counts.unseenOperational).toBe(0);
+		expect(counts.total).toBe(2);
+	});
+
+	it("excludes refunded transaction events", () => {
+		const counts = countCriticalAttention([stranded(1), stranded(2, true)], 0);
+
+		expect(counts.needsRefund).toBe(1);
+		expect(counts.total).toBe(1);
+	});
+
+	it("counts operational events newer than the seen marker", () => {
+		const counts = countCriticalAttention([printer(5), printer(9)], 5);
+
+		expect(counts.unseenOperational).toBe(1);
+		expect(counts.total).toBe(1);
+	});
+
+	it("counts every operational event when nothing has been seen", () => {
+		const counts = countCriticalAttention([printer(5), printer(9)], 0);
+
+		expect(counts.unseenOperational).toBe(2);
+	});
+
+	it("treats an undefined seen marker as never seen", () => {
+		const counts = countCriticalAttention([printer(5)], undefined);
+
+		expect(counts.unseenOperational).toBe(1);
+	});
+
+	it("sums both categories into total", () => {
+		const counts = countCriticalAttention(
+			[stranded(1), stranded(2, true), printer(3), printer(9)],
+			3,
+		);
+
+		expect(counts).toEqual({
+			needsRefund: 1,
+			unseenOperational: 1,
+			total: 2,
+		});
+	});
+
+	it("applies the same dedupe as the list screen (at-least-once delivery)", () => {
+		const dup = {
+			tag: "STRANDED_PAID_SESSION",
+			occurred_at: "2026-04-21T14:30:22Z",
+			transaction_code: "TXN-DUP",
+		} as const;
+		const counts = countCriticalAttention(
+			[makeEvent({ id: 1, ...dup }), makeEvent({ id: 2, ...dup })],
+			0,
+		);
+
+		expect(counts.needsRefund).toBe(1);
+	});
+
+	it("returns zeros for an empty feed", () => {
+		expect(countCriticalAttention([], 0)).toEqual({
+			needsRefund: 0,
+			unseenOperational: 0,
+			total: 0,
+		});
+	});
+});
+
+describe("criticalEventGuidance", () => {
+	it("returns on-site guidance for exhausted printer recovery", () => {
+		expect(criticalEventGuidance("PRINTER_RECOVERY_FAILED")).toBe(
+			"Booth can't fix its printer — needs an on-site visit.",
+		);
+	});
+
+	it("returns null for tags without specific guidance", () => {
+		expect(criticalEventGuidance("STRANDED_PAID_SESSION")).toBeNull();
+		expect(criticalEventGuidance("PRINT_JOB_STUCK")).toBeNull();
+		expect(criticalEventGuidance("SOME_FUTURE_TAG")).toBeNull();
+	});
+});
+
 describe("formatCriticalEventTag", () => {
 	it("returns short badge labels for known tags", () => {
 		expect(formatCriticalEventTag("STRANDED_PAID_SESSION")).toBe("Stranded");
 		expect(formatCriticalEventTag("PAYMENT_RESULT_INVALID")).toBe("Bad Payment");
+	});
+
+	it("returns short badge labels for printer tags", () => {
+		expect(formatCriticalEventTag("PRINT_JOB_STUCK")).toBe("Print Stuck");
+		expect(formatCriticalEventTag("PRINT_JOB_ERROR")).toBe("Print Error");
+		expect(formatCriticalEventTag("PRINTER_RECOVERY_FAILED")).toBe(
+			"Printer Down",
+		);
 	});
 
 	it("falls back to spaced lowercase for unknown tags", () => {

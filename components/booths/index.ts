@@ -9,7 +9,7 @@ export { EditBoothModal } from "./EditBoothModal";
 export { DeleteBoothModal } from "./DeleteBoothModal";
 export { DownloadLogsModal } from "./DownloadLogsModal";
 export { EmergencyPasswordModal } from "./EmergencyPasswordModal";
-export { StrandedSessionDetailsModal } from "./StrandedSessionDetailsModal";
+export { CriticalEventDetailsModal } from "./CriticalEventDetailsModal";
 export { CashBoxCard } from "./CashBoxCard";
 export { CashCollectionRow } from "./CashCollectionRow";
 

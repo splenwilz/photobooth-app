@@ -48,6 +48,18 @@ interface BoothCardProps {
 	onPress?: () => void;
 	/** Callback when edit button is pressed */
 	onEditPress?: () => void;
+	/**
+	 * Critical events needing attention (unrefunded stranded sessions +
+	 * unseen operational incidents). Zero/undefined renders no badge.
+	 */
+	attentionCount?: number;
+	/**
+	 * True when the server holds more events than the counted page — the
+	 * badge then renders "N+" to signal a lower bound.
+	 */
+	attentionOverflow?: boolean;
+	/** Callback when the attention badge is pressed (opens critical events) */
+	onAttentionPress?: () => void;
 }
 
 /**
@@ -131,6 +143,9 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 	subscriptionStatus,
 	onPress,
 	onEditPress,
+	attentionCount = 0,
+	attentionOverflow = false,
+	onAttentionPress,
 }) => {
 	const cardBg = useThemeColor({}, "card");
 	const borderColor = useThemeColor({}, "border");
@@ -188,6 +203,57 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 
 				{/* Status Badges Container */}
 				<View style={styles.badgesContainer}>
+					{/* Attention Badge - critical events needing the operator.
+					    Button semantics only when actually tappable — a
+					    non-interactive badge must not announce as a button. */}
+					{attentionCount > 0 &&
+						(() => {
+							const label = attentionOverflow
+								? `At least ${attentionCount} critical events need attention`
+								: attentionCount === 1
+									? "1 critical event needs attention"
+									: `${attentionCount} critical events need attention`;
+							const content = (
+								<>
+									<IconSymbol
+										name="exclamationmark.triangle.fill"
+										size={11}
+										color="white"
+									/>
+									<ThemedText style={styles.attentionText}>
+										{attentionOverflow ? `${attentionCount}+` : attentionCount}
+									</ThemedText>
+								</>
+							);
+							return onAttentionPress ? (
+								<TouchableOpacity
+									style={[
+										styles.attentionBadge,
+										{ backgroundColor: StatusColors.error },
+									]}
+									onPress={onAttentionPress}
+									hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+									accessibilityRole="button"
+									accessibilityLabel={label}
+									accessibilityHint="Opens the booth's critical events"
+								>
+									{content}
+								</TouchableOpacity>
+							) : (
+								<View
+									style={[
+										styles.attentionBadge,
+										{ backgroundColor: StatusColors.error },
+									]}
+									accessible
+									accessibilityRole="text"
+									accessibilityLabel={label}
+								>
+									{content}
+								</View>
+							);
+						})()}
+
 					{/* Hardware Error Badge - Tappable for details */}
 					{booth.has_error && (
 						<View
@@ -392,6 +458,19 @@ const styles = StyleSheet.create({
 		paddingVertical: 4,
 		borderRadius: BorderRadius.full,
 		gap: 4,
+	},
+	attentionBadge: {
+		flexDirection: "row",
+		alignItems: "center",
+		paddingHorizontal: Spacing.sm,
+		paddingVertical: 4,
+		borderRadius: BorderRadius.full,
+		gap: 4,
+	},
+	attentionText: {
+		fontSize: scaleFont(12),
+		fontWeight: "700",
+		color: "white",
 	},
 	statusDot: {
 		width: 8,
