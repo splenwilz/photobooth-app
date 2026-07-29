@@ -15,7 +15,7 @@ export default function BoothsLayout() {
       }}
     >
       <Stack.Screen name="create" />
-      <Stack.Screen name="[boothId]/stranded-sessions" />
+      <Stack.Screen name="[boothId]/critical-events" />
       <Stack.Screen name="[boothId]/cash-box" />
     </Stack>
   );

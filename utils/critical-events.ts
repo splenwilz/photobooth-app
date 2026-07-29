@@ -1,8 +1,14 @@
 /**
- * Stranded Paid Sessions Utilities
+ * Critical Events Utilities
  *
- * Pure helpers for joining and formatting the data powering the
- * "needs attention" screens.
+ * Pure helpers for joining, categorizing, counting, and formatting the
+ * booth critical-event feed powering the "needs attention" screens.
+ *
+ * Events fall into two categories, distinguished by `transaction_code`:
+ * - Transaction events (code set): money is involved; actionable until the
+ *   underlying transaction is refunded.
+ * - Operational events (code null): device incidents (printer wedged,
+ *   self-recovery exhausted); informational until the operator has seen them.
  *
  * @see api/booths — useBoothCriticalEvents, useBoothTransactions
  */
@@ -17,11 +23,72 @@ import type {
  * A critical event paired with its matching booth transaction (if any).
  * `transaction` is null when the event's `transaction_code` does not yet
  * match any synced transaction (e.g. the first sync arrived before the
- * booth re-synced the stranded marker).
+ * booth re-synced the stranded marker), and always null for operational
+ * events.
  */
-export interface StrandedSessionRow {
+export interface CriticalEventRow {
 	event: BoothCriticalEvent;
 	transaction: SyncedTransaction | null;
+}
+
+/**
+ * Whether an event references a customer transaction (money involved).
+ * Per the API contract, `transaction_code` is set exactly for
+ * money-related events.
+ */
+export function isTransactionEvent(event: BoothCriticalEvent): boolean {
+	return event.transaction_code !== null;
+}
+
+/** Attention counts derived from one booth's critical-event feed. */
+export interface CriticalAttentionCounts {
+	/** Unrefunded transaction events — actionable until refunded, seen or not. */
+	needsRefund: number;
+	/** Operational events newer than the operator's seen marker. */
+	unseenOperational: number;
+	/** Badge value: needsRefund + unseenOperational. */
+	total: number;
+}
+
+/**
+ * Compute the attention counts for a booth's critical-event feed.
+ *
+ * Dedupes with the same rule as the list screen so a badge can never
+ * disagree with the list it links to. `lastSeenEventId` is the operator's
+ * per-booth seen marker (event ids are monotonically increasing);
+ * undefined means the feed has never been viewed.
+ */
+export function countCriticalAttention(
+	events: BoothCriticalEvent[],
+	lastSeenEventId: number | undefined,
+): CriticalAttentionCounts {
+	const seenMarker = lastSeenEventId ?? 0;
+	let needsRefund = 0;
+	let unseenOperational = 0;
+	for (const { event } of joinCriticalEventsWithTransactions(events, [])) {
+		if (isTransactionEvent(event)) {
+			if (event.refund === null) needsRefund++;
+		} else if (event.id > seenMarker) {
+			unseenOperational++;
+		}
+	}
+	return {
+		needsRefund,
+		unseenOperational,
+		total: needsRefund + unseenOperational,
+	};
+}
+
+const EVENT_GUIDANCE: Record<string, string> = {
+	PRINTER_RECOVERY_FAILED: "Booth can't fix its printer — needs an on-site visit.",
+};
+
+/**
+ * Operator guidance line for tags that imply a specific next step, or null
+ * when the event's `details` speak for themselves.
+ */
+export function criticalEventGuidance(tag: CriticalEventTag): string | null {
+	return EVENT_GUIDANCE[tag] ?? null;
 }
 
 /**
@@ -38,14 +105,14 @@ export interface StrandedSessionRow {
 export function joinCriticalEventsWithTransactions(
 	events: BoothCriticalEvent[],
 	transactions: SyncedTransaction[],
-): StrandedSessionRow[] {
+): CriticalEventRow[] {
 	const byCode = new Map<string, SyncedTransaction>();
 	for (const tx of transactions) {
 		byCode.set(tx.transaction_code, tx);
 	}
 
 	const seen = new Set<string>();
-	const rows: StrandedSessionRow[] = [];
+	const rows: CriticalEventRow[] = [];
 	for (const event of events) {
 		const codePart = event.transaction_code ?? `null:${event.id}`;
 		const dedupeKey = `${event.tag}::${event.occurred_at}::${codePart}`;
@@ -70,6 +137,9 @@ const KNOWN_STRANDED_REASONS: Record<string, string> = {
 const KNOWN_EVENT_TAGS: Record<string, string> = {
 	STRANDED_PAID_SESSION: "Stranded",
 	PAYMENT_RESULT_INVALID: "Bad Payment",
+	PRINT_JOB_STUCK: "Print Stuck",
+	PRINT_JOB_ERROR: "Print Error",
+	PRINTER_RECOVERY_FAILED: "Printer Down",
 };
 
 /**

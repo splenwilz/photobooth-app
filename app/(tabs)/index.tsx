@@ -48,11 +48,12 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { BorderRadius, BRAND_COLOR, Spacing, StatusColors, withAlpha, scaleFont } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { useAttentionStore } from "@/stores/attention-store";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 // Utilities - extracted for separation of concerns
 import {
+	countCriticalAttention,
 	formatCurrency,
-	joinCriticalEventsWithTransactions,
 	mapBoothAlertToAppAlert,
 	mapDashboardAlertToAppAlert,
 } from "@/utils";
@@ -165,27 +166,50 @@ export default function DashboardScreen() {
 	const { data: alertsData } = useAlerts();
 	const unreadAlerts = alertsData?.alerts?.filter((a) => !a.isRead).length ?? 0;
 
-	// Fetch critical events (stranded paid sessions) for the selected booth.
-	// These are a separate stream from alerts — only populated per-booth, so
-	// we only fetch when a specific booth is selected.
-	// Count only unrefunded events — once marked refunded, the row no longer
-	// needs operator attention.
+	// Fetch critical events for the selected booth. These are a separate
+	// stream from alerts — only populated per-booth, so we only fetch when a
+	// specific booth is selected.
 	// @see GET /api/v1/booths/{booth_id}/critical-events
 	const {
 		data: criticalEventsData,
 		refetch: refetchCriticalEvents,
 	} = useBoothCriticalEvents(hasBoothSelected ? selectedBoothId : null);
-	// Run events through the same dedupe used by the destination list screen
-	// so the badge can never disagree with the list. (The server already
-	// dedupes on insert per the API spec, so this is defense-in-depth — but
-	// keeping the two consumers in lockstep is cheap.)
-	const strandedCount = useMemo(() => {
-		const rows = joinCriticalEventsWithTransactions(
-			criticalEventsData?.events ?? [],
-			[],
-		);
-		return rows.filter((r) => r.event.refund === null).length;
-	}, [criticalEventsData?.events]);
+	// countCriticalAttention applies the same dedupe as the destination list
+	// screen, so the badge can never disagree with the list: unrefunded
+	// transaction events count until refunded; operational incidents count
+	// until the operator has viewed the screen (per-booth seen marker).
+	const lastSeenEventId = useAttentionStore((state) =>
+		hasBoothSelected && selectedBoothId
+			? state.lastSeenEventIdByBooth[selectedBoothId]
+			: undefined,
+	);
+	const seenHydrated = useAttentionStore((state) => state.hasHydrated);
+	const attention = useMemo(
+		() =>
+			countCriticalAttention(criticalEventsData?.events ?? [], lastSeenEventId),
+		[criticalEventsData?.events, lastSeenEventId],
+	);
+	// Until the persisted seen-markers hydrate, don't count operational
+	// events — a one-frame flash of "unseen" badges on every cold start is
+	// worse than appearing a beat late.
+	const attentionCount = seenHydrated
+		? attention.total
+		: attention.needsRefund;
+	// Page-1 preview only: when the server holds more events than the page,
+	// the count is a lower bound — render "N+" (the screen paginates fully).
+	const attentionOverflow =
+		attentionCount > 0 &&
+		(criticalEventsData?.count ?? 0) > (criticalEventsData?.events.length ?? 0);
+	const attentionSubtitle = [
+		attention.needsRefund > 0
+			? `${attention.needsRefund} refund${attention.needsRefund === 1 ? "" : "s"} to review`
+			: null,
+		seenHydrated && attention.unseenOperational > 0
+			? `${attention.unseenOperational} booth incident${attention.unseenOperational === 1 ? "" : "s"}`
+			: null,
+	]
+		.filter(Boolean)
+		.join(" · ");
 
 	// Get revenue stats for selected period - works for both modes
 	const revenueStats = isAllMode
@@ -516,8 +540,8 @@ export default function DashboardScreen() {
 							</View>
 						)}
 
-						{/* Needs Attention — stranded paid sessions for this booth only */}
-						{!isAllMode && hasBoothSelected && strandedCount > 0 && (
+						{/* Needs Attention — critical events for this booth only */}
+						{!isAllMode && hasBoothSelected && attentionCount > 0 && (
 							<View style={styles.section}>
 								<TouchableOpacity
 									style={[
@@ -529,10 +553,16 @@ export default function DashboardScreen() {
 									]}
 									activeOpacity={0.7}
 									onPress={() =>
-										router.push(`/booths/${selectedBoothId}/stranded-sessions`)
+										router.push(`/booths/${selectedBoothId}/critical-events`)
 									}
 									accessibilityRole="button"
-									accessibilityLabel={`${strandedCount} stranded sessions need review`}
+									accessibilityLabel={
+										attentionOverflow
+											? `At least ${attentionCount} critical events need attention`
+											: attentionCount === 1
+												? "1 critical event needs attention"
+												: `${attentionCount} critical events need attention`
+									}
 								>
 									<View style={styles.attentionLeft}>
 										<IconSymbol
@@ -545,13 +575,17 @@ export default function DashboardScreen() {
 												type="defaultSemiBold"
 												style={[styles.attentionTitle, { color: StatusColors.error }]}
 											>
-												{strandedCount} session{strandedCount === 1 ? "" : "s"} need review
+												{attentionCount}
+											{attentionOverflow ? "+" : ""} need
+											{attentionCount === 1 && !attentionOverflow ? "s" : ""} attention
 											</ThemedText>
-											<ThemedText
-												style={[styles.attentionSubtitle, { color: textSecondary }]}
-											>
-												Paid but not printed — customer may need a refund
-											</ThemedText>
+											{!!attentionSubtitle && (
+												<ThemedText
+													style={[styles.attentionSubtitle, { color: textSecondary }]}
+												>
+													{attentionSubtitle}
+												</ThemedText>
+											)}
 										</View>
 									</View>
 									<IconSymbol

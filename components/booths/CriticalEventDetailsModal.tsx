@@ -1,12 +1,13 @@
 /**
- * StrandedSessionDetailsModal Component
+ * CriticalEventDetailsModal Component
  *
- * Shows context for one stranded paid session and — when the transaction
- * is not yet refunded — lets the operator record a refund (accounting
- * closure only; money must be returned physically first).
- *
- * Already-refunded events render in a read-only "Refunded $X by <user>"
- * state using the inline refund summary on the critical event.
+ * Detail sheet for one booth critical event, in two shapes:
+ * - Transaction events: shows the refund workflow — when the transaction is
+ *   not yet refunded, lets the operator record a refund (accounting closure
+ *   only; money must be returned physically first). Already-refunded events
+ *   render a read-only "Refunded $X by <user>" record.
+ * - Operational events (no transaction): an incident report — tag, details,
+ *   and operator guidance. No refund UI.
  *
  * @see POST /api/v1/booths/{booth_id}/transactions/{transaction_code}/refund
  */
@@ -40,17 +41,19 @@ import {
 } from "@/constants/theme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import {
+	criticalEventGuidance,
 	formatCriticalEventTag,
 	formatCurrency,
 	formatPaymentMethod,
 	formatStrandedReason,
-	type StrandedSessionRow,
+	isTransactionEvent,
+	type CriticalEventRow,
 } from "@/utils";
 
-interface StrandedSessionDetailsModalProps {
+interface CriticalEventDetailsModalProps {
 	visible: boolean;
 	boothId: string;
-	row: StrandedSessionRow | null;
+	row: CriticalEventRow | null;
 	onClose: () => void;
 }
 
@@ -87,12 +90,12 @@ function formatDateTime(timestamp: string): string {
 	})}`;
 }
 
-export function StrandedSessionDetailsModal({
+export function CriticalEventDetailsModal({
 	visible,
 	boothId,
 	row,
 	onClose,
-}: StrandedSessionDetailsModalProps) {
+}: CriticalEventDetailsModalProps) {
 	const backgroundColor = useThemeColor({}, "background");
 	const cardBg = useThemeColor({}, "card");
 	const borderColor = useThemeColor({}, "border");
@@ -167,13 +170,21 @@ export function StrandedSessionDetailsModal({
 
 	if (!row) return null;
 	const { event, transaction } = row;
+	// Operational events (printer wedged, recovery exhausted, …) have no
+	// transaction: render an incident report, never the refund workflow.
+	const isOperational = !isTransactionEvent(event);
+	const guidance = criticalEventGuidance(event.tag);
 	// Union both sources: the inline-joined event.refund AND the transaction's
 	// own refunded_at. The two queries refetch independently — there's a
 	// race window where the transaction is refunded but the event's join
 	// hasn't refreshed yet. Honoring both prevents offering a Refund button
 	// the API will reject with 409.
 	const refundSummary = (() => {
-		if (event.refund) return { ...event.refund, note: transaction?.refund_note ?? null };
+		if (event.refund)
+			return {
+				...event.refund,
+				note: event.refund.refund_note ?? transaction?.refund_note ?? null,
+			};
 		if (
 			transaction?.refunded_at &&
 			transaction.refund_amount !== null &&
@@ -263,7 +274,11 @@ export function StrandedSessionDetailsModal({
 						<IconSymbol name="xmark" size={22} color={textSecondary} />
 					</TouchableOpacity>
 					<ThemedText type="subtitle" style={styles.headerTitle}>
-						{isRefunded ? "Refund Record" : "Record Refund"}
+						{isOperational
+							? "Incident Report"
+							: isRefunded
+								? "Refund Record"
+								: "Record Refund"}
 					</ThemedText>
 					<View style={styles.headerSpacer} />
 				</View>
@@ -330,7 +345,8 @@ export function StrandedSessionDetailsModal({
 							Occurred {formatDateTime(event.occurred_at)}
 						</ThemedText>
 
-						{/* Reference code */}
+						{/* Reference code — transaction events only */}
+						{!isOperational && (
 						<View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
 							<ThemedText style={[styles.cardLabel, { color: textSecondary }]}>
 								Customer Reference Code
@@ -352,9 +368,10 @@ export function StrandedSessionDetailsModal({
 								)}
 							</View>
 						</View>
+						)}
 
 						{/* Refund block: either read-only record or input form */}
-						{refundSummary ? (
+						{isOperational ? null : refundSummary ? (
 							<View
 								style={[
 									styles.card,
@@ -532,6 +549,13 @@ export function StrandedSessionDetailsModal({
 							<ThemedText style={styles.detailsText}>
 								{event.details || "No additional details."}
 							</ThemedText>
+							{guidance && (
+								<ThemedText
+									style={[styles.guidanceInline, { color: StatusColors.error }]}
+								>
+									{guidance}
+								</ThemedText>
+							)}
 							{transaction?.stranded_reason && (
 								<ThemedText
 									style={[styles.reasonTag, { color: textSecondary }]}
@@ -541,15 +565,17 @@ export function StrandedSessionDetailsModal({
 							)}
 						</View>
 
-						<ThemedText style={[styles.guidance, { color: textSecondary }]}>
-							Return funds physically (till or local card void) before
-							recording the refund — this endpoint records accounting closure
-							only, it does not move money.
-						</ThemedText>
+						{!isOperational && (
+							<ThemedText style={[styles.guidance, { color: textSecondary }]}>
+								Return funds physically (till or local card void) before
+								recording the refund — this endpoint records accounting
+								closure only, it does not move money.
+							</ThemedText>
+						)}
 					</ScrollView>
 
 					<View style={[styles.footer, { borderTopColor: borderColor }]}>
-						{isRefunded ? (
+						{isRefunded || isOperational ? (
 							<TouchableOpacity
 								style={[styles.primaryBtn, { backgroundColor: BRAND_COLOR }]}
 								onPress={onClose}
@@ -558,6 +584,7 @@ export function StrandedSessionDetailsModal({
 							</TouchableOpacity>
 						) : (
 							<TouchableOpacity
+								testID="record-refund-button"
 								style={[
 									styles.primaryBtn,
 									{
@@ -757,6 +784,12 @@ const styles = StyleSheet.create({
 		lineHeight: 17,
 		paddingHorizontal: Spacing.xs,
 		marginTop: Spacing.xs,
+	},
+	guidanceInline: {
+		fontSize: scaleFont(13),
+		lineHeight: 18,
+		marginTop: Spacing.sm,
+		fontWeight: "600",
 	},
 	footer: {
 		borderTopWidth: 1,

@@ -939,6 +939,9 @@ export type RefundMethod =
 export type CriticalEventTag =
   | "STRANDED_PAID_SESSION"
   | "PAYMENT_RESULT_INVALID"
+  | "PRINT_JOB_STUCK"
+  | "PRINT_JOB_ERROR"
+  | "PRINTER_RECOVERY_FAILED"
   | (string & {});
 
 /**
@@ -978,7 +981,7 @@ export interface SyncedTransaction {
 }
 
 /**
- * Pagination params shared by the stranded-sessions list endpoints.
+ * Pagination params shared by the critical-events list endpoints.
  */
 export interface BoothPaginationParams {
   /** Max rows to return (default: 50) */
@@ -1054,6 +1057,11 @@ export interface CriticalEventRefundSummary {
   refunded_by_user_id: string;
   refund_amount: number;
   refund_method: RefundMethod;
+  /**
+   * Operator note recorded with the refund. Optional so responses from
+   * servers predating the field still typecheck.
+   */
+  refund_note?: string | null;
 }
 
 /**

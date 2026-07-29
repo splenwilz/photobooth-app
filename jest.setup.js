@@ -1,3 +1,8 @@
+// Official in-memory mock for AsyncStorage (used by persisted zustand stores)
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);
+
 // Mock expo-secure-store (used by api/client.ts)
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(),
