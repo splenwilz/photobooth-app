@@ -130,9 +130,11 @@ export default function CriticalEventsScreen() {
 	const eventsVisible = !eventsQuery.error;
 	useEffect(() => {
 		if (!boothId || !eventsVisible || !events?.length) return;
+		// Iterative max — spreading into Math.max hits engine argument limits
+		// on very large arrays (many loaded pages).
 		markBoothEventsSeen(
 			boothId,
-			Math.max(...events.map((event) => event.id)),
+			events.reduce((max, event) => (event.id > max ? event.id : max), 0),
 		);
 	}, [boothId, events, eventsVisible, markBoothEventsSeen]);
 

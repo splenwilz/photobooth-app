@@ -46,9 +46,13 @@ function createWrapper() {
 			mutations: { retry: false, gcTime: Infinity },
 		},
 	});
-	return ({ children }: { children: React.ReactNode }) => (
-		<QueryClientProvider client={qc}>{children}</QueryClientProvider>
-	);
+	return function TestQueryWrapper({
+		children,
+	}: {
+		children: React.ReactNode;
+	}) {
+		return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+	};
 }
 
 describe("useBoothTransactions", () => {

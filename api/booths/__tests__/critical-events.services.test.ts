@@ -1,8 +1,10 @@
 /**
- * Stranded Paid Sessions Services Tests
+ * Critical Events Services Tests
  *
- * Tests for getBoothTransactions and getBoothCriticalEvents service functions.
- * @see docs ../../docs/STRANDED_SESSIONS_API.md (or referenced API spec)
+ * Tests for the getBoothTransactions, getBoothCriticalEvents, and
+ * refundBoothTransaction service functions.
+ * @see GET /api/v1/booths/{booth_id}/critical-events
+ * @see POST /api/v1/booths/{booth_id}/transactions/{transaction_code}/refund
  */
 import {
 	getBoothCriticalEvents,

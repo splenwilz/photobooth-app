@@ -42,6 +42,16 @@ describe("app/(tabs)/booths.tsx — attention badge wiring", () => {
 		);
 	});
 
+	it("prunes on any LOADED roster including empty — never on undefined", () => {
+		// `?.length` here would skip the zero-booth case and leak markers
+		// forever after the last booth is deleted; `undefined` (loading) must
+		// still be excluded.
+		expect(BOOTHS_SOURCE).toMatch(/if \(boothData\?\.booths\) \{/);
+		expect(BOOTHS_SOURCE).not.toMatch(
+			/if \(boothData\?\.booths\?\.length\)/,
+		);
+	});
+
 	it("suppresses operational counts until the seen-markers hydrate", () => {
 		expect(BOOTHS_SOURCE).toMatch(
 			/seenHydrated\s*\?\s*attention\.total\s*:\s*attention\.needsRefund/,

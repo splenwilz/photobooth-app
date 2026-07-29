@@ -17,7 +17,29 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import {
+	createJSONStorage,
+	persist,
+	type StateStorage,
+} from "zustand/middleware";
+
+/**
+ * expo-router's web static rendering (`expo export`) imports this module in
+ * Node, where AsyncStorage's web backend dereferences `window.localStorage`
+ * and crashes the export. Persistence is meaningless during static render —
+ * fall back to a no-op storage there. On device and in the browser,
+ * `window` exists and AsyncStorage is used normally.
+ *
+ * (Deliberate divergence from zustand's documented SSR remedy —
+ * `skipHydration` + manual `rehydrate()` — which would push rehydration
+ * wiring onto every consumer; a build-time-only Node evaluation never needs
+ * persistence at all.)
+ */
+const noopStorage: StateStorage = {
+	getItem: () => null,
+	setItem: () => undefined,
+	removeItem: () => undefined,
+};
 
 interface AttentionState {
 	/** Highest critical-event id the operator has seen, per booth. */
@@ -78,7 +100,9 @@ export const useAttentionStore = create<AttentionState>()(
 		}),
 		{
 			name: "attention-seen-v1",
-			storage: createJSONStorage(() => AsyncStorage),
+			storage: createJSONStorage(() =>
+				typeof window === "undefined" ? noopStorage : AsyncStorage,
+			),
 			partialize: (state) => ({
 				lastSeenEventIdByBooth: state.lastSeenEventIdByBooth,
 			}),

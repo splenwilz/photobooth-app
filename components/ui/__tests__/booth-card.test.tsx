@@ -67,6 +67,18 @@ describe("BoothCard attention badge", () => {
 		expect(screen.queryByText("0")).toBeNull();
 	});
 
+	it("renders a non-interactive badge without button semantics when no handler is given", () => {
+		render(<BoothCard booth={booth} attentionCount={2} />);
+
+		// Label still announced, but no false "button" affordance.
+		expect(
+			screen.getByLabelText("2 critical events need attention"),
+		).toBeTruthy();
+		expect(
+			screen.queryByRole("button", { name: /critical events/ }),
+		).toBeNull();
+	});
+
 	it("renders no badge when the count is not provided", () => {
 		render(<BoothCard booth={booth} />);
 

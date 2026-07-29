@@ -11,16 +11,17 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import React from "react";
 import { Alert } from "react-native";
 
+import { useRefundBoothTransaction } from "@/api/booths";
 import type { BoothCriticalEvent } from "@/api/booths/types";
 import type { CriticalEventRow } from "@/utils";
 import { CriticalEventDetailsModal } from "../CriticalEventDetailsModal";
 
 // The modal only pulls useRefundBoothTransaction from the barrel — mock it
-// so submit-flow tests can assert the exact mutation payload.
+// so submit-flow tests can assert the exact mutation payload. (jest.mock is
+// hoisted above imports, so the top-level import receives the mock.)
 jest.mock("@/api/booths", () => ({
 	useRefundBoothTransaction: jest.fn(),
 }));
-const { useRefundBoothTransaction } = require("@/api/booths");
 
 const mutateAsync = jest.fn();
 beforeEach(() => {

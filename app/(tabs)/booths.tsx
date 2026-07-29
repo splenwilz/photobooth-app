@@ -212,7 +212,10 @@ export default function BoothsScreen() {
 		(state) => state.pruneBoothMarkers,
 	);
 	useEffect(() => {
-		if (boothData?.booths?.length) {
+		// Run whenever the roster has LOADED — including the zero-booth case,
+		// where every marker is orphaned and should be pruned. `undefined`
+		// (still loading / no data) must not prune.
+		if (boothData?.booths) {
 			pruneBoothMarkers(boothData.booths.map((booth) => booth.booth_id));
 		}
 	}, [boothData?.booths, pruneBoothMarkers]);

@@ -173,6 +173,7 @@ export default function DashboardScreen() {
 	const {
 		data: criticalEventsData,
 		refetch: refetchCriticalEvents,
+		error: criticalEventsError,
 	} = useBoothCriticalEvents(hasBoothSelected ? selectedBoothId : null);
 	// countCriticalAttention applies the same dedupe as the destination list
 	// screen, so the badge can never disagree with the list: unrefunded
@@ -200,6 +201,10 @@ export default function DashboardScreen() {
 	const attentionOverflow =
 		attentionCount > 0 &&
 		(criticalEventsData?.count ?? 0) > (criticalEventsData?.events.length ?? 0);
+	// A failed fetch with no card rendered would read as "all good" — surface
+	// it (mirrors the Booths tab's attentionUnavailable handling). When the
+	// card IS shown (stale cached count), it already conveys attention.
+	const attentionUnavailable = !!criticalEventsError && attentionCount === 0;
 	const attentionSubtitle = [
 		attention.needsRefund > 0
 			? `${attention.needsRefund} refund${attention.needsRefund === 1 ? "" : "s"} to review`
@@ -541,6 +546,18 @@ export default function DashboardScreen() {
 						)}
 
 						{/* Needs Attention — critical events for this booth only */}
+						{!isAllMode && hasBoothSelected && attentionUnavailable && (
+							<View style={styles.section}>
+								<ThemedText
+									style={[
+										styles.attentionUnavailableText,
+										{ color: textSecondary },
+									]}
+								>
+									Couldn&apos;t check critical events. Pull to retry.
+								</ThemedText>
+							</View>
+						)}
 						{!isAllMode && hasBoothSelected && attentionCount > 0 && (
 							<View style={styles.section}>
 								<TouchableOpacity
@@ -881,6 +898,9 @@ const styles = StyleSheet.create({
 	attentionSubtitle: {
 		fontSize: scaleFont(12),
 		marginTop: 2,
+	},
+	attentionUnavailableText: {
+		fontSize: scaleFont(12),
 	},
 	cashBoxLinkGap: {
 		gap: Spacing.sm,

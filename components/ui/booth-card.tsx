@@ -203,35 +203,56 @@ export const BoothCard: React.FC<BoothCardProps> = ({
 
 				{/* Status Badges Container */}
 				<View style={styles.badgesContainer}>
-					{/* Attention Badge - critical events needing the operator */}
-					{attentionCount > 0 && (
-						<TouchableOpacity
-							style={[
-								styles.attentionBadge,
-								{ backgroundColor: StatusColors.error },
-							]}
-							onPress={onAttentionPress}
-							hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-							accessibilityRole="button"
-							accessibilityLabel={
-								attentionOverflow
-									? `At least ${attentionCount} critical events need attention`
-									: attentionCount === 1
-										? "1 critical event needs attention"
-										: `${attentionCount} critical events need attention`
-							}
-							accessibilityHint="Opens the booth's critical events"
-						>
-							<IconSymbol
-								name="exclamationmark.triangle.fill"
-								size={11}
-								color="white"
-							/>
-							<ThemedText style={styles.attentionText}>
-								{attentionOverflow ? `${attentionCount}+` : attentionCount}
-							</ThemedText>
-						</TouchableOpacity>
-					)}
+					{/* Attention Badge - critical events needing the operator.
+					    Button semantics only when actually tappable — a
+					    non-interactive badge must not announce as a button. */}
+					{attentionCount > 0 &&
+						(() => {
+							const label = attentionOverflow
+								? `At least ${attentionCount} critical events need attention`
+								: attentionCount === 1
+									? "1 critical event needs attention"
+									: `${attentionCount} critical events need attention`;
+							const content = (
+								<>
+									<IconSymbol
+										name="exclamationmark.triangle.fill"
+										size={11}
+										color="white"
+									/>
+									<ThemedText style={styles.attentionText}>
+										{attentionOverflow ? `${attentionCount}+` : attentionCount}
+									</ThemedText>
+								</>
+							);
+							return onAttentionPress ? (
+								<TouchableOpacity
+									style={[
+										styles.attentionBadge,
+										{ backgroundColor: StatusColors.error },
+									]}
+									onPress={onAttentionPress}
+									hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+									accessibilityRole="button"
+									accessibilityLabel={label}
+									accessibilityHint="Opens the booth's critical events"
+								>
+									{content}
+								</TouchableOpacity>
+							) : (
+								<View
+									style={[
+										styles.attentionBadge,
+										{ backgroundColor: StatusColors.error },
+									]}
+									accessible
+									accessibilityRole="text"
+									accessibilityLabel={label}
+								>
+									{content}
+								</View>
+							);
+						})()}
 
 					{/* Hardware Error Badge - Tappable for details */}
 					{booth.has_error && (

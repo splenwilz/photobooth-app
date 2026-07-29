@@ -10,10 +10,16 @@ import { render, screen, waitFor } from "@testing-library/react-native";
 import { useLocalSearchParams } from "expo-router";
 import React from "react";
 
+import {
+	useBoothCriticalEventsInfinite,
+	useBoothTransactions,
+} from "@/api/booths/queries";
 import type { BoothCriticalEvent } from "@/api/booths/types";
 import { useAttentionStore } from "@/stores/attention-store";
 import CriticalEventsScreen from "../[boothId]/critical-events";
 
+// jest.mock is hoisted above imports, so the named imports above receive
+// these mocks.
 jest.mock("@/api/booths/queries", () => ({
 	useBoothCriticalEventsInfinite: jest.fn(),
 	useBoothTransactions: jest.fn(),
@@ -23,11 +29,6 @@ jest.mock("@/api/booths/queries", () => ({
 		reset: jest.fn(),
 	})),
 }));
-
-const {
-	useBoothCriticalEventsInfinite,
-	useBoothTransactions,
-} = require("@/api/booths/queries");
 
 const makeEvent = (
 	overrides: Partial<BoothCriticalEvent>,
