@@ -125,7 +125,13 @@ export function TemplateBuySection({ template }: { template: Template }) {
 
 	if (isPurchasedForBooth) {
 		return (
-			<View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
+			<View
+				style={[
+					styles.section,
+					styles.sectionStatus,
+					{ backgroundColor: cardBg, borderColor },
+				]}
+			>
 				{boothPicker}
 				<View style={styles.purchasedRow}>
 					<IconSymbol
@@ -151,7 +157,13 @@ export function TemplateBuySection({ template }: { template: Template }) {
 		// The picker stays so multi-booth owners can resolve a booth and see
 		// the owned state above.
 		return (
-			<View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
+			<View
+				style={[
+					styles.section,
+					styles.sectionStatus,
+					{ backgroundColor: cardBg, borderColor },
+				]}
+			>
 				{boothPicker}
 				<ThemedText style={[styles.unavailableText, { color: textSecondary }]}>
 					{PURCHASES_UNAVAILABLE_COPY}
@@ -165,7 +177,13 @@ export function TemplateBuySection({ template }: { template: Template }) {
 		if (isBoothsLoading) return null;
 		// A template purchase is per-booth — nothing to buy for without one.
 		return (
-			<View style={[styles.section, { backgroundColor: cardBg, borderColor }]}>
+			<View
+				style={[
+					styles.section,
+					styles.sectionStatus,
+					{ backgroundColor: cardBg, borderColor },
+				]}
+			>
 				<ThemedText style={[styles.unavailableText, { color: textSecondary }]}>
 					Create a booth to buy templates.
 				</ThemedText>
@@ -225,9 +243,17 @@ const styles = StyleSheet.create({
 	section: {
 		borderWidth: 1,
 		borderRadius: BorderRadius.lg,
-		padding: Spacing.md,
+		padding: Spacing.lg,
+		// Match the inset of the sibling cards on the detail screen — without
+		// the horizontal margin this card renders full-bleed and clips.
+		marginHorizontal: Spacing.md,
 		marginTop: Spacing.md,
-		gap: Spacing.sm,
+		gap: Spacing.md,
+	},
+	// Single-line status states (purchased / unavailable) don't need the
+	// full CTA padding — it reads as an oversized empty band.
+	sectionStatus: {
+		padding: Spacing.md,
 	},
 	unavailableText: {
 		fontSize: scaleFont(14),
