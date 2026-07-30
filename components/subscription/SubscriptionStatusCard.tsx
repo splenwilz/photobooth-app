@@ -7,7 +7,10 @@
  * other storefront the card stays read-only with no purchase affordance.
  */
 
-import { useBoothSubscription, useSubscriptionAccess } from "@/api/payments";
+import {
+	useBoothSubscriptionState,
+	useSubscriptionAccess,
+} from "@/api/payments";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
@@ -20,6 +23,7 @@ import {
 } from "@/constants/theme";
 import { useExternalPurchases } from "@/hooks/use-external-purchases";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { getStatusDisplay } from "./subscription-status";
 import { router } from "expo-router";
 import {
 	ActivityIndicator,
@@ -37,50 +41,10 @@ interface SubscriptionStatusCardProps {
 	planName?: string | null;
 }
 
-/**
- * Get status color based on subscription status
- */
-function getStatusColor(status: string | null): string {
-	switch (status) {
-		case "active":
-			return StatusColors.success;
-		case "trialing":
-			return BRAND_COLOR;
-		case "past_due":
-			return StatusColors.warning;
-		case "canceled":
-		case "unpaid":
-		case "incomplete":
-		case "incomplete_expired":
-			return StatusColors.error;
-		default:
-			return StatusColors.neutral;
-	}
-}
-
-/**
- * Get human-readable status text
- */
-function getStatusText(status: string | null): string {
-	switch (status) {
-		case "active":
-			return "Active";
-		case "trialing":
-			return "Trial";
-		case "past_due":
-			return "Past Due";
-		case "canceled":
-			return "Canceled";
-		case "unpaid":
-			return "Unpaid";
-		case "incomplete":
-			return "Incomplete";
-		case "incomplete_expired":
-			return "Expired";
-		default:
-			return "No Subscription";
-	}
-}
+// Status labels/colours come from the shared map so this card and the details
+// sheet can never disagree about the same booth. The card previously had its
+// own switch whose default returned "No Subscription" for any unrecognised
+// status — telling the user they had nothing when we simply didn't know.
 
 /**
  * Format date for display
@@ -112,9 +76,16 @@ export function SubscriptionStatusCard({
 	const borderColor = useThemeColor({}, "border");
 	const textSecondary = useThemeColor({}, "textSecondary");
 
-	// Use booth subscription if boothId provided, otherwise user-level subscription
-	const { data: boothSubscription, isLoading: isBoothLoading } =
-		useBoothSubscription(boothId ?? null);
+	// Per-booth reads use the always-200 state endpoint: a booth that never
+	// subscribed reports state: "none" as data. The older
+	// GET /booths/{id}/subscription returns 404 for the same situation, which
+	// this card only rendered correctly because it ignored `error` and fell
+	// through on undefined data.
+	const {
+		data: boothSubscription,
+		isLoading: isBoothLoading,
+		isError: isBoothError,
+	} = useBoothSubscriptionState(boothId ?? null);
 	const { data: userAccess, isLoading: isUserLoading } = useSubscriptionAccess();
 	const { enabled: canPurchase } = useExternalPurchases();
 
@@ -136,17 +107,39 @@ export function SubscriptionStatusCard({
 		? boothSubscription?.cancel_at_period_end ?? false
 		: false;
 
-	const statusColor = getStatusColor(status);
-	const statusText = getStatusText(status);
+	const { color: statusColor, text: statusText } = getStatusDisplay(status);
 
-	// Dedicated empty state for "never subscribed" (status === null). Lapsed
-	// states (canceled / past_due / unpaid) keep the status-badge layout below
-	// so the user sees what happened to their previous subscription.
-	const isNeverSubscribed = !hasSubscription && status === null;
+	// A booth can be fully paid and still refuse to run when it has no hardware
+	// identity on file. That is not a billing problem and is not fixed by
+	// anything on this card, so it is surfaced as its own notice.
+	// Suppressed for dead subscriptions: telling the owner of a cancelled booth
+	// to "scan the QR code to activate it" is noise — activation is not what is
+	// wrong, and acting on it would not help.
+	const activationRequired = isPerBooth
+		? (boothSubscription?.activation_required ?? false) &&
+			boothSubscription?.state !== "canceled" &&
+			boothSubscription?.state !== "none"
+		: false;
+
+	// Dedicated empty state for "never subscribed". Lapsed states (canceled /
+	// past_due / unpaid) keep the status-badge layout below so the user sees
+	// what happened to their previous subscription.
+	const isNeverSubscribed = isPerBooth
+		? boothSubscription?.state === "none"
+		: !hasSubscription && status === null;
+
+	// Anything that isn't "never subscribed" has a subscription to manage —
+	// including lapsed ones. Gating this on is_active made the details sheet,
+	// and therefore card update, unreachable for exactly the booths that need
+	// it: the "fix a lapsed booth" case this whole feature exists for.
+	const canOpenDetails = isPerBooth
+		? !!boothSubscription && boothSubscription.state !== "none"
+		: hasSubscription;
 
 	// Shared Subscribe CTA — US storefront only (external purchase gate).
-	// Rendered by both the never-subscribed empty state and lapsed statuses.
-	const subscribeCta = canPurchase && isPerBooth && !!boothId && (
+	// Only for booths with no subscription at all: offering it for a lapsed
+	// booth would start a SECOND subscription alongside the unpaid one.
+	const subscribeCta = canPurchase && isNeverSubscribed && isPerBooth && !!boothId && (
 		<TouchableOpacity
 			accessibilityRole="button"
 			style={[styles.subscribeButton, { backgroundColor: BRAND_COLOR }]}
@@ -166,6 +159,38 @@ export function SubscriptionStatusCard({
 					<ThemedText style={[styles.loadingText, { color: textSecondary }]}>
 						Loading subscription...
 					</ThemedText>
+				</View>
+			</View>
+		);
+	}
+
+	// A failed read is not evidence of "no subscription". Rendering the empty or
+	// lapsed layout here would tell a paying customer they have nothing — and,
+	// on the US storefront, offer to sell them a duplicate.
+	if (isPerBooth && isBoothError && !boothSubscription) {
+		return (
+			<View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+				<View style={styles.emptyRow}>
+					<View
+						style={[
+							styles.iconContainer,
+							{ backgroundColor: withAlpha(StatusColors.neutral, 0.12) },
+						]}
+					>
+						<IconSymbol
+							name="exclamationmark.triangle"
+							size={24}
+							color={StatusColors.neutral}
+						/>
+					</View>
+					<View style={styles.emptyTextWrap}>
+						<ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+							Couldn&apos;t load subscription
+						</ThemedText>
+						<ThemedText style={[styles.emptyMessage, { color: textSecondary }]}>
+							Pull down to refresh.
+						</ThemedText>
+					</View>
 				</View>
 			</View>
 		);
@@ -252,8 +277,13 @@ export function SubscriptionStatusCard({
 					</View>
 				</View>
 
-				{onViewDetails && hasSubscription && (
-					<TouchableOpacity onPress={onViewDetails} hitSlop={8}>
+				{onViewDetails && canOpenDetails && (
+					<TouchableOpacity
+						accessibilityRole="button"
+						accessibilityLabel="View subscription details"
+						onPress={onViewDetails}
+						hitSlop={8}
+					>
 						<IconSymbol
 							name="chevron.right"
 							size={20}
@@ -280,6 +310,28 @@ export function SubscriptionStatusCard({
 							: "No active subscription"}
 			</ThemedText>
 
+			{/* Paid but unrunnable — a billing-independent problem, so it gets its
+			    own line rather than being folded into the status above. */}
+			{activationRequired && (
+				<View
+					style={[
+						styles.activationNotice,
+						{ backgroundColor: withAlpha(StatusColors.warning, 0.1) },
+					]}
+				>
+					<IconSymbol
+						name="exclamationmark.triangle"
+						size={16}
+						color={StatusColors.warning}
+					/>
+					<ThemedText
+						style={[styles.activationText, { color: StatusColors.warning }]}
+					>
+						Not linked to hardware — scan the booth&apos;s QR code to activate it.
+					</ThemedText>
+				</View>
+			)}
+
 			{!hasSubscription && subscribeCta}
 		</View>
 	);
@@ -290,6 +342,19 @@ const styles = StyleSheet.create({
 		padding: Spacing.md,
 		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
+	},
+	activationNotice: {
+		flexDirection: "row",
+		alignItems: "flex-start",
+		gap: Spacing.xs,
+		marginTop: Spacing.sm,
+		padding: Spacing.sm,
+		borderRadius: BorderRadius.md,
+	},
+	activationText: {
+		flex: 1,
+		fontSize: scaleFont(13),
+		lineHeight: 18,
 	},
 	subscribeButton: {
 		marginTop: Spacing.sm,

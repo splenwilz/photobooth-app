@@ -243,10 +243,12 @@ export const queryKeys = {
     boothSubscriptions: () => ['payments', 'boothSubscriptions'] as const,
 
     /**
-     * Get single booth subscription status
-     * @see GET /api/v1/booths/{booth_id}/subscription
+     * Get single booth subscription state (always 200, `state: "none"` when
+     * the booth has no subscription)
+     * @see GET /api/v1/booths/{booth_id}/subscription/state
      */
-    boothSubscription: (boothId: string) => ['payments', 'boothSubscription', boothId] as const,
+    boothSubscriptionState: (boothId: string) =>
+      ['payments', 'boothSubscriptionState', boothId] as const,
   },
 
   /**

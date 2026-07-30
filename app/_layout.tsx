@@ -30,6 +30,7 @@ import { queryClient } from "@/api/query-client";
 import { SplashScreen } from "@/components/splash-screen";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDeepLinks } from "@/hooks/use-deep-links";
+import { useQueryFocusManager } from "@/hooks/use-query-focus-manager";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { useBoothStore } from "@/stores/booth-store";
 
@@ -46,6 +47,11 @@ export const unstable_settings = {
  */
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+
+  // Bridge AppState -> React Query's focusManager. Without this,
+  // refetchOnWindowFocus does nothing on native and data changed elsewhere
+  // (e.g. a subscription cancelled at a kiosk) stays stale on screen.
+  useQueryFocusManager();
 
   // Handle deep links for payment callbacks and email notification redirects
   useDeepLinks();

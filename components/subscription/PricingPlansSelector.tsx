@@ -13,7 +13,10 @@
  */
 
 import { usePricingPlans, type PricingPlan } from "@/api/pricing";
-import { useCreateBoothCheckout } from "@/api/payments";
+import {
+	invalidateBoothBillingQueries,
+	useCreateBoothCheckout,
+} from "@/api/payments";
 import { queryKeys } from "@/api/utils/query-keys";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -165,20 +168,9 @@ export function PricingPlansSelector({
 						// and dismissed the sheet before the success redirect
 						// fired — only the server knows the outcome. Invalidation
 						// is cheap and idempotent; success-only UX stays below.
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.access(),
-						});
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.subscription(),
-						});
+						invalidateBoothBillingQueries(queryClient, boothId);
 						queryClient.invalidateQueries({
 							queryKey: queryKeys.booths.detail(boothId),
-						});
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.boothSubscription(boothId),
-						});
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.boothSubscriptions(),
 						});
 					}
 

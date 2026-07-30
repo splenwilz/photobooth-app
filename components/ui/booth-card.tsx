@@ -35,6 +35,12 @@ interface BoothCardSubscriptionInfo {
 	status: SubscriptionStatus | null;
 	/** Whether subscription will cancel at period end */
 	cancel_at_period_end?: boolean;
+	/**
+	 * Booth is paid but has no hardware identity on file, so it will not run.
+	 * Distinct from a billing problem — shown so the fleet view stops reporting
+	 * such a booth as simply healthy.
+	 */
+	activation_required?: boolean;
 }
 
 interface BoothCardProps {
@@ -116,6 +122,15 @@ const getSubscriptionDisplay = (
 	}
 
 	if (subscriptionStatus.is_active) {
+		// Paid but unrunnable outranks the billing badge: "Subscribed" on a booth
+		// that cannot start is the misleading case this field was added to fix.
+		if (subscriptionStatus.activation_required) {
+			return {
+				label: "Not activated",
+				color: StatusColors.warning,
+				icon: "exclamationmark.triangle",
+			};
+		}
 		if (subscriptionStatus.cancel_at_period_end) {
 			return {
 				label: "Expiring",

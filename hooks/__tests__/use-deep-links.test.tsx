@@ -103,8 +103,11 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 		expect(invalidateSpy).toHaveBeenCalledWith({
 			queryKey: ["payments", "access"],
 		});
+		// The always-200 state read backs the Settings card and details sheet —
+		// a cold-start return from checkout must refresh it, or the booth the
+		// user just paid for still reads as unsubscribed.
 		expect(invalidateSpy).toHaveBeenCalledWith({
-			queryKey: ["payments", "boothSubscription", "abc"],
+			queryKey: ["payments", "boothSubscriptionState", "abc"],
 		});
 		expect(invalidateSpy).toHaveBeenCalledWith({
 			queryKey: ["booths", "detail", "abc"],

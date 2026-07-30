@@ -81,7 +81,7 @@ export function useActivateBooth() {
 
 	return useMutation({
 		mutationFn: (data: ActivateBoothRequest) => activateBooth(data),
-		onSuccess: (result) => {
+		onSuccess: (result, variables) => {
 			if (result.success) {
 				// Invalidate booth list to show newly activated booth
 				queryClient.invalidateQueries({
@@ -98,6 +98,17 @@ export function useActivateBooth() {
 				queryClient.invalidateQueries({
 					queryKey: queryKeys.payments.boothSubscriptions(),
 				});
+				// Activation clears `activation_required`, which drives the
+				// "Not linked to hardware" notice on the state read. Without this
+				// the warning lingers for the full staleTime after a successful
+				// scan.
+				if (variables.booth_id) {
+					queryClient.invalidateQueries({
+						queryKey: queryKeys.payments.boothSubscriptionState(
+							variables.booth_id,
+						),
+					});
+				}
 			}
 		},
 	});

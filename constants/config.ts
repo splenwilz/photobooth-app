@@ -38,7 +38,21 @@ export const WEB_URLS = {
  * local .env (ngrok URLs) into the production bundle.
  */
 export const EXTERNAL_PURCHASES = {
-    /** Base URL for checkout success/cancel redirect pages on the website. */
+    /**
+     * Base URL for website pages Stripe redirects to — checkout
+     * success/cancel and billing-portal return.
+     *
+     * Points at a tunnel host in development ON PURPOSE: /checkout/success is a
+     * real page that bounces back into the app via the boothiq:// scheme, and
+     * Stripe cannot reach localhost. So it must be whatever host is actually
+     * serving the site.
+     *
+     * NOTE: the backend validates billing-portal `return_url` against a host
+     * allowlist and rejects anything off it with `422 invalid_return_url`.
+     * Production (boothiq.com and its subdomains) is allowlisted by default; a
+     * dev tunnel host has to be added to the backend's
+     * PORTAL_RETURN_URL_ALLOWED_HOSTS or portal calls fail in development.
+     */
     WEBSITE_URL: process.env.EXPO_PUBLIC_WEBSITE_URL || 'https://boothiq.com',
 } as const;
 

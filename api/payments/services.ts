@@ -18,10 +18,15 @@ import { apiClient } from "../client";
 import type {
 	BoothSubscriptionItem,
 	BoothSubscriptionsListResponse,
+	BoothSubscriptionStateResponse,
+	CancelBoothSubscriptionResponse,
 	CreateBoothCheckoutRequest,
+	CreateBoothPortalRequest,
+	CreateBoothPortalResponse,
 	CreateCheckoutResponse,
 	CustomerPortalRequest,
 	CustomerPortalResponse,
+	ResumeBoothSubscriptionResponse,
 	SubscriptionAccessResponse,
 	SubscriptionDetailsResponse,
 } from "./types";
@@ -93,30 +98,9 @@ export async function getBoothSubscriptions(): Promise<BoothSubscriptionsListRes
 	return response;
 }
 
-/**
- * Get single booth subscription status
- *
- * Returns subscription details for a specific booth.
- *
- * @param boothId - Booth ID to get subscription for
- * @returns Booth subscription status
- *
- * @example
- * const subscription = await getBoothSubscription("booth-123");
- * if (subscription.is_active) {
- *   console.log("Booth has active subscription");
- * }
- */
-export async function getBoothSubscription(
-	boothId: string,
-): Promise<BoothSubscriptionItem> {
-	if (!boothId) throw new Error("Booth ID is required for getBoothSubscription");
-	const response = await apiClient<BoothSubscriptionItem>(
-		`/api/v1/booths/${boothId}/subscription`,
-		{ method: "GET" },
-	);
-	return response;
-}
+// `getBoothSubscription` (GET /booths/{id}/subscription) was REMOVED — it 404s
+// when a booth has no subscription, which models a normal state as a failure.
+// Use `getBoothSubscriptionState` below, which always returns 200.
 
 // ============================================================================
 // EXTERNAL CHECKOUT + PORTAL (US storefront only)
@@ -132,7 +116,7 @@ export async function createBoothCheckout(
 	data: CreateBoothCheckoutRequest,
 ): Promise<CreateCheckoutResponse> {
 	const response = await apiClient<CreateCheckoutResponse>(
-		`/api/v1/booths/${data.booth_id}/subscription/checkout`,
+		`/api/v1/booths/${encodeURIComponent(data.booth_id)}/subscription/checkout`,
 		{ method: "POST", body: JSON.stringify(data) },
 	);
 	return response;
@@ -149,4 +133,91 @@ export async function getCustomerPortal(
 		method: "POST",
 		body: JSON.stringify(data),
 	});
+}
+
+// ============================================================================
+// PER-BOOTH SUBSCRIPTION MANAGEMENT
+// ============================================================================
+
+/**
+ * Get one booth's subscription state.
+ *
+ * Always 200 for an owned booth — a booth with no subscription reports
+ * `state: "none"` rather than 404. Prefer this over `getBoothSubscription`,
+ * which models "never subscribed" as a fetch failure.
+ */
+export async function getBoothSubscriptionState(
+	boothId: string,
+): Promise<BoothSubscriptionStateResponse> {
+	if (!boothId)
+		throw new Error("Booth ID is required for getBoothSubscriptionState");
+	return apiClient<BoothSubscriptionStateResponse>(
+		`/api/v1/booths/${encodeURIComponent(boothId)}/subscription/state`,
+		{ method: "GET" },
+	);
+}
+
+/**
+ * Mint a Stripe portal session deep-linked to one action on one booth's
+ * subscription.
+ *
+ * `booth_id` travels in the path and the subscription is resolved server-side,
+ * so the request body carries only `flow` and `return_url`. The returned
+ * `portal_url` is a bearer credential — hand it straight to the browser.
+ */
+export async function createBoothPortalSession(
+	data: CreateBoothPortalRequest,
+): Promise<CreateBoothPortalResponse> {
+	if (!data.booth_id)
+		throw new Error("Booth ID is required for createBoothPortalSession");
+	return apiClient<CreateBoothPortalResponse>(
+		`/api/v1/booths/${encodeURIComponent(data.booth_id)}/subscription/portal`,
+		{
+			method: "POST",
+			body: JSON.stringify({
+				flow: data.flow,
+				return_url: data.return_url,
+			}),
+		},
+	);
+}
+
+/**
+ * Schedule a booth's subscription to cancel at period end.
+ *
+ * `cancel_immediately` is pinned to `false` and deliberately not a parameter.
+ * An immediate cancel invalidates the booth's signed licence at once and can
+ * stop a booth mid-event, so the app must not be able to request one — the
+ * booth-side flow is hard-wired to period-end for the same reason.
+ */
+export async function cancelBoothSubscription(
+	boothId: string,
+): Promise<CancelBoothSubscriptionResponse> {
+	if (!boothId)
+		throw new Error("Booth ID is required for cancelBoothSubscription");
+	// A QUERY PARAMETER, not a body field — the endpoint declares no requestBody,
+	// so a JSON body is silently discarded. Sent explicitly rather than relying
+	// on the server default so the intent is visible in logs and tests.
+	return apiClient<CancelBoothSubscriptionResponse>(
+		`/api/v1/booths/${encodeURIComponent(boothId)}/subscription/cancel?cancel_immediately=false`,
+		{ method: "POST" },
+	);
+}
+
+/**
+ * Clear a scheduled cancellation, before the period actually elapses.
+ *
+ * Conflicts arrive as `ApiError.code`: `period_elapsed` (offer checkout
+ * instead), `not_scheduled_to_cancel` (nothing to undo), `no_subscription`,
+ * `stripe_unavailable` (retryable).
+ */
+export async function resumeBoothSubscription(
+	boothId: string,
+): Promise<ResumeBoothSubscriptionResponse> {
+	if (!boothId)
+		throw new Error("Booth ID is required for resumeBoothSubscription");
+	return apiClient<ResumeBoothSubscriptionResponse>(
+		`/api/v1/booths/${encodeURIComponent(boothId)}/subscription/resume`,
+		{ method: "POST" },
+	);
 }

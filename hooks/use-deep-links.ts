@@ -29,14 +29,20 @@ import * as Linking from "expo-linking";
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Alert } from "react-native";
+import { invalidateBoothBillingQueries } from "@/api/payments";
 import { queryKeys } from "@/api/utils/query-keys";
 import { CHECKOUT_RETURN_PATHS } from "@/constants/config";
 import { useBoothStore } from "@/stores/booth-store";
 
-/** Refresh subscription/access data (used by the settings + billing routes). */
+/**
+ * Refresh subscription/access data (used by the settings + billing routes).
+ *
+ * Delegates to the shared helper so every payments key stays in one place — the
+ * per-booth state read was previously missed here, leaving a user who had just
+ * paid looking at "No active subscription".
+ */
 function invalidatePaymentQueries(queryClient: QueryClient): void {
-	queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
-	queryClient.invalidateQueries({ queryKey: queryKeys.payments.subscription() });
+	invalidateBoothBillingQueries(queryClient);
 }
 
 /**
@@ -102,14 +108,8 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 			// the auth-session interception in the purchase hooks.
 			case CHECKOUT_RETURN_PATHS.PAYMENT_SUCCESS: {
 				const boothId = parsed.queryParams?.booth_id as string | undefined;
-				invalidatePaymentQueries(queryClient);
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.payments.boothSubscriptions(),
-				});
+				invalidateBoothBillingQueries(queryClient, boothId);
 				if (boothId) {
-					queryClient.invalidateQueries({
-						queryKey: queryKeys.payments.boothSubscription(boothId),
-					});
 					queryClient.invalidateQueries({
 						queryKey: queryKeys.booths.detail(boothId),
 					});
