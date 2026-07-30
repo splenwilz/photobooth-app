@@ -231,6 +231,50 @@ describe("cancellation", () => {
 		expect(queryByText("Cancel subscription")).toBeNull();
 	});
 
+	it("describes a cancelled subscription as ended, not renewing", () => {
+		// The sheet used to read "Renews on <date>" / "Auto-Renewal: On" for a
+		// booth the card one tap away described as expired.
+		mockUseBoothSubscriptionState.mockReturnValue({
+			data: {
+				...activeBooth,
+				state: "canceled",
+				status: "canceled",
+				is_active: false,
+				cancel_at_period_end: false,
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		const { getByText, queryByText } = renderWithProviders(
+			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
+		);
+
+		expect(getByText("Ended on")).toBeTruthy();
+		expect(queryByText("Renews on")).toBeNull();
+		expect(getByText("Off")).toBeTruthy();
+	});
+
+	it("keeps the sheet usable when a background refetch fails", () => {
+		// A failed BACKGROUND refetch keeps `data` and sets `error`. Blanking the
+		// sheet then hides the status, the dates and every action from a user who
+		// is looking at perfectly good content — and it is reachable from the
+		// refresh fired when the card-update browser closes.
+		mockUseBoothSubscriptionState.mockReturnValue({
+			data: activeBooth,
+			isLoading: false,
+			error: new Error("Network request failed"),
+		});
+
+		const { getByText, queryByText } = renderWithProviders(
+			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
+		);
+
+		expect(getByText("Auto-Renewal")).toBeTruthy();
+		expect(getByText("Cancel subscription")).toBeTruthy();
+		expect(queryByText(/Failed to load/i)).toBeNull();
+	});
+
 	it("hides the card-update button for a cancelled subscription", () => {
 		// Minting payment_method_update against a dead subscription returns
 		// flow_not_available / no_subscription — a button guaranteed to fail.

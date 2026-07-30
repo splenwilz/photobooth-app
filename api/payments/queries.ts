@@ -155,8 +155,15 @@ export function useCreateBoothCheckout() {
  * which refreshes payment queries (see use-deep-links.ts).
  */
 export function useCustomerPortal() {
-	// Non-idempotent session creation; see useCreateBoothCheckout.
-	return useMutation({ mutationFn: getCustomerPortal, retry: false });
+	return useMutation({
+		mutationFn: getCustomerPortal,
+		// Non-idempotent session creation; see useCreateBoothCheckout.
+		retry: false,
+		// Same bearer-credential reasoning as useBoothPortalSession: reset() at
+		// the call site detaches the observer, but without this the mutation —
+		// and its portal_url — lingers in the cache for the default 5 minutes.
+		gcTime: 0,
+	});
 }
 
 // ============================================================================
@@ -215,14 +222,33 @@ export function invalidateBoothBillingQueries(
 		queryKey: queryKeys.payments.boothSubscriptions(),
 	});
 
+	if (boothId) {
+		queryClient.invalidateQueries({
+			queryKey: queryKeys.payments.boothSubscriptionState(boothId),
+		});
+		return;
+	}
+
 	// With no booth in hand — e.g. the boothiq://settings portal return, which
-	// carries no id — invalidate the whole per-booth prefix. Returning early
-	// here is what left Settings showing a stale subscription after a web
+	// carries no id — invalidate every real per-booth entry. Returning early
+	// instead is what left Settings showing a stale subscription after a web
 	// portal cancel, since that screen renders from the state read.
+	//
+	// A predicate rather than a bare prefix: disabled instances of the hook park
+	// on the `""` sentinel key as ACTIVE skipToken queries, and a prefix match
+	// would try to fetch them — which logs a dev console error and drops them
+	// into an error state.
+	const [scope, entity] = queryKeys.payments.boothSubscriptionState("__");
 	queryClient.invalidateQueries({
-		queryKey: boothId
-			? queryKeys.payments.boothSubscriptionState(boothId)
-			: ["payments", "boothSubscriptionState"],
+		predicate: (query) => {
+			const [queryScope, queryEntity, id] = query.queryKey;
+			return (
+				queryScope === scope &&
+				queryEntity === entity &&
+				typeof id === "string" &&
+				id !== ""
+			);
+		},
 	});
 }
 

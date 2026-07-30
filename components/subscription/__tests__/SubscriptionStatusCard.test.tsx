@@ -222,12 +222,12 @@ describe("SubscriptionStatusCard — Apple-compliance contract", () => {
 		expect(queryByLabelText("View subscription details")).toBeNull();
 	});
 
-	it("is not a dead end for a cancelled booth", () => {
-		// Regression: restricting Subscribe to `state === "none"` left a cancelled
-		// booth with no action anywhere — the card's CTA branch became
-		// unreachable, and the sheet has no Cancel (not active), no Resume (not
-		// scheduled) and no card update (nothing to re-card). A cancelled
-		// subscription has ended, so subscribing duplicates nothing.
+	it("shows a cancelled booth as expired, not renewing", () => {
+		// The card and the details sheet must agree: a cancelled subscription has
+		// ended. (The sheet's matching labels are covered in its own suite.)
+		// The Subscribe CTA for this state needs the storefront gate open, so it
+		// is asserted in external-purchase-entry-points.test.tsx rather than here,
+		// where the gate is closed.
 		mockUseBoothSubscriptionState.mockReturnValue({
 			data: {
 				booth_id: "booth-1",
@@ -244,12 +244,14 @@ describe("SubscriptionStatusCard — Apple-compliance contract", () => {
 			isLoading: false,
 		});
 
-		const { getByLabelText } = renderWithProviders(
+		const { getByText, getByLabelText, queryByText } = renderWithProviders(
 			<SubscriptionStatusCard boothId="booth-1" onViewDetails={jest.fn()} />,
 		);
 
-		// The sheet remains reachable; the Subscribe CTA itself is storefront
-		// gated and covered in external-purchase-entry-points.test.tsx.
+		expect(getByText("Canceled")).toBeTruthy();
+		expect(getByText(/Expires:/)).toBeTruthy();
+		expect(queryByText(/Renews:/)).toBeNull();
+		// Still reachable, so the sheet can offer the one action that applies.
 		expect(getByLabelText("View subscription details")).toBeTruthy();
 	});
 

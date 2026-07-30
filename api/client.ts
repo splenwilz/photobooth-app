@@ -184,14 +184,16 @@ async function parseErrorResponse(
       if (errorValue.error && typeof errorValue.error === "string") {
         return { message: errorValue.error, code };
       }
-      // Deliberately NOT JSON.stringify(errorValue): a body such as
-      // {"detail": {"code": "flow_not_available"}} has no human-readable text,
-      // and stringifying it put raw JSON in front of users via the alert paths
-      // that fall back to `error.message`.
-      return {
-        message: response.statusText || "An error occurred",
-        code,
-      };
+      // Last resort. This CAN be raw JSON for a body like
+      // {"detail": {"code": "flow_not_available"}} — display layers must not
+      // echo it blindly (see looksLikeSerialisedObject in
+      // components/subscription/billing-errors.ts).
+      //
+      // Do NOT "fix" this by substituting response.statusText: React Native's
+      // XMLHttpRequest never sets statusText, so it is always "", and a truthy
+      // generic here silently overrides every `error.message || "<specific>"`
+      // fallback in the app.
+      return { message: JSON.stringify(errorValue), code };
     }
 
     // Fallback to error text

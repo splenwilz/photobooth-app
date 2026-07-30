@@ -19,6 +19,28 @@ import { type BoothBillingErrorCode, isBoothBillingErrorCode } from "@/api/payme
  * bare `{"detail": "unauthorized"}` parses as a code, and without the guard it
  * could match a branch by accident.
  */
+/**
+ * True when a message is a serialised object rather than prose.
+ *
+ * The API client falls back to `JSON.stringify` for error bodies with no
+ * human-readable text (e.g. `{"detail": {"code": "flow_not_available"}}`).
+ * That is useful for logs and useless to a user, so the copy helpers below
+ * fall through to their own wording instead of echoing it.
+ */
+function looksLikeSerialisedObject(message: string): boolean {
+	const trimmed = message.trim();
+	return (
+		(trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+		(trimmed.startsWith("[") && trimmed.endsWith("]"))
+	);
+}
+
+/** `error.message`, unless it is a serialised body rather than prose. */
+function readableMessage(error: unknown): string | undefined {
+	if (!(error instanceof Error) || !error.message) return undefined;
+	return looksLikeSerialisedObject(error.message) ? undefined : error.message;
+}
+
 export function errorCodeOf(error: unknown): BoothBillingErrorCode | undefined {
 	if (typeof error === "object" && error !== null && "code" in error) {
 		const { code } = error as { code?: unknown };
@@ -64,10 +86,7 @@ export function portalErrorMessage(error: unknown): string {
 		case "stripe_unavailable":
 			return "Billing is temporarily unavailable. Try again in a moment.";
 		default:
-			return (
-				(error instanceof Error && error.message) ||
-				"Could not open the billing page."
-			);
+			return readableMessage(error) ?? "Could not open the billing page.";
 	}
 }
 
@@ -95,8 +114,7 @@ export function mutationErrorMessage(
 			return "Billing is temporarily unavailable. Try again in a moment.";
 		default:
 			return (
-				(error instanceof Error && error.message) ||
-				`Could not ${action} the subscription.`
+				readableMessage(error) ?? `Could not ${action} the subscription.`
 			);
 	}
 }

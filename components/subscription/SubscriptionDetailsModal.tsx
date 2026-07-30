@@ -169,6 +169,12 @@ export function SubscriptionDetailsModal({
 
 	const statusInfo = getStatusDisplay(subscription?.status);
 
+	// A dead subscription neither renews nor "ends on" a future date — it has
+	// already ended. Without this the sheet claimed "Renews on <date>" and
+	// "Auto-Renewal: On" for a cancelled booth the card described as expired.
+	const hasEnded =
+		isPerBooth && !!boothSubscription && !boothSubscription.is_active;
+
 	// Card update opens Stripe on the web, so it is an external purchase
 	// surface and stays US-only. Cancel and resume call our own API and present
 	// no purchasing mechanism, so they ship on every storefront.
@@ -438,8 +444,11 @@ export function SubscriptionDetailsModal({
 						</View>
 					)}
 
-					{/* Error State */}
-					{error && !isLoading && (
+					{/* Error State — only when there is no data to fall back on. A
+					    failed BACKGROUND refetch keeps `data` and sets `error`, and
+					    blanking the sheet in that case hides every action from a user
+					    who is looking at perfectly good content. */}
+					{error && !isLoading && !subscription && !isNeverSubscribed && (
 						<View style={styles.errorContainer}>
 							<IconSymbol
 								name="exclamationmark.triangle"
@@ -461,7 +470,7 @@ export function SubscriptionDetailsModal({
 					{/* No subscription at all. Without this branch the sheet rendered
 					    an empty ScrollView under the header: `subscription` is null
 					    and neither the loading nor the error branch applies. */}
-					{isNeverSubscribed && !isLoading && !error && (
+					{isNeverSubscribed && !isLoading && (
 						<View style={styles.emptyContainer}>
 							<IconSymbol
 								name="star.fill"
@@ -502,7 +511,7 @@ export function SubscriptionDetailsModal({
 					)}
 
 					{/* Subscription Details */}
-					{subscription && !isLoading && !error && (
+					{subscription && !isLoading && (
 						<>
 							{/* Status header — name + status pill in one compact row */}
 							<View
@@ -555,7 +564,11 @@ export function SubscriptionDetailsModal({
 							>
 								<View style={styles.detailRow}>
 									<ThemedText style={[styles.detailLabel, { color: textSecondary }]}>
-										{subscription.cancel_at_period_end ? "Ends on" : "Renews on"}
+										{hasEnded
+											? "Ended on"
+											: subscription.cancel_at_period_end
+												? "Ends on"
+												: "Renews on"}
 									</ThemedText>
 									<ThemedText type="defaultSemiBold" style={styles.detailValue}>
 										{formatDate(subscription.current_period_end)}
@@ -569,7 +582,7 @@ export function SubscriptionDetailsModal({
 										Auto-Renewal
 									</ThemedText>
 									<ThemedText type="defaultSemiBold" style={styles.detailValue}>
-										{subscription.cancel_at_period_end ? "Off" : "On"}
+										{hasEnded || subscription.cancel_at_period_end ? "Off" : "On"}
 									</ThemedText>
 								</View>
 
@@ -692,7 +705,23 @@ export function SubscriptionDetailsModal({
 											</TouchableOpacity>
 										)}
 
-									{/* Card update needs Stripe's own UI to take card
+									{/* Every action above is storefront-gated or state-gated.
+								    Where none applies, say why rather than leaving the
+								    sheet blank. Deliberately descriptive with no link or
+								    call to action — that is what Guideline 3.1.1(a)
+								    restricts off the US storefront. */}
+								{!canUseWebPortal &&
+									!subscription.is_active &&
+									!subscription.cancel_at_period_end && (
+										<ThemedText
+											style={[styles.emptyMessage, { color: textSecondary }]}
+										>
+											This booth&apos;s subscription is no longer active.
+											Subscriptions are managed on the BoothIQ website.
+										</ThemedText>
+									)}
+
+								{/* Card update needs Stripe's own UI to take card
 									    details, which makes it an external purchase
 									    surface — US storefront only.
 
