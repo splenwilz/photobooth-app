@@ -11,15 +11,6 @@
 import { type BoothBillingErrorCode, isBoothBillingErrorCode } from "@/api/payments";
 
 /**
- * Read the backend's machine-readable code off an error, narrowed to codes this
- * app actually routes on.
- *
- * Duck-typed rather than `instanceof ApiError` so a re-thrown or wrapped error
- * still routes. Narrowed because `ApiError.code` extraction is permissive: a
- * bare `{"detail": "unauthorized"}` parses as a code, and without the guard it
- * could match a branch by accident.
- */
-/**
  * True when a message is a serialised object rather than prose.
  *
  * The API client falls back to `JSON.stringify` for error bodies with no
@@ -35,12 +26,27 @@ function looksLikeSerialisedObject(message: string): boolean {
 	);
 }
 
-/** `error.message`, unless it is a serialised body rather than prose. */
-function readableMessage(error: unknown): string | undefined {
-	if (!(error instanceof Error) || !error.message) return undefined;
-	return looksLikeSerialisedObject(error.message) ? undefined : error.message;
+/**
+ * `error.message`, unless it is unusable as user-facing copy.
+ *
+ * Exported so every surface that shows an API error can apply the same filter —
+ * the raw-JSON problem this guards against is not specific to one screen.
+ */
+export function readableMessage(error: unknown): string | undefined {
+	const message = error instanceof Error ? error.message.trim() : "";
+	if (!message) return undefined;
+	return looksLikeSerialisedObject(message) ? undefined : message;
 }
 
+/**
+ * Read the backend's machine-readable code off an error, narrowed to codes this
+ * app actually routes on.
+ *
+ * Duck-typed rather than `instanceof ApiError` so a re-thrown or wrapped error
+ * still routes. Narrowed because `ApiError.code` extraction is permissive: a
+ * bare `{"detail": "unauthorized"}` parses as a code, and without the guard it
+ * could match a branch by accident.
+ */
 export function errorCodeOf(error: unknown): BoothBillingErrorCode | undefined {
 	if (typeof error === "object" && error !== null && "code" in error) {
 		const { code } = error as { code?: unknown };

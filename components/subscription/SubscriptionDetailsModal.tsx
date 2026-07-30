@@ -31,6 +31,7 @@ import {
 	errorCodeOf,
 	mutationErrorMessage,
 	portalErrorMessage,
+	readableMessage,
 } from "./billing-errors";
 import {
 	canStartNewSubscription,
@@ -172,8 +173,13 @@ export function SubscriptionDetailsModal({
 	// A dead subscription neither renews nor "ends on" a future date — it has
 	// already ended. Without this the sheet claimed "Renews on <date>" and
 	// "Auto-Renewal: On" for a cancelled booth the card described as expired.
-	const hasEnded =
-		isPerBooth && !!boothSubscription && !boothSubscription.is_active;
+	//
+	// Keyed on `canceled` specifically, NOT on `!is_active`: past_due and unpaid
+	// are also inactive, but those subscriptions still exist and Stripe will
+	// retry them, so their period end IS a renewal date and auto-renewal is
+	// still on. Using !is_active here reproduced the same card/sheet
+	// contradiction this flag was added to remove, just for a different state.
+	const hasEnded = isPerBooth && boothSubscription?.state === "canceled";
 
 	// Card update opens Stripe on the web, so it is an external purchase
 	// surface and stays US-only. Cancel and resume call our own API and present
@@ -456,7 +462,7 @@ export function SubscriptionDetailsModal({
 								color={StatusColors.error}
 							/>
 							<ThemedText style={styles.errorText}>
-								{error.message || "Failed to load subscription details"}
+								{readableMessage(error) ?? "Failed to load subscription details"}
 							</ThemedText>
 							<TouchableOpacity
 								style={[styles.retryButton, { borderColor }]}
@@ -507,6 +513,25 @@ export function SubscriptionDetailsModal({
 									</ThemedText>
 								</TouchableOpacity>
 							)}
+						</View>
+					)}
+
+					{/* Nothing else matched. Reachable when a query is PAUSED —
+					    offline with networkMode "online" gives isPending true,
+					    isFetching false, no data and no error, so every branch above
+					    is false. Without a terminal case the sheet renders an empty
+					    panel under the header. */}
+					{!isLoading && !error && !subscription && !isNeverSubscribed && (
+						<View style={styles.emptyContainer}>
+							<IconSymbol
+								name="exclamationmark.triangle"
+								size={40}
+								color={withAlpha(StatusColors.neutral, 0.6)}
+							/>
+							<ThemedText style={[styles.emptyMessage, { color: textSecondary }]}>
+								Subscription details are unavailable. Check your connection and
+								try again.
+							</ThemedText>
 						</View>
 					)}
 
@@ -618,7 +643,7 @@ export function SubscriptionDetailsModal({
 								<>
 									{/* Resume replaces Cancel once a cancellation is
 									    scheduled: they are never both applicable. */}
-									{subscription.cancel_at_period_end ? (
+									{subscription.cancel_at_period_end && subscription.is_active ? (
 										<TouchableOpacity
 											accessibilityRole="button"
 											accessibilityLabel="Resume subscription"
@@ -710,16 +735,13 @@ export function SubscriptionDetailsModal({
 								    sheet blank. Deliberately descriptive with no link or
 								    call to action — that is what Guideline 3.1.1(a)
 								    restricts off the US storefront. */}
-								{!canUseWebPortal &&
-									!subscription.is_active &&
-									!subscription.cancel_at_period_end && (
-										<ThemedText
-											style={[styles.emptyMessage, { color: textSecondary }]}
-										>
-											This booth&apos;s subscription is no longer active.
-											Subscriptions are managed on the BoothIQ website.
-										</ThemedText>
-									)}
+								{!canUseWebPortal && hasEnded && (
+									<ThemedText
+										style={[styles.emptyMessage, { color: textSecondary }]}
+									>
+										This booth&apos;s subscription has ended.
+									</ThemedText>
+								)}
 
 								{/* Card update needs Stripe's own UI to take card
 									    details, which makes it an external purchase

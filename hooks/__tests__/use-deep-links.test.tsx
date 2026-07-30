@@ -124,28 +124,12 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 		// the old subscription for the full staleTime. Invalidate the prefix.
 		const { invalidateSpy } = await fireDeepLink("boothiq://settings");
 
-		const call = invalidateSpy.mock.calls.find(
-			([arg]) => typeof arg?.predicate === "function",
-		);
-		expect(call).toBeTruthy();
-
-		const { predicate } = call![0] as {
-			predicate: (q: { queryKey: readonly unknown[] }) => boolean;
-		};
-		// Matches real per-booth entries...
-		expect(
-			predicate({ queryKey: ["payments", "boothSubscriptionState", "abc"] }),
-		).toBe(true);
-		// ...but NOT the "" sentinel that disabled instances of the hook park on.
-		// That one is an active skipToken query, so matching it would make React
-		// Query try to fetch it — a dev console error and a rejected request.
-		expect(
-			predicate({ queryKey: ["payments", "boothSubscriptionState", ""] }),
-		).toBe(false);
-		// ...and not the sibling list key.
-		expect(
-			predicate({ queryKey: ["payments", "boothSubscriptions"] }),
-		).toBe(false);
+		// A prefix, which partial-matches every ['payments','boothSubscriptionState',<id>]
+		// entry. Disabled instances parked on the "" sentinel are skipToken queries
+		// (enabled: false), so React Query filters them out of the refetch itself.
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ["payments", "boothSubscriptionState"],
+		});
 	});
 
 	it("payment-success without booth_id still refreshes and navigates (no booth selection)", async () => {

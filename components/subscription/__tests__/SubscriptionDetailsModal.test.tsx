@@ -255,6 +255,32 @@ describe("cancellation", () => {
 		expect(getByText("Off")).toBeTruthy();
 	});
 
+	it("still calls a past_due subscription renewing, matching the card", () => {
+		// past_due is inactive but has NOT ended — Stripe retries it, so the
+		// period end is a renewal date and auto-renewal is still on. Keying the
+		// "ended" flag on !is_active made the sheet say "Ended on / Off" for a
+		// booth the card describes as "Renews:".
+		mockUseBoothSubscriptionState.mockReturnValue({
+			data: {
+				...activeBooth,
+				state: "past_due",
+				status: "past_due",
+				is_active: false,
+				cancel_at_period_end: false,
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		const { getByText, queryByText } = renderWithProviders(
+			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
+		);
+
+		expect(getByText("Renews on")).toBeTruthy();
+		expect(queryByText("Ended on")).toBeNull();
+		expect(getByText("On")).toBeTruthy();
+	});
+
 	it("keeps the sheet usable when a background refetch fails", () => {
 		// A failed BACKGROUND refetch keeps `data` and sets `error`. Blanking the
 		// sheet then hides the status, the dates and every action from a user who
@@ -270,9 +296,12 @@ describe("cancellation", () => {
 			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
 		);
 
+		// Discriminating assertions: under the old `&& !error` gating the details
+		// block and every action disappeared, leaving only the error card.
 		expect(getByText("Auto-Renewal")).toBeTruthy();
 		expect(getByText("Cancel subscription")).toBeTruthy();
-		expect(queryByText(/Failed to load/i)).toBeNull();
+		expect(getByText("Renews on")).toBeTruthy();
+		expect(queryByText("Close")).toBeNull();
 	});
 
 	it("hides the card-update button for a cancelled subscription", () => {

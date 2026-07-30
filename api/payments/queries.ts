@@ -230,25 +230,16 @@ export function invalidateBoothBillingQueries(
 	}
 
 	// With no booth in hand — e.g. the boothiq://settings portal return, which
-	// carries no id — invalidate every real per-booth entry. Returning early
+	// carries no id — invalidate the whole per-booth prefix. Returning early
 	// instead is what left Settings showing a stale subscription after a web
 	// portal cancel, since that screen renders from the state read.
 	//
-	// A predicate rather than a bare prefix: disabled instances of the hook park
-	// on the `""` sentinel key as ACTIVE skipToken queries, and a prefix match
-	// would try to fetch them — which logs a dev console error and drops them
-	// into an error state.
-	const [scope, entity] = queryKeys.payments.boothSubscriptionState("__");
+	// The `""` sentinel that disabled instances of the hook park on is NOT a
+	// problem here: skipToken resolves `enabled: false`, so those queries are
+	// disabled and invalidate/refetch filters them out. Verified against the
+	// pinned query-core, not assumed.
 	queryClient.invalidateQueries({
-		predicate: (query) => {
-			const [queryScope, queryEntity, id] = query.queryKey;
-			return (
-				queryScope === scope &&
-				queryEntity === entity &&
-				typeof id === "string" &&
-				id !== ""
-			);
-		},
+		queryKey: ["payments", "boothSubscriptionState"],
 	});
 }
 
