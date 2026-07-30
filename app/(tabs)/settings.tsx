@@ -52,9 +52,12 @@ import {
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
 import {
+	invalidateBoothBillingQueries,
 	useBoothSubscriptionState,
 	useCustomerPortal,
 } from "@/api/payments";
+import { portalErrorMessage } from "@/components/subscription/billing-errors";
+import { useQueryClient } from "@tanstack/react-query";
 import { useExternalPurchases } from "@/hooks/use-external-purchases";
 import * as WebBrowser from "expo-web-browser";
 import { useDeleteAccount } from "@/api/users";
@@ -513,25 +516,34 @@ export default function SettingsScreen() {
 	// surface, so US storefront only.
 	const { enabled: canUseExternalPurchases } = useExternalPurchases();
 	const accountPortal = useCustomerPortal();
+	const queryClient = useQueryClient();
 	const handleOpenAccountBilling = () => {
 		if (accountPortal.isPending) return;
 		accountPortal.mutate(
 			{ return_url: `${EXTERNAL_PURCHASES.WEBSITE_URL}/dashboard` },
 			{
 				onSuccess: async (data) => {
-					if (!data?.portal_url) {
-						Alert.alert("Error", "Could not open billing.");
-						return;
-					}
 					try {
+						if (!data?.portal_url) {
+							throw new Error("Session created without a URL");
+						}
 						// Never logged: the portal URL is a bearer credential.
 						await WebBrowser.openBrowserAsync(data.portal_url);
 					} catch {
 						Alert.alert("Error", "Could not open billing.");
+					} finally {
+						// The account portal can cancel or re-card a subscription, and
+						// only the server knows whether it did. On iOS this browser is
+						// presented in-process, so AppState never leaves "active" and
+						// the focus-driven refetch never fires — without this the
+						// screen keeps showing the pre-portal state for the full
+						// staleTime.
+						invalidateBoothBillingQueries(queryClient);
+						// Drop the bearer URL now it has been consumed.
+						accountPortal.reset();
 					}
 				},
-				onError: (error) =>
-					Alert.alert("Error", error.message || "Could not open billing."),
+				onError: (error) => Alert.alert("Error", portalErrorMessage(error)),
 			},
 		);
 	};

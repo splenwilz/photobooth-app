@@ -23,7 +23,10 @@ import {
 } from "@/constants/theme";
 import { useExternalPurchases } from "@/hooks/use-external-purchases";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import { getStatusDisplay } from "./subscription-status";
+import {
+	canStartNewSubscription,
+	getStatusDisplay,
+} from "./subscription-status";
 import { router } from "expo-router";
 import {
 	ActivityIndicator,
@@ -136,10 +139,19 @@ export function SubscriptionStatusCard({
 		? !!boothSubscription && boothSubscription.state !== "none"
 		: hasSubscription;
 
+	// Which states may start a NEW subscription.
+	//
+	// `none` and `canceled` only. A cancelled subscription has ended, so
+	// subscribing is the correct action and duplicates nothing. `past_due` and
+	// `unpaid` are excluded on purpose: those booths still HAVE a subscription
+	// and need the card fixed, so offering Subscribe would start a second one
+	// alongside the unpaid original.
+	const canSubscribe = isPerBooth
+		? canStartNewSubscription(boothSubscription?.state)
+		: !hasSubscription;
+
 	// Shared Subscribe CTA — US storefront only (external purchase gate).
-	// Only for booths with no subscription at all: offering it for a lapsed
-	// booth would start a SECOND subscription alongside the unpaid one.
-	const subscribeCta = canPurchase && isNeverSubscribed && isPerBooth && !!boothId && (
+	const subscribeCta = canPurchase && canSubscribe && isPerBooth && !!boothId && (
 		<TouchableOpacity
 			accessibilityRole="button"
 			style={[styles.subscribeButton, { backgroundColor: BRAND_COLOR }]}
@@ -332,7 +344,7 @@ export function SubscriptionStatusCard({
 				</View>
 			)}
 
-			{!hasSubscription && subscribeCta}
+			{subscribeCta}
 		</View>
 	);
 }

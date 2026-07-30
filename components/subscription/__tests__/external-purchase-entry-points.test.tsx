@@ -211,6 +211,61 @@ describe("card update — gated (opens Stripe on the web)", () => {
   });
 });
 
+describe("cancelled booths keep a way forward", () => {
+  const cancelled = {
+    data: {
+      ...activeSubscription.data,
+      state: "canceled",
+      status: "canceled",
+      is_active: false,
+      cancel_at_period_end: false,
+    },
+    isLoading: false,
+    error: null,
+  };
+
+  it("offers Subscribe on the card for a cancelled booth", () => {
+    // Restricting Subscribe to state "none" left cancelled booths with no
+    // action at all. They have no live subscription, so this duplicates nothing.
+    mockBoothState.mockReturnValue(cancelled);
+
+    const { getByText } = renderWithClient(
+      <SubscriptionStatusCard boothId="booth-1" />,
+    );
+
+    fireEvent.press(getByText("Subscribe"));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/subscribe",
+      params: { boothId: "booth-1" },
+    });
+  });
+
+  it("still refuses Subscribe for past_due, which would double-bill", () => {
+    mockBoothState.mockReturnValue({
+      ...cancelled,
+      data: { ...cancelled.data, state: "past_due", status: "past_due" },
+    });
+
+    const { queryByText } = renderWithClient(
+      <SubscriptionStatusCard boothId="booth-1" />,
+    );
+    expect(queryByText("Subscribe")).toBeNull();
+  });
+
+  it("offers Subscribe in the sheet too, where no other action applies", () => {
+    mockBoothState.mockReturnValue(cancelled);
+
+    const { getByText, queryByText } = renderWithClient(
+      <SubscriptionDetailsModal visible onClose={jest.fn()} boothId="booth-1" />,
+    );
+
+    expect(getByText("Subscribe")).toBeTruthy();
+    expect(queryByText("Cancel subscription")).toBeNull();
+    expect(queryByText("Resume subscription")).toBeNull();
+    expect(queryByText("Update payment card")).toBeNull();
+  });
+});
+
 describe("cancel and resume — NOT gated (no purchase surface)", () => {
   it("offers Cancel off the US storefront", () => {
     mockGate.mockReturnValue({ enabled: false, isLoading: false });

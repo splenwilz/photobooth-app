@@ -10,6 +10,7 @@
  */
 
 import type { SubscriptionStatus } from "@/api/payments/types";
+import { getStatusDisplay } from "@/components/subscription/subscription-status";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
@@ -122,15 +123,9 @@ const getSubscriptionDisplay = (
 	}
 
 	if (subscriptionStatus.is_active) {
-		// Paid but unrunnable outranks the billing badge: "Subscribed" on a booth
-		// that cannot start is the misleading case this field was added to fix.
-		if (subscriptionStatus.activation_required) {
-			return {
-				label: "Not activated",
-				color: StatusColors.warning,
-				icon: "exclamationmark.triangle",
-			};
-		}
+		// Cancelling outranks activation: "stops billing soon" is the more urgent
+		// signal, and both badges are warning-coloured so there would be no cue
+		// that anything else had changed.
 		if (subscriptionStatus.cancel_at_period_end) {
 			return {
 				label: "Expiring",
@@ -138,11 +133,28 @@ const getSubscriptionDisplay = (
 				icon: "clock",
 			};
 		}
+		// Paid but unrunnable outranks the plain "Subscribed" badge: a booth that
+		// cannot start is the misleading case this field was added to fix.
+		if (subscriptionStatus.activation_required) {
+			return {
+				label: "Not activated",
+				color: StatusColors.warning,
+				icon: "exclamationmark.triangle",
+			};
+		}
 		return {
 			label: "Subscribed",
 			color: StatusColors.success,
 			icon: "checkmark.circle.fill",
 		};
+	}
+
+	// Lapsed states carry real information — rendering them all as
+	// "No Subscription" made the fleet list contradict Settings for the same
+	// booth. Shares the status map with the card and the details sheet.
+	if (subscriptionStatus.status) {
+		const { text, color } = getStatusDisplay(subscriptionStatus.status);
+		return { label: text, color, icon: "exclamationmark.circle" };
 	}
 
 	return {

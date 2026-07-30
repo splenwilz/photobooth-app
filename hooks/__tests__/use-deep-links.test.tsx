@@ -117,6 +117,18 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 		expect(alertSpy).toHaveBeenCalled();
 	});
 
+	it("refreshes per-booth state on the portal return, which carries no booth id", async () => {
+		// boothiq://settings is the Stripe customer-portal return path. It has no
+		// booth_id, and an earlier version early-returned before touching the
+		// per-booth key — so after cancelling on the web, Settings kept showing
+		// the old subscription for the full staleTime. Invalidate the prefix.
+		const { invalidateSpy } = await fireDeepLink("boothiq://settings");
+
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ["payments", "boothSubscriptionState"],
+		});
+	});
+
 	it("payment-success without booth_id still refreshes and navigates (no booth selection)", async () => {
 		const { invalidateSpy } = await fireDeepLink("boothiq://payment-success");
 		expect(invalidateSpy).toHaveBeenCalledWith({

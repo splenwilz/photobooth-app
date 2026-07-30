@@ -56,9 +56,13 @@ export function useRefreshOnFocus(
 	// `ref.current` while rendering as unsupported outside lazy initialisation,
 	// and under concurrent rendering a discarded render would still have
 	// mutated the ref.
+	// Keyed on the hash, not the array: callers pass a fresh array from a
+	// queryKeys factory on every render, so depending on `queryKey` would re-run
+	// this on every commit and defeat the memo above it.
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	useEffect(() => {
 		keyRef.current = queryKey;
-	}, [queryKey]);
+	}, [keyToken]);
 
 	const onFocus = useCallback(() => {
 		if (firstTimeRef.current) {

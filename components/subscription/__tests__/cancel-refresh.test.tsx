@@ -73,12 +73,10 @@ it("reflects the cancellation in the open sheet, with no reload", async () => {
 	mockApiClient.mockImplementation((path: string) => {
 		if (path.startsWith("/api/v1/booths/booth-1/subscription/cancel")) {
 			cancelled = true;
-			return Promise.resolve({
-				subscription_id: "sub_x",
-				status: "active",
-				cancel_at_period_end: true,
-				current_period_end: "2026-12-31T00:00:00Z",
-			});
+			// Full documented cancel shape: the whole record MINUS `state`.
+			// A 4-field stub would not exercise the spread-and-preserve logic.
+			const { state: _omitted, ...cancelShape } = CANCELLING;
+			return Promise.resolve(cancelShape);
 		}
 		return Promise.resolve(cancelled ? CANCELLING : ACTIVE);
 	});
@@ -163,12 +161,10 @@ it("still shows the cancellation when the server read lags behind the write", as
 
 	mockApiClient.mockImplementation((path: string, opts?: { method?: string }) => {
 		if (path.startsWith("/api/v1/booths/booth-1/subscription/cancel")) {
-			return Promise.resolve({
-				subscription_id: "sub_x",
-				status: "active",
-				cancel_at_period_end: true,
-				current_period_end: "2026-12-31T00:00:00Z",
-			});
+			// Full documented cancel shape: the whole record MINUS `state`.
+			// A 4-field stub would not exercise the spread-and-preserve logic.
+			const { state: _omitted, ...cancelShape } = CANCELLING;
+			return Promise.resolve(cancelShape);
 		}
 		// The read stays stale for the whole test.
 		if (opts?.method === "GET") return Promise.resolve(ACTIVE);

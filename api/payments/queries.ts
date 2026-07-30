@@ -144,7 +144,8 @@ export function useBoothSubscriptions() {
  * const { checkout_url } = await checkout.mutateAsync({ booth_id, price_id, success_url, cancel_url });
  */
 export function useCreateBoothCheckout() {
-	return useMutation({ mutationFn: createBoothCheckout });
+	// Non-idempotent: a retried 5xx can mint a second Stripe session.
+	return useMutation({ mutationFn: createBoothCheckout, retry: false });
 }
 
 /**
@@ -154,7 +155,8 @@ export function useCreateBoothCheckout() {
  * which refreshes payment queries (see use-deep-links.ts).
  */
 export function useCustomerPortal() {
-	return useMutation({ mutationFn: getCustomerPortal });
+	// Non-idempotent session creation; see useCreateBoothCheckout.
+	return useMutation({ mutationFn: getCustomerPortal, retry: false });
 }
 
 // ============================================================================
@@ -175,9 +177,10 @@ export function useCustomerPortal() {
 export function useBoothSubscriptionState(boothId: string | null) {
 	return useQuery({
 		// `skipToken` rather than `enabled` + a non-null assertion: it is the
-		// documented v5 pattern, it type-narrows so `boothId!` is unnecessary,
-		// and it avoids parking every disabled instance under a shared `""`
-		// sentinel key that nothing owns.
+		// documented v5 pattern and it type-narrows, so `boothId!` is gone.
+		// The `""` key below is still shared by every disabled instance —
+		// harmless because nothing ever writes it, but not something skipToken
+		// changes.
 		queryKey: queryKeys.payments.boothSubscriptionState(boothId ?? ""),
 		queryFn: boothId
 			? () => getBoothSubscriptionState(boothId)
@@ -212,10 +215,14 @@ export function invalidateBoothBillingQueries(
 		queryKey: queryKeys.payments.boothSubscriptions(),
 	});
 
-	if (!boothId) return;
-
+	// With no booth in hand — e.g. the boothiq://settings portal return, which
+	// carries no id — invalidate the whole per-booth prefix. Returning early
+	// here is what left Settings showing a stale subscription after a web
+	// portal cancel, since that screen renders from the state read.
 	queryClient.invalidateQueries({
-		queryKey: queryKeys.payments.boothSubscriptionState(boothId),
+		queryKey: boothId
+			? queryKeys.payments.boothSubscriptionState(boothId)
+			: ["payments", "boothSubscriptionState"],
 	});
 }
 
@@ -355,10 +362,13 @@ export function useResumeBoothSubscription() {
 export function useBoothPortalSession() {
 	return useMutation({
 		mutationFn: createBoothPortalSession,
-		// `portal_url` is a bearer credential and MutationCache retains
-		// `state.data` for gcTime (5 minutes by default). It is consumed the
-		// instant it arrives, so there is no reason to keep it in memory
-		// afterwards.
+		// Non-idempotent session creation; see useCreateBoothCheckout.
+		retry: false,
+		// `portal_url` is a bearer credential. gcTime alone does NOT evict it —
+		// a mutation is only collected once it has no observers, and the sheet
+		// that owns this one never unmounts. The call site calls `.reset()` once
+		// the URL has been handed to the browser; this is defence in depth for
+		// any future caller that does unmount.
 		gcTime: 0,
 	});
 }

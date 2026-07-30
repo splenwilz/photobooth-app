@@ -8,9 +8,7 @@
  */
 
 import {
-	type BoothBillingErrorCode,
 	invalidateBoothBillingQueries,
-	isBoothBillingErrorCode,
 	useBoothPortalSession,
 	useBoothSubscriptionState,
 	useCancelBoothSubscription,
@@ -28,7 +26,14 @@ import {
 	scaleFont,
 } from "@/constants/theme";
 import { EXTERNAL_PURCHASES } from "@/constants/config";
+import { queryKeys } from "@/api/utils/query-keys";
 import {
+	errorCodeOf,
+	mutationErrorMessage,
+	portalErrorMessage,
+} from "./billing-errors";
+import {
+	canStartNewSubscription,
 	canUpdatePaymentCard,
 	getStatusDisplay,
 } from "./subscription-status";
@@ -82,90 +87,6 @@ function formatDate(dateString: string | null | undefined): string {
 	}
 }
 
-/**
- * Read the backend's machine-readable code off an error.
- *
- * Duck-typed rather than `instanceof ApiError` so a re-thrown or wrapped error
- * still routes correctly.
- */
-function errorCodeOf(error: unknown): BoothBillingErrorCode | undefined {
-	if (typeof error === "object" && error !== null && "code" in error) {
-		const { code } = error as { code?: unknown };
-		if (typeof code === "string" && isBoothBillingErrorCode(code)) {
-			return code;
-		}
-	}
-	return undefined;
-}
-
-/**
- * Portal-session failures, mapped to what the user should do.
- *
- * `invalid_return_url` (422) and `flow_not_available` (409) are both
- * configuration faults rather than user errors, but they have different owners
- * and different fixes, so they get different copy — collapsing them into one
- * "contact support" makes a misconfigured build indistinguishable from a
- * missing Stripe portal feature.
- */
-function portalErrorMessage(error: unknown): string {
-	const code = errorCodeOf(error);
-
-	if (__DEV__ && code) {
-		// The code, never the session URL — that is a bearer credential.
-		console.warn(`[Billing] portal session refused: ${code}`);
-	}
-
-	switch (code) {
-		case "invalid_return_url":
-			// Our return_url host is not on the backend's allowlist. In dev this
-			// is normally the tunnel host: the backend has to add it to
-			// PORTAL_RETURN_URL_ALLOWED_HOSTS. In production it means
-			// EXPO_PUBLIC_WEBSITE_URL and the backend's allowlist disagree.
-			return __DEV__
-				? "Backend rejected the return URL (422). Add this tunnel host to PORTAL_RETURN_URL_ALLOWED_HOSTS."
-				: "Card updates aren't available in this version of the app. Please contact support.";
-		case "flow_not_available":
-			// The Stripe portal configuration lacks the feature this flow needs.
-			return "Card updates aren't set up yet. Please contact support.";
-		case "no_subscription":
-			return "This booth has no subscription to update.";
-		case "booth_not_found":
-			return "This booth is no longer available on your account.";
-		case "stripe_unavailable":
-			return "Billing is temporarily unavailable. Try again in a moment.";
-		default:
-			return (
-				(error instanceof Error && error.message) ||
-				"Could not open the billing page."
-			);
-	}
-}
-
-/**
- * Cancel/resume failures, mapped to copy the user can act on.
- *
- * Previously only the resume path routed codes and cancel dumped raw
- * `error.message` into an alert, so identical backend codes produced different
- * quality of message depending on which button was pressed.
- */
-function mutationErrorMessage(
-	error: unknown,
-	action: "cancel" | "resume",
-): string {
-	switch (errorCodeOf(error)) {
-		case "no_subscription":
-			return "This booth no longer has a subscription.";
-		case "booth_not_found":
-			return "This booth is no longer available on your account.";
-		case "stripe_unavailable":
-			return "Billing is temporarily unavailable. Try again in a moment.";
-		default:
-			return (
-				(error instanceof Error && error.message) ||
-				`Could not ${action} the subscription.`
-			);
-	}
-}
 
 /**
  * Announce a state change to screen readers.
@@ -269,12 +190,17 @@ export function SubscriptionDetailsModal({
 	// Guards the async confirmation dialog, which leaves isMutating false while
 	// it is on screen.
 	const confirmInFlight = useRef(false);
+	// Same hazard without a dialog: `isPending` propagates through React Query's
+	// notifyManager batch, so two taps in the same frame both reach mutate() and
+	// MutationObserver overwrites the first call's callbacks with the second's.
+	const resumeInFlight = useRef(false);
 	useEffect(() => {
 		// In an effect, not during render: React documents writing `ref.current`
 		// while rendering as unsupported outside lazy initialisation.
 		if (!visible) {
 			browserInFlight.current = false;
 			confirmInFlight.current = false;
+			resumeInFlight.current = false;
 		}
 	}, [visible]);
 
@@ -327,6 +253,11 @@ export function SubscriptionDetailsModal({
 						Alert.alert("Error", "Could not open the billing page.");
 					} finally {
 						browserInFlight.current = false;
+						// Drop the bearer URL from the mutation cache now it has
+						// been consumed. gcTime alone does not do this: a mutation
+						// is only garbage-collected once it has no observers, and
+						// this component never unmounts.
+						portal.reset();
 						// Stripe may show its own confirmation page instead of
 						// redirecting, so the return URL is not a reliable signal.
 						// Refresh on any dismissal; a spurious refresh is harmless.
@@ -379,19 +310,28 @@ export function SubscriptionDetailsModal({
 					},
 				},
 			],
-			// Android lets a back-press dismiss the dialog without either button.
-			{ onDismiss: release },
+			// cancelable is required: RN's Alert defaults it to false, and
+			// onDismiss only fires for the `dismissed` action, which a
+			// non-cancelable dialog never emits — so without this the escape
+			// hatch below is dead code and an Android back-press would strand
+			// the guard until the sheet closes.
+			{ cancelable: true, onDismiss: release },
 		);
 	};
 
 	const handleResume = () => {
-		if (!boothId) return;
+		if (!boothId || resumeInFlight.current || isMutating) return;
+		resumeInFlight.current = true;
 
 		resumeSubscription.mutate(
 			{ boothId },
 			{
-				onSuccess: () => announce("Auto-renewal is back on."),
+				onSuccess: () => {
+					resumeInFlight.current = false;
+					announce("Auto-renewal is back on.");
+				},
 				onError: (error) => {
+					resumeInFlight.current = false;
 					const code = errorCodeOf(error);
 					if (code === "period_elapsed") {
 						// Too late to undo — the only route forward is a new
@@ -421,8 +361,14 @@ export function SubscriptionDetailsModal({
 					}
 					if (code === "not_scheduled_to_cancel") {
 						// Someone already resumed it, or it was never cancelling.
-						// Our view was stale, so refresh rather than complain.
-						refreshBillingCaches();
+						// Our view was stale, so mark it rather than complain —
+						// `refetchType: "none"`, because an immediate refetch here
+						// sits in the same post-response commit window that
+						// applyBoothBillingResult exists to avoid.
+						queryClient.invalidateQueries({
+							queryKey: queryKeys.payments.boothSubscriptionState(boothId),
+							refetchType: "none",
+						});
 						return;
 					}
 					Alert.alert("Error", mutationErrorMessage(error, "resume"));
@@ -438,9 +384,6 @@ export function SubscriptionDetailsModal({
 			animationType="slide"
 			// Android: dim the area under the status bar too.
 			statusBarTranslucent
-			// Without this, iOS VoiceOver can swipe past the sheet into the
-			// Settings screen behind it.
-			accessibilityViewIsModal
 			onRequestClose={onClose}
 		>
 			{/* Content-height bottom sheet — a full pageSheet left the screen
@@ -461,6 +404,11 @@ export function SubscriptionDetailsModal({
 						styles.sheet,
 						{ backgroundColor, paddingBottom: insets.bottom + Spacing.md },
 					]}
+					// On the sheet, NOT on <Modal>: RN's Modal enumerates a fixed
+					// prop list onto RCTModalHostView and drops this one, so it
+					// typechecks (ModalProps extends ViewProps) but does nothing
+					// there. Without it iOS VoiceOver can swipe through to Settings.
+					accessibilityViewIsModal
 				>
 					{/* Header */}
 					<View style={[styles.header, { borderColor }]}>
@@ -554,7 +502,7 @@ export function SubscriptionDetailsModal({
 					)}
 
 					{/* Subscription Details */}
-					{subscription && !isLoading && (
+					{subscription && !isLoading && !error && (
 						<>
 							{/* Status header — name + status pill in one compact row */}
 							<View
@@ -716,6 +664,33 @@ export function SubscriptionDetailsModal({
 											</TouchableOpacity>
 										)
 									)}
+
+									{/* A cancelled subscription has no manage actions left —
+									    resubscribing is the only thing that helps, and it
+									    duplicates nothing because the old one has ended. */}
+									{canUseWebPortal &&
+										canStartNewSubscription(boothSubscription?.state) &&
+										boothId && (
+											<TouchableOpacity
+												accessibilityRole="button"
+												accessibilityLabel="Subscribe"
+												style={[
+													styles.primaryAction,
+													{ backgroundColor: BRAND_COLOR },
+												]}
+												onPress={() => {
+													onClose();
+													router.push({
+														pathname: "/subscribe",
+														params: { boothId },
+													});
+												}}
+											>
+												<ThemedText style={styles.primaryActionText}>
+													Subscribe
+												</ThemedText>
+											</TouchableOpacity>
+										)}
 
 									{/* Card update needs Stripe's own UI to take card
 									    details, which makes it an external purchase

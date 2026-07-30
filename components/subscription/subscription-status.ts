@@ -32,7 +32,7 @@ export function getStatusDisplay(status: string | null | undefined): StatusDispl
 		case "unpaid":
 			return { color: StatusColors.error, text: "Unpaid" };
 		case "incomplete":
-			return { color: StatusColors.warning, text: "Incomplete" };
+			return { color: StatusColors.error, text: "Incomplete" };
 		case "incomplete_expired":
 			return { color: StatusColors.error, text: "Expired" };
 		case null:
@@ -41,6 +41,20 @@ export function getStatusDisplay(status: string | null | undefined): StatusDispl
 		default:
 			return { color: StatusColors.neutral, text: "Unknown" };
 	}
+}
+
+/**
+ * States from which a NEW subscription may be started.
+ *
+ * `past_due` / `unpaid` are excluded deliberately: those booths still have a
+ * subscription, so a Subscribe CTA would create a second one alongside the
+ * unpaid original. `canceled` is included — that subscription has ended, so
+ * subscribing is the correct action and duplicates nothing.
+ */
+export function canStartNewSubscription(
+	state: BoothSubscriptionState | undefined,
+): boolean {
+	return state === "none" || state === "canceled";
 }
 
 /**

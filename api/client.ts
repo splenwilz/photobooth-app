@@ -184,8 +184,14 @@ async function parseErrorResponse(
       if (errorValue.error && typeof errorValue.error === "string") {
         return { message: errorValue.error, code };
       }
-      // Fallback: stringify the object
-      return { message: JSON.stringify(errorValue), code };
+      // Deliberately NOT JSON.stringify(errorValue): a body such as
+      // {"detail": {"code": "flow_not_available"}} has no human-readable text,
+      // and stringifying it put raw JSON in front of users via the alert paths
+      // that fall back to `error.message`.
+      return {
+        message: response.statusText || "An error occurred",
+        code,
+      };
     }
 
     // Fallback to error text
