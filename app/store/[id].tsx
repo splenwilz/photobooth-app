@@ -223,46 +223,51 @@ export default function TemplateDetailScreen() {
 				<View
 					style={[styles.infoSection, { backgroundColor: cardBg, borderColor }]}
 				>
-					<ThemedText style={styles.name}>{template.name}</ThemedText>
+					{/* Identity block: name, type, rating stay visually grouped */}
+					<View style={styles.infoIdentity}>
+						<ThemedText style={styles.name}>{template.name}</ThemedText>
 
-					{/* Type badge */}
-					<View style={styles.metaRow}>
-						<View
-							style={[
-								styles.typeBadge,
-								{ backgroundColor: withAlpha(BRAND_COLOR, 0.1) },
-							]}
-						>
-							<ThemedText
-								style={[styles.typeBadgeText, { color: BRAND_COLOR }]}
+						{/* Type badge */}
+						<View style={styles.metaRow}>
+							<View
+								style={[
+									styles.typeBadge,
+									{ backgroundColor: withAlpha(BRAND_COLOR, 0.1) },
+								]}
 							>
-								{template.template_type === "strip"
-									? "Photo Strip"
-									: "4x6 Photo"}
+								<ThemedText
+									style={[styles.typeBadgeText, { color: BRAND_COLOR }]}
+								>
+									{template.template_type === "strip"
+										? "Photo Strip"
+										: "4x6 Photo"}
+								</ThemedText>
+							</View>
+							<ThemedText style={[styles.category, { color: textSecondary }]}>
+								{template.category.name}
 							</ThemedText>
 						</View>
-						<ThemedText style={[styles.category, { color: textSecondary }]}>
-							{template.category.name}
-						</ThemedText>
+
+						{/* Rating */}
+						{template.review_count > 0 && (
+							<View style={styles.ratingRow}>
+								{[1, 2, 3, 4, 5].map((star) => (
+									<IconSymbol
+										key={star}
+										name={star <= Math.round(rating) ? "star.fill" : "star"}
+										size={16}
+										color={star <= Math.round(rating) ? "#FFB300" : "#8B949E"}
+									/>
+								))}
+								<ThemedText style={[styles.ratingText, { color: textSecondary }]}>
+									{rating.toFixed(1)} ({template.review_count} review
+									{template.review_count !== 1 ? "s" : ""})
+								</ThemedText>
+							</View>
+						)}
 					</View>
 
-					{/* Rating */}
-					{template.review_count > 0 && (
-						<View style={styles.ratingRow}>
-							{[1, 2, 3, 4, 5].map((star) => (
-								<IconSymbol
-									key={star}
-									name={star <= Math.round(rating) ? "star.fill" : "star"}
-									size={16}
-									color={star <= Math.round(rating) ? "#FFB300" : "#8B949E"}
-								/>
-							))}
-							<ThemedText style={[styles.ratingText, { color: textSecondary }]}>
-								{rating.toFixed(1)} ({template.review_count} review
-								{template.review_count !== 1 ? "s" : ""})
-							</ThemedText>
-						</View>
-					)}
+					<View style={[styles.divider, { backgroundColor: borderColor }]} />
 
 					{/* Price */}
 					<View style={styles.priceRow}>
@@ -318,11 +323,14 @@ export default function TemplateDetailScreen() {
 						{[1, 2, 3, 4, 5].map((star) => (
 							<TouchableOpacity
 								key={star}
+								style={styles.starButton}
+								accessibilityRole="button"
+								accessibilityLabel={`Rate ${star} star${star !== 1 ? "s" : ""}`}
 								onPress={() => setReviewRating(star)}
 							>
 								<IconSymbol
 									name={star <= reviewRating ? "star.fill" : "star"}
-									size={32}
+									size={30}
 									color={star <= reviewRating ? "#FFB300" : "#8B949E"}
 								/>
 							</TouchableOpacity>
@@ -393,7 +401,7 @@ export default function TemplateDetailScreen() {
 
 				{/* Reviews Section */}
 				<View style={styles.reviewsSection}>
-					<ThemedText style={styles.sectionTitle}>
+					<ThemedText style={[styles.sectionTitle, styles.reviewsTitle]}>
 						Reviews ({reviewsData?.total ?? 0})
 					</ThemedText>
 					{reviewsData?.reviews.map((review) => (
@@ -461,15 +469,23 @@ const styles = StyleSheet.create({
 
 	// Info
 	infoSection: {
-		margin: Spacing.md,
-		padding: Spacing.md,
+		marginHorizontal: Spacing.md,
+		marginTop: Spacing.md,
+		padding: Spacing.lg,
 		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
+		gap: Spacing.md,
+	},
+	infoIdentity: {
 		gap: Spacing.sm,
+	},
+	divider: {
+		height: StyleSheet.hairlineWidth,
 	},
 	name: {
 		fontSize: scaleFont(22),
 		fontWeight: "700",
+		lineHeight: scaleFont(28),
 	},
 	metaRow: {
 		flexDirection: "row",
@@ -505,8 +521,7 @@ const styles = StyleSheet.create({
 	priceLarge: {
 		fontSize: scaleFont(28),
 		fontWeight: "800",
-		paddingTop: Spacing.md,
-    
+		lineHeight: scaleFont(34),
 	},
 	originalPriceLarge: {
 		fontSize: scaleFont(18),
@@ -519,30 +534,36 @@ const styles = StyleSheet.create({
 
 	// Review form
 	reviewFormSection: {
-		margin: Spacing.md,
-		marginTop: 0,
-		padding: Spacing.md,
+		marginHorizontal: Spacing.md,
+		marginTop: Spacing.md,
+		padding: Spacing.lg,
 		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
-		gap: Spacing.sm,
+		gap: Spacing.md,
 	},
 	starSelector: {
 		flexDirection: "row",
-		gap: Spacing.sm,
+		marginLeft: -Spacing.xs,
+	},
+	starButton: {
+		paddingHorizontal: Spacing.xs,
+		paddingVertical: Spacing.xs,
 	},
 	reviewInput: {
 		borderWidth: 1,
 		borderRadius: BorderRadius.md,
 		paddingHorizontal: Spacing.md,
-		paddingVertical: Spacing.sm,
+		paddingVertical: 14,
 		fontSize: scaleFont(15),
 	},
 	reviewTextArea: {
-		minHeight: 80,
+		minHeight: 110,
+		paddingTop: 14,
 	},
 	reviewButtonRow: {
 		flexDirection: "row",
 		gap: Spacing.sm,
+		marginTop: Spacing.xs,
 	},
 	submitReviewButton: {
 		backgroundColor: BRAND_COLOR,
@@ -568,10 +589,14 @@ const styles = StyleSheet.create({
 	// Reviews
 	reviewsSection: {
 		paddingHorizontal: Spacing.md,
+		marginTop: Spacing.lg,
 	},
+	// No marginBottom: the form card's `gap` owns the spacing below the title.
 	sectionTitle: {
 		fontSize: scaleFont(18),
 		fontWeight: "700",
+	},
+	reviewsTitle: {
 		marginBottom: Spacing.md,
 	},
 	noReviews: {
