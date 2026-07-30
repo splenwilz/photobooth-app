@@ -324,8 +324,12 @@ export default function TemplateDetailScreen() {
 							<TouchableOpacity
 								key={star}
 								style={styles.starButton}
-								accessibilityRole="button"
+								// radio + checked (same pattern as the booth picker): the
+								// filled/empty star is the only other cue for the current
+								// rating, and IconSymbol exposes nothing to screen readers.
+								accessibilityRole="radio"
 								accessibilityLabel={`Rate ${star} star${star !== 1 ? "s" : ""}`}
+								accessibilityState={{ checked: reviewRating === star }}
 								onPress={() => setReviewRating(star)}
 							>
 								<IconSymbol
@@ -558,7 +562,6 @@ const styles = StyleSheet.create({
 	},
 	reviewTextArea: {
 		minHeight: 110,
-		paddingTop: 14,
 	},
 	reviewButtonRow: {
 		flexDirection: "row",
