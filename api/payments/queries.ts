@@ -23,6 +23,8 @@ import {
 import { queryKeys } from "@/api/utils/query-keys";
 import {
 	cancelBoothSubscription,
+	DEFAULT_INVOICE_LIMIT,
+	getBoothInvoices,
 	createBoothCheckout,
 	createBoothPortalSession,
 	getBoothSubscriptions,
@@ -392,5 +394,35 @@ export function useBoothPortalSession() {
 		// the URL has been handed to the browser; this is defence in depth for
 		// any future caller that does unmount.
 		gcTime: 0,
+	});
+}
+
+/**
+ * Hook to read a booth's payment history.
+ *
+ * `404` is NOT retried and NOT an empty list. It means the booth is not yours,
+ * does not exist, or — until the backend deploys this endpoint — that the route
+ * is absent. An owner with no invoices gets `200` with an empty array, so the
+ * empty state must be driven by the array, never by an error.
+ *
+ * Short-lived in memory: the response is served `Cache-Control: no-store` and
+ * contains billing detail, so it is not kept around after the screen closes.
+ */
+export function useBoothInvoices(
+	boothId: string | null,
+	limit = DEFAULT_INVOICE_LIMIT,
+) {
+	return useQuery({
+		queryKey: queryKeys.payments.boothInvoices(boothId ?? "", limit),
+		queryFn: boothId ? () => getBoothInvoices(boothId, limit) : skipToken,
+		staleTime: 60 * 1000,
+		gcTime: 60 * 1000,
+		retry: (failureCount, error) => {
+			const status = (error as { status?: number })?.status;
+			// A missing route or a booth we cannot see will not become visible on
+			// a retry, and 429 carries its own backoff.
+			if (status === 404 || status === 401 || status === 429) return false;
+			return failureCount < 1;
+		},
 	});
 }

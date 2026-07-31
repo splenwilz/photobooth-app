@@ -15,6 +15,9 @@
  */
 
 import { apiClient } from "../client";
+
+/** Server default and the page size the UI advertises when truncating. */
+export const DEFAULT_INVOICE_LIMIT = 12;
 import type {
 	BoothSubscriptionItem,
 	BoothSubscriptionsListResponse,
@@ -26,6 +29,7 @@ import type {
 	CreateCheckoutResponse,
 	CustomerPortalRequest,
 	CustomerPortalResponse,
+	OwnerInvoiceListResponse,
 	ResumeBoothSubscriptionResponse,
 	SubscriptionAccessResponse,
 	SubscriptionDetailsResponse,
@@ -219,5 +223,28 @@ export async function resumeBoothSubscription(
 	return apiClient<ResumeBoothSubscriptionResponse>(
 		`/api/v1/booths/${encodeURIComponent(boothId)}/subscription/resume`,
 		{ method: "POST" },
+	);
+}
+
+/**
+ * Read a booth's payment history.
+ *
+ * Served `Cache-Control: no-store` and containing billing detail, so the
+ * response is held in memory only — never persisted, never logged.
+ *
+ * A `404` means the booth is not yours or does not exist — and, until the
+ * backend deploys this endpoint, that it is not deployed. It NEVER means "no
+ * invoices": an owner with none gets `200` with an empty array.
+ *
+ * @param limit 1–60, default 12. Out of range is a 422.
+ */
+export async function getBoothInvoices(
+	boothId: string,
+	limit = DEFAULT_INVOICE_LIMIT,
+): Promise<OwnerInvoiceListResponse> {
+	if (!boothId) throw new Error("Booth ID is required for getBoothInvoices");
+	return apiClient<OwnerInvoiceListResponse>(
+		`/api/v1/booths/${encodeURIComponent(boothId)}/invoices?limit=${limit}`,
+		{ method: "GET" },
 	);
 }

@@ -249,6 +249,13 @@ export const queryKeys = {
      */
     boothSubscriptionState: (boothId: string) =>
       ['payments', 'boothSubscriptionState', boothId] as const,
+
+    /**
+     * A booth's payment history
+     * @see GET /api/v1/booths/{booth_id}/invoices
+     */
+    boothInvoices: (boothId: string, limit: number) =>
+      ['payments', 'boothInvoices', boothId, limit] as const,
   },
 
   /**

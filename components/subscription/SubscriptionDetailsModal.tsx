@@ -201,7 +201,16 @@ export function SubscriptionDetailsModal({
 		canUseWebPortal &&
 		!!subscription?.subscription_id &&
 		canUpdatePaymentCard(boothSubscription?.state);
-	const hasAnyAction =
+	// Native, so not storefront-gated: available for any booth that has ever
+	// been billed.
+	const canShowHistory = isPerBooth && !isNeverSubscribed && !!boothId;
+
+	// Deliberately excludes history. These are the actions that RESOLVE the
+	// subscription's state; history only explains what has already happened. The
+	// "we can't fix this here" copy is about the absence of a remedy, so it
+	// should still appear alongside a history link rather than be suppressed by
+	// it.
+	const hasRemedialAction =
 		canShowResume || canShowCancel || canShowSubscribe || canShowCardUpdate;
 	const portal = useBoothPortalSession();
 	const cancelSubscription = useCancelBoothSubscription();
@@ -669,6 +678,31 @@ export function SubscriptionDetailsModal({
 							    subscription to target. */}
 							{isPerBooth && (
 								<>
+									{/* Native payment history — reads our own API and opens
+									    nothing external, so unlike card update it is NOT
+									    storefront-gated. Informational, so it deliberately does
+									    not count as a remedial action below. */}
+									{canShowHistory && (
+										<TouchableOpacity
+											accessibilityRole="button"
+											accessibilityLabel="View payment history"
+											style={[styles.secondaryAction, { borderColor }]}
+											onPress={() => {
+												onClose();
+												router.push(`/booths/${boothId}/invoices`);
+											}}
+										>
+											<ThemedText
+												style={[
+													styles.secondaryActionText,
+													{ color: BRAND_COLOR },
+												]}
+											>
+												Payment history
+											</ThemedText>
+										</TouchableOpacity>
+									)}
+
 									{/* Resume replaces Cancel once a cancellation is scheduled.
 									    Gated on !hasEnded rather than is_active: a past_due
 									    booth can still be scheduled to cancel with its period
@@ -770,7 +804,7 @@ export function SubscriptionDetailsModal({
 								    Deliberately descriptive with no link or venue named:
 								    that is what Guideline 3.1.1(a) restricts off the US
 								    storefront. */}
-								{!hasAnyAction && (
+								{!hasRemedialAction && (
 									<ThemedText
 										style={[styles.emptyMessage, { color: textSecondary }]}
 									>

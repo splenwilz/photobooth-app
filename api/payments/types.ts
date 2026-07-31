@@ -350,3 +350,57 @@ export function isBoothBillingErrorCode(
 		(BOOTH_BILLING_ERROR_CODES as readonly string[]).includes(code)
 	);
 }
+
+// ============================================================================
+// OWNER INVOICES (payment history, read natively — no Stripe redirect)
+// ============================================================================
+
+/** Stripe invoice lifecycle status. Explains WHY unpaid; never shown raw. */
+export type OwnerInvoiceStatus =
+	| "paid"
+	| "open"
+	| "uncollectible"
+	| "void"
+	| "draft";
+
+/**
+ * One invoice from `GET /api/v1/booths/{booth_id}/invoices`.
+ *
+ * Mirrored into the backend's own database by the `invoice.paid` and
+ * `invoice.payment_failed` webhooks, so this read makes no Stripe API call.
+ */
+export interface OwnerInvoice {
+	/** `in_…` — the first thing support asks for */
+	stripe_invoice_id: string;
+	/**
+	 * Minor units.
+	 *
+	 * NOT Stripe's `amount_paid`, which sits at 0 on a failed invoice: this is
+	 * what was charged for a paid invoice and what is still owed for an unpaid
+	 * one. Use as-is — see formatInvoiceAmount for the zero-decimal caveat.
+	 */
+	amount_cents: number;
+	/** Lowercase ISO code */
+	currency: string;
+	/** Lifecycle status — use `paid` to decide whether money was collected */
+	status: OwnerInvoiceStatus;
+	/** The authority for "was this collected" */
+	paid: boolean;
+	/** Greater than 1 means Stripe retried */
+	attempt_count: number;
+	/** ISO 8601, UTC with explicit offset */
+	created_at: string;
+	/** ISO 8601, or null when unpaid */
+	paid_at: string | null;
+}
+
+/** `GET /api/v1/booths/{booth_id}/invoices` response. */
+export interface OwnerInvoiceListResponse {
+	booth_id: string;
+	/** Newest first — render verbatim, do not re-sort */
+	invoices: OwnerInvoice[];
+	returned: number;
+	/** True when older invoices exist beyond `limit`; the UI must say so */
+	truncated: boolean;
+	server_time: string;
+}

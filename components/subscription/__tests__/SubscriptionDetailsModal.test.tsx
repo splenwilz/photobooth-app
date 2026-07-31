@@ -434,6 +434,56 @@ describe("lifecycle states", () => {
 	});
 });
 
+describe("payment history", () => {
+	it("is offered on every storefront — it opens nothing external", () => {
+		// This suite runs with the storefront gate CLOSED. History reads our own
+		// API, so unlike card update it is not a purchase surface.
+		const { getByLabelText } = renderWithProviders(
+			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
+		);
+
+		expect(getByLabelText("View payment history")).toBeTruthy();
+	});
+
+	it("is not offered for a booth that has never been billed", () => {
+		mockUseBoothSubscriptionState.mockReturnValue({
+			data: { ...activeBooth, state: "none", status: null, is_active: false },
+			isLoading: false,
+			error: null,
+		});
+
+		const { queryByLabelText } = renderWithProviders(
+			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
+		);
+
+		expect(queryByLabelText("View payment history")).toBeNull();
+	});
+
+	it("does not suppress the no-remedy explanation", () => {
+		// History explains what happened; it does not fix anything. A past_due
+		// booth off-US still needs to be told why it has no remedy here, even
+		// though a history link is present.
+		mockUseBoothSubscriptionState.mockReturnValue({
+			data: {
+				...activeBooth,
+				state: "past_due",
+				status: "past_due",
+				is_active: false,
+				cancel_at_period_end: false,
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		const { getByText, getByLabelText } = renderWithProviders(
+			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
+		);
+
+		expect(getByLabelText("View payment history")).toBeTruthy();
+		expect(getByText(/needs attention/i)).toBeTruthy();
+	});
+});
+
 describe("card update", () => {
 	it("hides the card-update button for a cancelled subscription", () => {
 		// Minting payment_method_update against a dead subscription returns
