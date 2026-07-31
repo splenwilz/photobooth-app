@@ -20,15 +20,30 @@ const mockApiClient = apiClient as jest.Mock;
 const EMPTY = {
 	booth_id: "booth-1",
 	invoices: [],
-	returned: 0,
-	truncated: false,
+	has_more: false,
+	next_cursor: null,
 	server_time: "2026-07-31T12:00:00Z",
+};
+
+const INVOICE = {
+	id: "in_1",
+	amount_cents: 2900,
+	currency: "usd",
+	status: "paid" as const,
+	paid: true,
+	attempt_count: 1,
+	created: "2026-07-12T09:00:00Z",
+	paid_at: "2026-07-12T09:00:04Z",
+	hosted_invoice_url: "https://invoice.stripe.com/i/acct_x/test_abc",
+	invoice_pdf: "https://pay.stripe.com/invoice/acct_x/test_abc/pdf",
 };
 
 function makeWrapper() {
 	const client = new QueryClient({
 		defaultOptions: {
-			queries: { retry: false, gcTime: 0 },
+			// retryDelay 0: the hook overrides `retry` per query, and the default
+			// exponential backoff would outrun waitFor's timeout.
+			queries: { retry: false, retryDelay: 0, gcTime: 0 },
 			mutations: { retry: false, gcTime: 0 },
 		},
 	});
@@ -56,9 +71,27 @@ describe("getBoothInvoices", () => {
 	it("passes an explicit limit through", async () => {
 		mockApiClient.mockResolvedValue(EMPTY);
 
-		await getBoothInvoices("booth-1", 60);
+		await getBoothInvoices("booth-1", { limit: 100 });
 
-		expect(mockApiClient.mock.calls[0][0]).toContain("limit=60");
+		expect(mockApiClient.mock.calls[0][0]).toContain("limit=100");
+	});
+
+	it("sends the cursor as starting_after when paging", async () => {
+		mockApiClient.mockResolvedValue(EMPTY);
+
+		await getBoothInvoices("booth-1", { startingAfter: "in_1PwZyX" });
+
+		expect(mockApiClient.mock.calls[0][0]).toContain(
+			"starting_after=in_1PwZyX",
+		);
+	});
+
+	it("omits starting_after on the first page", async () => {
+		mockApiClient.mockResolvedValue(EMPTY);
+
+		await getBoothInvoices("booth-1");
+
+		expect(mockApiClient.mock.calls[0][0]).not.toContain("starting_after");
 	});
 
 	it("encodes the booth id", async () => {
@@ -95,7 +128,7 @@ describe("useBoothInvoices", () => {
 		});
 
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
-		expect(result.current.data?.invoices).toEqual([]);
+		expect(result.current.data?.pages[0].invoices).toEqual([]);
 		expect(result.current.error).toBeNull();
 	});
 
@@ -127,23 +160,12 @@ describe("useBoothInvoices", () => {
 		expect(mockApiClient).toHaveBeenCalledTimes(1);
 	});
 
-	it("surfaces truncation so the UI can say the list is partial", async () => {
+	it("offers another page when has_more and a cursor are both present", async () => {
 		mockApiClient.mockResolvedValue({
 			...EMPTY,
-			invoices: [
-				{
-					stripe_invoice_id: "in_1",
-					amount_cents: 2900,
-					currency: "usd",
-					status: "paid",
-					paid: true,
-					attempt_count: 1,
-					created_at: "2026-07-12T09:00:00Z",
-					paid_at: "2026-07-12T09:00:04Z",
-				},
-			],
-			returned: 1,
-			truncated: true,
+			invoices: [INVOICE],
+			has_more: true,
+			next_cursor: "in_1",
 		});
 
 		const { result } = renderHook(() => useBoothInvoices("booth-1"), {
@@ -151,6 +173,50 @@ describe("useBoothInvoices", () => {
 		});
 
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
-		expect(result.current.data?.truncated).toBe(true);
+		expect(result.current.hasNextPage).toBe(true);
+	});
+
+	it("stops paging on an empty page even if has_more stays true", async () => {
+		// Otherwise the same cursor is requested forever — the classic
+		// infinite-scroll loop.
+		mockApiClient.mockResolvedValue({
+			...EMPTY,
+			invoices: [],
+			has_more: true,
+			next_cursor: "in_stuck",
+		});
+
+		const { result } = renderHook(() => useBoothInvoices("booth-1"), {
+			wrapper: makeWrapper(),
+		});
+
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.hasNextPage).toBe(false);
+	});
+
+	it("does not retry a 400 — a bad cursor cannot succeed on a repeat", async () => {
+		mockApiClient.mockRejectedValue(
+			Object.assign(new Error("invalid_request"), { status: 400 }),
+		);
+
+		const { result } = renderHook(() => useBoothInvoices("booth-1"), {
+			wrapper: makeWrapper(),
+		});
+
+		await waitFor(() => expect(result.current.isError).toBe(true));
+		expect(mockApiClient).toHaveBeenCalledTimes(1);
+	});
+
+	it("retries a 503 once — Stripe being unreachable is transient", async () => {
+		mockApiClient.mockRejectedValue(
+			Object.assign(new Error("stripe_unavailable"), { status: 503 }),
+		);
+
+		const { result } = renderHook(() => useBoothInvoices("booth-1"), {
+			wrapper: makeWrapper(),
+		});
+
+		await waitFor(() => expect(result.current.isError).toBe(true));
+		expect(mockApiClient).toHaveBeenCalledTimes(2);
 	});
 });

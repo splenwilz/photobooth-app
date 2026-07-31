@@ -80,13 +80,26 @@ describe("describeInvoice", () => {
 		).toMatch(/not yet issued/i);
 	});
 
-	it("falls back safely for a status the app has never seen", () => {
+	it("does not claim 'unpaid' for a status it does not recognise", () => {
+		// Not knowing the state is different from knowing it is unpaid. Asserting
+		// the latter tells the owner of a healthy subscription that they owe
+		// money — which is exactly what happened in the field.
 		const out = describeInvoice({
 			...base,
 			paid: false,
 			status: "some_future_status" as never,
 		});
-		expect(out.label).toBe("Unpaid");
+		expect(out.label).toBe("Status unavailable");
+		expect(out.label.toLowerCase()).not.toContain("unpaid");
 		expect(out.label).not.toContain("some_future_status");
+	});
+
+	it("does not claim 'unpaid' when status is missing entirely", () => {
+		const out = describeInvoice({
+			...base,
+			paid: false,
+			status: undefined as never,
+		});
+		expect(out.label).toBe("Status unavailable");
 	});
 });

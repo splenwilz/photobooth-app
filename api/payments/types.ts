@@ -366,12 +366,12 @@ export type OwnerInvoiceStatus =
 /**
  * One invoice from `GET /api/v1/booths/{booth_id}/invoices`.
  *
- * Mirrored into the backend's own database by the `invoice.paid` and
- * `invoice.payment_failed` webhooks, so this read makes no Stripe API call.
+ * Read live from Stripe, not from a local mirror — a mirror had no receipt
+ * links and could serve a stale status for an invoice Stripe had since voided.
  */
 export interface OwnerInvoice {
-	/** `in_…` — the first thing support asks for */
-	stripe_invoice_id: string;
+	/** Stripe invoice id (`in_…`) — the first thing support asks for */
+	id: string;
 	/**
 	 * Minor units.
 	 *
@@ -388,19 +388,36 @@ export interface OwnerInvoice {
 	paid: boolean;
 	/** Greater than 1 means Stripe retried */
 	attempt_count: number;
-	/** ISO 8601, UTC with explicit offset */
-	created_at: string;
-	/** ISO 8601, or null when unpaid */
+	/** When Stripe raised the invoice. ISO 8601, UTC. */
+	created: string;
+	/** When it settled. ISO 8601, or null when unpaid. */
 	paid_at: string | null;
+	/**
+	 * Stripe-hosted invoice page. Null until finalised.
+	 *
+	 * NOTE: for an UNPAID invoice this page carries a "pay now" affordance, so
+	 * it is a purchasing mechanism under Guideline 3.1.1(a) and must not be
+	 * opened outside the US storefront. Prefer `invoice_pdf`, which is a static
+	 * document.
+	 */
+	hosted_invoice_url: string | null;
+	/**
+	 * Direct PDF download. Null until finalised.
+	 *
+	 * Like the portal URL, this is effectively a bearer link — anyone holding it
+	 * can read the invoice. Never log or persist it.
+	 */
+	invoice_pdf: string | null;
 }
 
-/** `GET /api/v1/booths/{booth_id}/invoices` response. */
+/** `GET /api/v1/booths/{booth_id}/invoices` response. Cursor-paginated. */
 export interface OwnerInvoiceListResponse {
 	booth_id: string;
 	/** Newest first — render verbatim, do not re-sort */
 	invoices: OwnerInvoice[];
-	returned: number;
-	/** True when older invoices exist beyond `limit`; the UI must say so */
-	truncated: boolean;
+	/** Another page exists */
+	has_more: boolean;
+	/** Pass as `starting_after`. Null when `has_more` is false. */
+	next_cursor: string | null;
 	server_time: string;
 }

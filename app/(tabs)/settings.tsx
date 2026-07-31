@@ -51,15 +51,7 @@ import {
   getStoredUser,
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
-import {
-	invalidateBoothBillingQueries,
-	useBoothSubscriptionState,
-	useCustomerPortal,
-} from "@/api/payments";
-import { portalErrorMessage } from "@/components/subscription/billing-errors";
-import { useQueryClient } from "@tanstack/react-query";
-import { useExternalPurchases } from "@/hooks/use-external-purchases";
-import * as WebBrowser from "expo-web-browser";
+import { useBoothSubscriptionState } from "@/api/payments";
 import { useDeleteAccount } from "@/api/users";
 import {
   BusinessSettingsModal,
@@ -78,7 +70,7 @@ import { EditProductModal } from "@/components/products";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SectionHeader } from "@/components/ui/section-header";
-import { EXTERNAL_PURCHASES, WEB_URLS } from "@/constants/config";
+import { WEB_URLS } from "@/constants/config";
 import {
   BorderRadius,
   BRAND_COLOR,
@@ -511,42 +503,6 @@ export default function SettingsScreen() {
 	// State for Subscription Details modal
 	const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
-	// Account-level Stripe portal: invoice history and receipts, which the
-	// per-booth flow_data deep links deliberately hide. External purchase
-	// surface, so US storefront only.
-	const { enabled: canUseExternalPurchases } = useExternalPurchases();
-	const accountPortal = useCustomerPortal();
-	const queryClient = useQueryClient();
-	const handleOpenAccountBilling = () => {
-		if (accountPortal.isPending) return;
-		accountPortal.mutate(
-			{ return_url: `${EXTERNAL_PURCHASES.WEBSITE_URL}/dashboard` },
-			{
-				onSuccess: async (data) => {
-					try {
-						if (!data?.portal_url) {
-							throw new Error("Session created without a URL");
-						}
-						// Never logged: the portal URL is a bearer credential.
-						await WebBrowser.openBrowserAsync(data.portal_url);
-					} catch {
-						Alert.alert("Error", "Could not open billing.");
-					} finally {
-						// The account portal can cancel or re-card a subscription, and
-						// only the server knows whether it did. On iOS this browser is
-						// presented in-process, so AppState never leaves "active" and
-						// the focus-driven refetch never fires — without this the
-						// screen keeps showing the pre-portal state for the full
-						// staleTime.
-						invalidateBoothBillingQueries(queryClient);
-						// Drop the bearer URL now it has been consumed.
-						accountPortal.reset();
-					}
-				},
-				onError: (error) => Alert.alert("Error", portalErrorMessage(error)),
-			},
-		);
-	};
 
 	// State for Business Settings modal
 	const [showBusinessSettingsModal, setShowBusinessSettingsModal] = useState(false);
@@ -841,29 +797,6 @@ export default function SettingsScreen() {
 						<SubscriptionStatusCard
 							boothId={effectiveBoothId}
 							onViewDetails={() => setShowSubscriptionModal(true)}
-						/>
-					</View>
-				)}
-
-				{/* Account-level billing. The per-booth sheet above deep-links to a
-				    single Stripe action and deliberately hides portal navigation,
-				    so invoices and receipts are unreachable from it. This row is
-				    the only route to them — it was lost when the old
-				    "Manage Subscription on Web" button was replaced.
-
-				    US storefront only: it opens Stripe on the web. */}
-				{canUseExternalPurchases && (
-					<View style={styles.section}>
-						<SectionHeader
-							title="Billing & Invoices"
-							subtitle="Payment history for your account"
-						/>
-						<SettingsItem
-							icon="doc.text"
-							title="Billing & invoices"
-							subtitle="Opens Stripe in your browser"
-							onPress={handleOpenAccountBilling}
-							disabled={accountPortal.isPending}
 						/>
 					</View>
 				)}

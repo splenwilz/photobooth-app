@@ -1,19 +1,19 @@
 /**
  * Payment History Screen
  *
- * Per-booth invoice list, read from our own database rather than by redirecting
- * the owner to Stripe's hosted portal. Reached from the subscription details
- * sheet.
+ * Per-booth invoice list read live from Stripe, replacing the redirect to
+ * Stripe's hosted portal. Reached from the subscription details sheet.
  *
- * Three contract rules drive what renders here, all of them easy to get wrong:
+ * Rules that drive what renders here, all of them easy to get wrong:
  *
  * 1. `amount_cents` is what was charged (paid) or is still owed (unpaid) — NOT
  *    Stripe's `amount_paid`, which sits at 0 on a failure and would render the
  *    exact screen a user opened because their payment failed as "$0.00".
  * 2. `paid` decides whether money was collected; `status` only explains why
  *    something is unpaid, and is always translated.
- * 3. `truncated` must be surfaced. Showing a partial list as complete is how a
- *    "where did my invoice go" ticket starts.
+ * 3. Cursor pagination: "load older", never page numbers — Stripe's model.
+ * 4. Receipt links are null until Stripe finalises an invoice, so the control
+ *    is hidden rather than rendered dead.
  *
  * A 404 is NOT an empty list — see the error branch.
  *
@@ -21,9 +21,11 @@
  */
 
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import * as WebBrowser from "expo-web-browser";
 import {
 	ActivityIndicator,
+	Alert,
 	FlatList,
 	RefreshControl,
 	StyleSheet,
@@ -32,11 +34,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import {
-	DEFAULT_INVOICE_LIMIT,
-	useBoothInvoices,
-	type OwnerInvoice,
-} from "@/api/payments";
+import { useBoothInvoices, type OwnerInvoice } from "@/api/payments";
 import {
 	describeInvoice,
 	formatInvoiceAmount,
@@ -87,9 +85,58 @@ export default function InvoicesScreen() {
 	const textSecondary = useThemeColor({}, "textSecondary");
 
 	const [isRefreshing, setIsRefreshing] = useState(false);
-	const { data, isLoading, isError, error, refetch } = useBoothInvoices(
-		boothId ?? null,
+	const {
+		data,
+		isLoading,
+		isError,
+		error,
+		refetch,
+		fetchNextPage,
+		hasNextPage,
+		isFetchingNextPage,
+	} = useBoothInvoices(boothId ?? null);
+
+	// Cursor pagination has no page count, so the list is a flat concatenation.
+	//
+	// Memoised: flatMap returns a NEW array every render, which made FlatList's
+	// `data` prop change identity on each one and defeated its re-render
+	// bailout.
+	const invoices = useMemo(
+		() => data?.pages.flatMap((page) => page.invoices) ?? [],
+		[data?.pages],
 	);
+
+	// "Status unavailable" means the response carried a status this app does not
+	// recognise, or none at all. Name the fields in dev so the mismatch is
+	// diagnosable from the console instead of guessed at. Amounts and receipt
+	// links are deliberately NOT logged — the links are bearer URLs.
+	//
+	// Keyed on the first invoice's identity, not the array: even memoised, the
+	// array changes on every refetch, and depending on it logged the same record
+	// repeatedly.
+	const firstInvoice = invoices[0];
+	useEffect(() => {
+		if (!__DEV__ || !firstInvoice) return;
+		console.warn(
+			`[Billing] first invoice: id=${firstInvoice.id} status=${firstInvoice.status} paid=${firstInvoice.paid} paid_at=${firstInvoice.paid_at}`,
+		);
+		// Identity, not object reference: a refetch returns an equal-but-new
+		// object and would otherwise re-log unchanged data.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [firstInvoice?.id, firstInvoice?.status, firstInvoice?.paid]);
+
+	const openReceipt = useCallback(async (invoice: OwnerInvoice) => {
+		// invoice_pdf, NOT hosted_invoice_url: the hosted page carries a "pay
+		// now" affordance for an unpaid invoice, which makes it a purchasing
+		// mechanism under Guideline 3.1.1(a). A PDF is just a document.
+		if (!invoice.invoice_pdf) return;
+		try {
+			// Never logged — the link is effectively a bearer credential.
+			await WebBrowser.openBrowserAsync(invoice.invoice_pdf);
+		} catch {
+			Alert.alert("Error", "Could not open that invoice.");
+		}
+	}, []);
 
 	const handleRefresh = useCallback(async () => {
 		setIsRefreshing(true);
@@ -111,23 +158,41 @@ export default function InvoicesScreen() {
 							{formatInvoiceAmount(item.amount_cents, item.currency)}
 						</ThemedText>
 						<ThemedText style={[styles.date, { color: textSecondary }]}>
-							{formatInvoiceDate(item.created_at)}
+							{formatInvoiceDate(item.created)}
 						</ThemedText>
 					</View>
-					<View
-						style={[
-							styles.statusPill,
-							{ backgroundColor: withAlpha(color, 0.15) },
-						]}
-					>
-						<ThemedText style={[styles.statusText, { color }]}>
-							{label}
-						</ThemedText>
+					<View style={styles.rowRight}>
+						<View
+							style={[
+								styles.statusPill,
+								{ backgroundColor: withAlpha(color, 0.15) },
+							]}
+						>
+							<ThemedText style={[styles.statusText, { color }]}>
+								{label}
+							</ThemedText>
+						</View>
+						{/* Hidden rather than dead: both links are null until Stripe
+						    finalises the invoice. */}
+						{item.invoice_pdf && (
+							<TouchableOpacity
+								accessibilityRole="button"
+								accessibilityLabel={
+									item.paid ? "Download receipt" : "Download invoice"
+								}
+								onPress={() => openReceipt(item)}
+								hitSlop={8}
+							>
+								<ThemedText style={[styles.receiptLink, { color: BRAND_COLOR }]}>
+									{item.paid ? "Receipt" : "Invoice"}
+								</ThemedText>
+							</TouchableOpacity>
+						)}
 					</View>
 				</View>
 			);
 		},
-		[cardBg, borderColor, textSecondary],
+		[cardBg, borderColor, textSecondary, openReceipt],
 	);
 
 	return (
@@ -167,17 +232,26 @@ export default function InvoicesScreen() {
 						Payment history is unavailable
 					</ThemedText>
 					<ThemedText style={[styles.emptyBody, { color: textSecondary }]}>
-						{(error as { status?: number })?.status === 429
-							? "Too many requests just now. Try again shortly."
-							: "We couldn't load this booth's invoices. Pull down to try again."}
+						{(() => {
+							const status = (error as { status?: number })?.status;
+							if (status === 429)
+								return "Too many requests just now. Try again shortly.";
+							if (status === 503)
+								return "Billing is temporarily unreachable. Pull down to try again.";
+							return "We couldn't load this booth's invoices. Pull down to try again.";
+						})()}
 					</ThemedText>
 				</View>
 			)}
 
 			{!isLoading && !isError && (
 				<FlatList
-					data={data?.invoices ?? []}
-					keyExtractor={(item) => item.stripe_invoice_id}
+					data={invoices}
+					keyExtractor={(item) => item.id}
+					onEndReached={() => {
+						if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+					}}
+					onEndReachedThreshold={0.4}
 					renderItem={renderInvoice}
 					contentContainerStyle={styles.listContent}
 					refreshControl={
@@ -204,13 +278,22 @@ export default function InvoicesScreen() {
 						</View>
 					}
 					ListFooterComponent={
-						data?.truncated ? (
-							<ThemedText
-								style={[styles.truncatedNote, { color: textSecondary }]}
+						// Cursor pagination: "load more", never a page number.
+						isFetchingNextPage ? (
+							<ActivityIndicator
+								style={styles.footerSpinner}
+								color={BRAND_COLOR}
+							/>
+						) : hasNextPage ? (
+							<TouchableOpacity
+								accessibilityRole="button"
+								style={[styles.loadMore, { borderColor }]}
+								onPress={() => fetchNextPage()}
 							>
-								Showing the most recent {DEFAULT_INVOICE_LIMIT}. Older invoices
-								are in your billing portal.
-							</ThemedText>
+								<ThemedText style={{ color: BRAND_COLOR }}>
+									Load older invoices
+								</ThemedText>
+							</TouchableOpacity>
 						) : null
 					}
 				/>
@@ -257,6 +340,16 @@ const styles = StyleSheet.create({
 		flexShrink: 1,
 	},
 	statusText: { fontSize: scaleFont(12), fontWeight: "700" },
+	rowRight: { alignItems: "flex-end", gap: 6 },
+	receiptLink: { fontSize: scaleFont(13), fontWeight: "600" },
+	loadMore: {
+		marginTop: Spacing.md,
+		paddingVertical: Spacing.md,
+		alignItems: "center",
+		borderRadius: BorderRadius.md,
+		borderWidth: 1,
+	},
+	footerSpinner: { marginTop: Spacing.md },
 	emptyTitle: { fontSize: scaleFont(16), textAlign: "center" },
 	emptyBody: { fontSize: scaleFont(14), textAlign: "center", lineHeight: 20 },
 	truncatedNote: {

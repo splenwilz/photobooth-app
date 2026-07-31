@@ -227,24 +227,32 @@ export async function resumeBoothSubscription(
 }
 
 /**
- * Read a booth's payment history.
+ * Read a booth's payment history, live from Stripe.
  *
- * Served `Cache-Control: no-store` and containing billing detail, so the
- * response is held in memory only — never persisted, never logged.
+ * Served `Cache-Control: no-store` and carrying receipt links that act as
+ * bearer URLs, so responses are held in memory only — never persisted, never
+ * logged.
  *
  * A `404` means the booth is not yours or does not exist — and, until the
  * backend deploys this endpoint, that it is not deployed. It NEVER means "no
  * invoices": an owner with none gets `200` with an empty array.
  *
- * @param limit 1–60, default 12. Out of range is a 422.
+ * @param limit 1–100, default 12. Out of range is a 422.
+ * @param startingAfter cursor from a previous page's `next_cursor`. A bad
+ * cursor is a non-retryable 400 — restart from the first page.
  */
 export async function getBoothInvoices(
 	boothId: string,
-	limit = DEFAULT_INVOICE_LIMIT,
+	{ limit = DEFAULT_INVOICE_LIMIT, startingAfter }: {
+		limit?: number;
+		startingAfter?: string;
+	} = {},
 ): Promise<OwnerInvoiceListResponse> {
 	if (!boothId) throw new Error("Booth ID is required for getBoothInvoices");
+	const query = new URLSearchParams({ limit: String(limit) });
+	if (startingAfter) query.set("starting_after", startingAfter);
 	return apiClient<OwnerInvoiceListResponse>(
-		`/api/v1/booths/${encodeURIComponent(boothId)}/invoices?limit=${limit}`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/invoices?${query.toString()}`,
 		{ method: "GET" },
 	);
 }

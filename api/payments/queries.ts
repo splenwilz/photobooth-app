@@ -16,6 +16,7 @@
 import {
 	type QueryClient,
 	skipToken,
+	useInfiniteQuery,
 	useMutation,
 	useQuery,
 	useQueryClient,
@@ -398,30 +399,46 @@ export function useBoothPortalSession() {
 }
 
 /**
- * Hook to read a booth's payment history.
+ * Hook to read a booth's payment history, page by page.
  *
- * `404` is NOT retried and NOT an empty list. It means the booth is not yours,
- * does not exist, or — until the backend deploys this endpoint — that the route
- * is absent. An owner with no invoices gets `200` with an empty array, so the
- * empty state must be driven by the array, never by an error.
+ * Cursor pagination, not offset — Stripe's model, so there is no page count and
+ * no jumping to page N. The UI is "load more", never numbered pages.
  *
- * Short-lived in memory: the response is served `Cache-Control: no-store` and
- * contains billing detail, so it is not kept around after the screen closes.
+ * `[]` is NOT an error and a `404` is NOT an empty list: an owner with no
+ * invoices gets `200` with an empty array, so the empty state must be driven by
+ * the array. A 404 means the booth is not visible to us, or the route is not
+ * deployed yet.
+ *
+ * Held briefly in memory: responses are `Cache-Control: no-store` and carry
+ * bearer receipt links.
  */
 export function useBoothInvoices(
 	boothId: string | null,
 	limit = DEFAULT_INVOICE_LIMIT,
 ) {
-	return useQuery({
+	return useInfiniteQuery({
 		queryKey: queryKeys.payments.boothInvoices(boothId ?? "", limit),
-		queryFn: boothId ? () => getBoothInvoices(boothId, limit) : skipToken,
+		queryFn: boothId
+			? ({ pageParam }: { pageParam?: string }) =>
+					getBoothInvoices(boothId, { limit, startingAfter: pageParam })
+			: skipToken,
+		initialPageParam: undefined as string | undefined,
+		// Trust has_more over the cursor's presence, and stop on an empty page:
+		// requesting the same cursor forever is the classic infinite-scroll bug.
+		getNextPageParam: (lastPage) =>
+			lastPage.has_more && lastPage.next_cursor && lastPage.invoices.length > 0
+				? lastPage.next_cursor
+				: undefined,
 		staleTime: 60 * 1000,
 		gcTime: 60 * 1000,
 		retry: (failureCount, error) => {
 			const status = (error as { status?: number })?.status;
-			// A missing route or a booth we cannot see will not become visible on
-			// a retry, and 429 carries its own backoff.
-			if (status === 404 || status === 401 || status === 429) return false;
+			// 404 (not ours / not deployed), 400 (bad cursor), 401 and 422 cannot
+			// succeed on a retry. 429 is retryable but carries its own backoff, so
+			// it is surfaced for the user to trigger rather than hammered here.
+			if (status === 404 || status === 400 || status === 401) return false;
+			if (status === 422 || status === 429) return false;
+			// 503 stripe_unavailable is transient — one retry, then show the error.
 			return failureCount < 1;
 		},
 	});

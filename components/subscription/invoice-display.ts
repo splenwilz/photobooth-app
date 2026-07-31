@@ -104,8 +104,10 @@ export function describeInvoice(
 		case "draft":
 			return { label: "Not yet issued", tone: "info" };
 		default:
-			// Never echo an unrecognised status: it is Stripe vocabulary, not
-			// anything a user can act on.
-			return { label: "Unpaid", tone: "neutral" };
+			// An unrecognised or missing status means we do not KNOW the state —
+			// saying "Unpaid" there asserts a fact we do not have, and tells the
+			// owner of a healthy subscription that they owe money. Never echo the
+			// raw value either: it is Stripe vocabulary, not something to act on.
+			return { label: "Status unavailable", tone: "neutral" };
 	}
 }
