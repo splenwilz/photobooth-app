@@ -249,8 +249,13 @@ describe("SubscriptionStatusCard — Apple-compliance contract", () => {
 		);
 
 		expect(getByText("Canceled")).toBeTruthy();
-		expect(getByText(/Expires:/)).toBeTruthy();
+		// "Ended:", matching the sheet's "Ended on". Both now derive from the
+		// shared hasSubscriptionEnded predicate rather than one reading `state`
+		// and the other `status`. "Expires:" is reserved for a subscription that
+		// is still running but scheduled to stop.
+		expect(getByText(/Ended:/)).toBeTruthy();
 		expect(queryByText(/Renews:/)).toBeNull();
+		expect(queryByText(/Expires:/)).toBeNull();
 		// Still reachable, so the sheet can offer the one action that applies.
 		expect(getByLabelText("View subscription details")).toBeTruthy();
 	});

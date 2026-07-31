@@ -51,6 +51,7 @@ import {
 	type BillingInterval,
 } from "./BillingIntervalToggle";
 import { PlanCard } from "./PlanCard";
+import { readableMessage } from "./billing-errors";
 
 interface PricingPlansSelectorProps {
 	/** Current plan ID if booth is already subscribed */
@@ -188,9 +189,12 @@ export function PricingPlansSelector({
 					}
 				},
 				onError: (error) => {
+					// readableMessage, not error.message: the API client stringifies
+					// object error bodies, and raw JSON is not user-facing copy.
 					Alert.alert(
 						"Error",
-						error.message || "Failed to start checkout. Please try again.",
+						readableMessage(error) ??
+							"Failed to start checkout. Please try again.",
 					);
 				},
 			},

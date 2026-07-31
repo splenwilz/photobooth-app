@@ -58,6 +58,21 @@ export function canStartNewSubscription(
 }
 
 /**
+ * States where the subscription has actually ended, as opposed to merely being
+ * inactive.
+ *
+ * `past_due` and `unpaid` are inactive but NOT ended — Stripe retries them, so
+ * their period end is still a renewal date. Keying "ended" on `!is_active`
+ * instead of this predicate is what made the sheet say "Ended on" for a booth
+ * the card called "Renews:".
+ */
+export function hasSubscriptionEnded(
+	state: BoothSubscriptionState | undefined,
+): boolean {
+	return state === "canceled";
+}
+
+/**
  * States where a Stripe `payment_method_update` flow can succeed.
  *
  * A cancelled subscription has nothing to re-card: minting the flow against it

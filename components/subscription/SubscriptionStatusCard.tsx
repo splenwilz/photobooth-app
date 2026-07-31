@@ -26,6 +26,7 @@ import { useThemeColor } from "@/hooks/use-theme-color";
 import {
 	canStartNewSubscription,
 	getStatusDisplay,
+	hasSubscriptionEnded,
 } from "./subscription-status";
 import { router } from "expo-router";
 import {
@@ -146,6 +147,13 @@ export function SubscriptionStatusCard({
 	// `unpaid` are excluded on purpose: those booths still HAVE a subscription
 	// and need the card fixed, so offering Subscribe would start a second one
 	// alongside the unpaid original.
+	// Shared with the details sheet so the two cannot disagree about whether a
+	// subscription has ended. Per-booth keys on `state`; the account-level path
+	// has no state field and keeps its status-based reading.
+	const hasEnded = isPerBooth
+		? hasSubscriptionEnded(boothSubscription?.state)
+		: status === "canceled";
+
 	const canSubscribe = isPerBooth
 		? canStartNewSubscription(boothSubscription?.state)
 		: !hasSubscription;
@@ -281,9 +289,11 @@ export function SubscriptionStatusCard({
 							<ThemedText
 								style={[styles.expiryText, { color: textSecondary }]}
 							>
-								{status === "canceled" || cancelAtPeriodEnd
-									? `Expires: ${formatExpiryDate(expiresAt)}`
-									: `Renews: ${formatExpiryDate(expiresAt)}`}
+								{hasEnded
+									? `Ended: ${formatExpiryDate(expiresAt)}`
+									: cancelAtPeriodEnd
+										? `Expires: ${formatExpiryDate(expiresAt)}`
+										: `Renews: ${formatExpiryDate(expiresAt)}`}
 							</ThemedText>
 						)}
 					</View>

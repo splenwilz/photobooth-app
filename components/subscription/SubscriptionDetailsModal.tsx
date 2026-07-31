@@ -37,6 +37,7 @@ import {
 	canStartNewSubscription,
 	canUpdatePaymentCard,
 	getStatusDisplay,
+	hasSubscriptionEnded,
 } from "./subscription-status";
 import { useExternalPurchases } from "@/hooks/use-external-purchases";
 import { useThemeColor } from "@/hooks/use-theme-color";
@@ -179,12 +180,29 @@ export function SubscriptionDetailsModal({
 	// retry them, so their period end IS a renewal date and auto-renewal is
 	// still on. Using !is_active here reproduced the same card/sheet
 	// contradiction this flag was added to remove, just for a different state.
-	const hasEnded = isPerBooth && boothSubscription?.state === "canceled";
+	const hasEnded = isPerBooth && hasSubscriptionEnded(boothSubscription?.state);
 
 	// Card update opens Stripe on the web, so it is an external purchase
 	// surface and stays US-only. Cancel and resume call our own API and present
 	// no purchasing mechanism, so they ship on every storefront.
 	const { enabled: canUseWebPortal } = useExternalPurchases();
+
+	// Single source of truth for which actions the sheet can offer. The buttons
+	// below render from these, and the "no actions available" copy is derived
+	// from them too, so the explanation cannot drift out of step with the
+	// buttons the way a hand-maintained state list did.
+	const canShowResume = (subscription?.cancel_at_period_end ?? false) && !hasEnded;
+	const canShowCancel = (subscription?.is_active ?? false) && !canShowResume;
+	const canShowSubscribe =
+		canUseWebPortal &&
+		canStartNewSubscription(boothSubscription?.state) &&
+		!!boothId;
+	const canShowCardUpdate =
+		canUseWebPortal &&
+		!!subscription?.subscription_id &&
+		canUpdatePaymentCard(boothSubscription?.state);
+	const hasAnyAction =
+		canShowResume || canShowCancel || canShowSubscribe || canShowCardUpdate;
 	const portal = useBoothPortalSession();
 	const cancelSubscription = useCancelBoothSubscription();
 	const resumeSubscription = useResumeBoothSubscription();
@@ -641,9 +659,12 @@ export function SubscriptionDetailsModal({
 							    subscription to target. */}
 							{isPerBooth && (
 								<>
-									{/* Resume replaces Cancel once a cancellation is
-									    scheduled: they are never both applicable. */}
-									{subscription.cancel_at_period_end && subscription.is_active ? (
+									{/* Resume replaces Cancel once a cancellation is scheduled.
+									    Gated on !hasEnded rather than is_active: a past_due
+									    booth can still be scheduled to cancel with its period
+									    end in the future, and resume legitimately succeeds
+									    there. Only an elapsed period makes it pointless. */}
+									{canShowResume ? (
 										<TouchableOpacity
 											accessibilityRole="button"
 											accessibilityLabel="Resume subscription"
@@ -668,7 +689,7 @@ export function SubscriptionDetailsModal({
 											)}
 										</TouchableOpacity>
 									) : (
-										subscription.is_active && (
+										canShowCancel && (
 											<TouchableOpacity
 												accessibilityRole="button"
 												accessibilityLabel="Cancel subscription"
@@ -706,9 +727,7 @@ export function SubscriptionDetailsModal({
 									{/* A cancelled subscription has no manage actions left —
 									    resubscribing is the only thing that helps, and it
 									    duplicates nothing because the old one has ended. */}
-									{canUseWebPortal &&
-										canStartNewSubscription(boothSubscription?.state) &&
-										boothId && (
+									{canShowSubscribe && (
 											<TouchableOpacity
 												accessibilityRole="button"
 												accessibilityLabel="Subscribe"
@@ -735,11 +754,24 @@ export function SubscriptionDetailsModal({
 								    sheet blank. Deliberately descriptive with no link or
 								    call to action — that is what Guideline 3.1.1(a)
 								    restricts off the US storefront. */}
-								{!canUseWebPortal && hasEnded && (
+								{/* Every action above is storefront- or state-gated. Where
+								    none applies, say why rather than leaving the sheet
+								    silent. Derived from whether an action actually
+								    rendered, not from a hand-maintained state list — the
+								    previous version keyed on "has ended" and so left
+								    past_due and unpaid, the states that most need an
+								    explanation, showing a status pill and nothing else.
+
+								    Deliberately descriptive with no link or venue named:
+								    that is what Guideline 3.1.1(a) restricts off the US
+								    storefront. */}
+								{!hasAnyAction && (
 									<ThemedText
 										style={[styles.emptyMessage, { color: textSecondary }]}
 									>
-										This booth&apos;s subscription has ended.
+										{hasEnded
+											? "This booth's subscription has ended."
+											: "This booth's subscription needs attention. Payment details are managed by the account owner."}
 									</ThemedText>
 								)}
 

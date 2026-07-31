@@ -238,9 +238,11 @@ export function invalidateBoothBillingQueries(
 	// problem here: skipToken resolves `enabled: false`, so those queries are
 	// disabled and invalidate/refetch filters them out. Verified against the
 	// pinned query-core, not assumed.
-	queryClient.invalidateQueries({
-		queryKey: ["payments", "boothSubscriptionState"],
-	});
+	// Prefix derived from the factory, not written out by hand: a literal would
+	// keep matching nothing if the factory's key ever changed, and the test
+	// asserting it would stay green.
+	const [scope, entity] = queryKeys.payments.boothSubscriptionState("");
+	queryClient.invalidateQueries({ queryKey: [scope, entity] });
 }
 
 /**

@@ -281,6 +281,58 @@ describe("cancellation", () => {
 		expect(getByText("On")).toBeTruthy();
 	});
 
+	it("keeps Resume for a past_due booth still scheduled to cancel", () => {
+		// Reachable Stripe sequence: user schedules cancellation, then the current
+		// period's renewal invoice fails. status becomes past_due, is_active goes
+		// false, cancel_at_period_end stays true, period end is still in the
+		// future — and resume legitimately succeeds. Gating Resume on is_active
+		// hid it, leaving that booth with no management action at all.
+		mockUseBoothSubscriptionState.mockReturnValue({
+			data: {
+				...activeBooth,
+				state: "past_due",
+				status: "past_due",
+				is_active: false,
+				cancel_at_period_end: true,
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		const { getByText } = renderWithProviders(
+			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
+		);
+
+		expect(getByText("Resume subscription")).toBeTruthy();
+	});
+
+	it("explains itself when no action is available, rather than going silent", () => {
+		// This suite runs with the storefront gate CLOSED, so card update and
+		// Subscribe are unavailable. A past_due booth with no scheduled
+		// cancellation then has no action at all — previously it rendered a
+		// status pill and a date row and nothing else, which is the state that
+		// most needs an explanation.
+		mockUseBoothSubscriptionState.mockReturnValue({
+			data: {
+				...activeBooth,
+				state: "past_due",
+				status: "past_due",
+				is_active: false,
+				cancel_at_period_end: false,
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		const { getByText, queryByText } = renderWithProviders(
+			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
+		);
+
+		expect(getByText(/needs attention/i)).toBeTruthy();
+		expect(queryByText("Cancel subscription")).toBeNull();
+		expect(queryByText("Resume subscription")).toBeNull();
+	});
+
 	it("keeps the sheet usable when a background refetch fails", () => {
 		// A failed BACKGROUND refetch keeps `data` and sets `error`. Blanking the
 		// sheet then hides the status, the dates and every action from a user who
