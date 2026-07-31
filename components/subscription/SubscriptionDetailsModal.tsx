@@ -241,7 +241,7 @@ export function SubscriptionDetailsModal({
 	// this function dropped the legacy per-booth key, which Settings still reads,
 	// leaving that screen stale after a portal return.
 	const refreshBillingCaches = () => {
-		invalidateBoothBillingQueries(queryClient, boothId);
+		invalidateBoothBillingQueries(queryClient);
 	};
 
 	const handleUpdateCard = () => {
@@ -631,8 +631,14 @@ export function SubscriptionDetailsModal({
 
 							</View>
 
-							{/* Warning if canceling */}
-							{subscription.cancel_at_period_end && (
+							{/* Scheduled-cancellation notice. Gated on !hasEnded for the
+						    same reason Resume is: `cancel_at_period_end` can still be
+						    true on a subscription whose period has already elapsed, and
+						    this card would then say "will end on <past date>. You can
+						    resubscribe anytime" directly above "Ended on" — future
+						    tense, past date, and an invitation the off-US sheet has no
+						    way to honour. It pairs with Resume by construction now. */}
+							{subscription.cancel_at_period_end && !hasEnded && (
 								<View
 									style={[
 										styles.warningCard,
@@ -749,11 +755,6 @@ export function SubscriptionDetailsModal({
 											</TouchableOpacity>
 										)}
 
-									{/* Every action above is storefront-gated or state-gated.
-								    Where none applies, say why rather than leaving the
-								    sheet blank. Deliberately descriptive with no link or
-								    call to action — that is what Guideline 3.1.1(a)
-								    restricts off the US storefront. */}
 								{/* Every action above is storefront- or state-gated. Where
 								    none applies, say why rather than leaving the sheet
 								    silent. Derived from whether an action actually
@@ -787,9 +788,7 @@ export function SubscriptionDetailsModal({
 									    for new subscriptions and reports the backfill found
 									    nothing to fix, but only in test mode — tighten this
 									    wording once a live-mode dry run confirms it. */}
-									{canUseWebPortal &&
-									subscription.subscription_id &&
-									canUpdatePaymentCard(boothSubscription?.state) && (
+									{canShowCardUpdate && (
 										<TouchableOpacity
 											accessibilityRole="button"
 											accessibilityLabel="Update payment card"

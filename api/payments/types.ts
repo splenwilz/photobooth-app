@@ -317,16 +317,7 @@ export type BoothSubscriptionMutationResponse =
  * Machine-readable conflict codes returned by the per-booth billing endpoints.
  * Surfaced on `ApiError.code` so each can be routed to different UI.
  */
-export type BoothBillingErrorCode =
-	| "period_elapsed"
-	| "not_scheduled_to_cancel"
-	| "no_subscription"
-	| "booth_not_found"
-	| "flow_not_available"
-	| "stripe_unavailable"
-	| "invalid_return_url";
-
-const BOOTH_BILLING_ERROR_CODES: readonly BoothBillingErrorCode[] = [
+const BOOTH_BILLING_ERROR_CODES = [
 	"period_elapsed",
 	"not_scheduled_to_cancel",
 	"no_subscription",
@@ -334,7 +325,13 @@ const BOOTH_BILLING_ERROR_CODES: readonly BoothBillingErrorCode[] = [
 	"flow_not_available",
 	"stripe_unavailable",
 	"invalid_return_url",
-];
+] as const;
+
+/**
+ * Derived from the array above so the two cannot drift: adding a code in one
+ * place and forgetting the other is impossible.
+ */
+export type BoothBillingErrorCode = (typeof BOOTH_BILLING_ERROR_CODES)[number];
 
 /**
  * Narrow an arbitrary error code to one this app actually routes on.

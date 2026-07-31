@@ -38,8 +38,9 @@ jest.mock("@/api/payments", () => ({
 	useBoothPortalSession: () => ({ mutate: jest.fn(), isPending: false }),
 }));
 
+const mockUseExternalPurchases = jest.fn();
 jest.mock("@/hooks/use-external-purchases", () => ({
-	useExternalPurchases: () => ({ enabled: false, isLoading: false }),
+	useExternalPurchases: () => mockUseExternalPurchases(),
 }));
 
 const activeBooth = {
@@ -76,6 +77,12 @@ beforeEach(() => {
 		data: activeBooth,
 		isLoading: false,
 		error: null,
+	});
+	// Closed by default; individual tests open it where the storefront gate is
+	// not the thing under test.
+	mockUseExternalPurchases.mockReturnValue({
+		enabled: false,
+		isLoading: false,
 	});
 });
 
@@ -281,6 +288,35 @@ describe("cancellation", () => {
 		expect(getByText("On")).toBeTruthy();
 	});
 
+	it("does not say a already-ended subscription 'will end'", () => {
+		// cancel_at_period_end can still be true once the period has elapsed. The
+		// scheduled-cancellation notice then read "Your subscription will end on
+		// <past date>. You can resubscribe anytime" directly above "Ended on" —
+		// future tense about a date that has passed, next to an invitation the
+		// off-US sheet cannot honour.
+		mockUseBoothSubscriptionState.mockReturnValue({
+			data: {
+				...activeBooth,
+				state: "canceled",
+				status: "canceled",
+				is_active: false,
+				cancel_at_period_end: true,
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		const { getByText, queryByText } = renderWithProviders(
+			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
+		);
+
+		expect(queryByText(/will end on/i)).toBeNull();
+		expect(queryByText(/resubscribe anytime/i)).toBeNull();
+		expect(getByText("Ended on")).toBeTruthy();
+		// And no Resume, which would 409 on an elapsed period.
+		expect(queryByText("Resume subscription")).toBeNull();
+	});
+
 	it("keeps Resume for a past_due booth still scheduled to cancel", () => {
 		// Reachable Stripe sequence: user schedules cancellation, then the current
 		// period's renewal invoice fails. status becomes past_due, is_active goes
@@ -359,6 +395,13 @@ describe("cancellation", () => {
 	it("hides the card-update button for a cancelled subscription", () => {
 		// Minting payment_method_update against a dead subscription returns
 		// flow_not_available / no_subscription — a button guaranteed to fail.
+		//
+		// Gate OPEN on purpose: with it closed this test passed because of the
+		// storefront, not because of the cancelled-state predicate it names.
+		mockUseExternalPurchases.mockReturnValue({
+			enabled: true,
+			isLoading: false,
+		});
 		mockUseBoothSubscriptionState.mockReturnValue({
 			data: {
 				...activeBooth,

@@ -134,8 +134,9 @@ describe("PricingPlansSelector", () => {
       // The always-200 state read is what the Settings card and details sheet
       // render. Missing it here left users who had just paid looking at
       // "No active subscription" until the 5-minute staleTime expired.
+      // Invalidated by prefix, which partial-matches booth-1.
       expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ["payments", "boothSubscriptionState", "booth-1"],
+        queryKey: ["payments", "boothSubscriptionState"],
       });
       expect(useBoothStore.getState().selectedBoothId).toBe("booth-1");
       expect(onCheckoutComplete).toHaveBeenCalled();

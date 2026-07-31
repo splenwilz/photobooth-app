@@ -198,8 +198,12 @@ export function useBoothSubscriptionState(boothId: string | null) {
 }
 
 /**
- * Refetch every payments cache that can be affected by something that happened
- * OUTSIDE the app — a Stripe checkout, a portal session, a kiosk action.
+ * Invalidate every payments cache that can be affected by something that
+ * happened OUTSIDE the app — a Stripe checkout, a portal session, a kiosk
+ * action.
+ *
+ * Invalidation, not refetching: active queries refetch immediately, inactive
+ * ones are only marked stale and refresh on their next mount.
  *
  * Use this when the outcome is only knowable server-side. It is the opposite of
  * `applyBoothBillingResult`, which is for writes we made ourselves and whose
@@ -207,13 +211,15 @@ export function useBoothSubscriptionState(boothId: string | null) {
  *
  * Centralised deliberately. When per-booth billing briefly lived under two keys,
  * hand-written call sites invalidated only one of them — leaving users who had
- * just paid looking at "No active subscription" until the 5-minute staleTime
- * expired. Every payments invalidation goes through here so that cannot recur.
+ * just paid looking at "No active subscription" until the staleTime expired.
+ * Every payments invalidation goes through here so that cannot recur.
+ *
+ * Takes no booth id: the per-booth prefix is always invalidated, which covers
+ * the caller's booth and any other booth the same external action may have
+ * changed — and means a caller that happens not to know the id (the portal
+ * return deep link) cannot silently skip the read the UI renders from.
  */
-export function invalidateBoothBillingQueries(
-	queryClient: QueryClient,
-	boothId?: string | null,
-) {
+export function invalidateBoothBillingQueries(queryClient: QueryClient) {
 	queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
 	queryClient.invalidateQueries({
 		queryKey: queryKeys.payments.subscription(),
@@ -222,22 +228,6 @@ export function invalidateBoothBillingQueries(
 		queryKey: queryKeys.payments.boothSubscriptions(),
 	});
 
-	if (boothId) {
-		queryClient.invalidateQueries({
-			queryKey: queryKeys.payments.boothSubscriptionState(boothId),
-		});
-		return;
-	}
-
-	// With no booth in hand — e.g. the boothiq://settings portal return, which
-	// carries no id — invalidate the whole per-booth prefix. Returning early
-	// instead is what left Settings showing a stale subscription after a web
-	// portal cancel, since that screen renders from the state read.
-	//
-	// The `""` sentinel that disabled instances of the hook park on is NOT a
-	// problem here: skipToken resolves `enabled: false`, so those queries are
-	// disabled and invalidate/refetch filters them out. Verified against the
-	// pinned query-core, not assumed.
 	// Prefix derived from the factory, not written out by hand: a literal would
 	// keep matching nothing if the factory's key ever changed, and the test
 	// asserting it would stay green.

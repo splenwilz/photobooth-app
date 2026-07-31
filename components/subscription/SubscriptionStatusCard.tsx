@@ -89,7 +89,21 @@ export function SubscriptionStatusCard({
 		data: boothSubscription,
 		isLoading: isBoothLoading,
 		isError: isBoothError,
+		error: boothStateError,
 	} = useBoothSubscriptionState(boothId ?? null);
+
+	// The card deliberately shows generic copy, which makes a real failure hard
+	// to diagnose from the device. Surface the status and code in dev only.
+	if (__DEV__ && isBoothError) {
+		const { status, code, message } = (boothStateError ?? {}) as {
+			status?: number;
+			code?: string;
+			message?: string;
+		};
+		console.warn(
+			`[Billing] subscription/state failed for booth ${boothId}: status=${status} code=${code} message=${message}`,
+		);
+	}
 	const { data: userAccess, isLoading: isUserLoading } = useSubscriptionAccess();
 	const { enabled: canPurchase } = useExternalPurchases();
 
@@ -140,13 +154,6 @@ export function SubscriptionStatusCard({
 		? !!boothSubscription && boothSubscription.state !== "none"
 		: hasSubscription;
 
-	// Which states may start a NEW subscription.
-	//
-	// `none` and `canceled` only. A cancelled subscription has ended, so
-	// subscribing is the correct action and duplicates nothing. `past_due` and
-	// `unpaid` are excluded on purpose: those booths still HAVE a subscription
-	// and need the card fixed, so offering Subscribe would start a second one
-	// alongside the unpaid original.
 	// Shared with the details sheet so the two cannot disagree about whether a
 	// subscription has ended. Per-booth keys on `state`; the account-level path
 	// has no state field and keeps its status-based reading.
@@ -154,6 +161,13 @@ export function SubscriptionStatusCard({
 		? hasSubscriptionEnded(boothSubscription?.state)
 		: status === "canceled";
 
+	// Which states may start a NEW subscription.
+	//
+	// `none` and `canceled` only. A cancelled subscription has ended, so
+	// subscribing is the correct action and duplicates nothing. `past_due` and
+	// `unpaid` are excluded on purpose: those booths still HAVE a subscription
+	// and need the card fixed, so offering Subscribe would start a second one
+	// alongside the unpaid original.
 	const canSubscribe = isPerBooth
 		? canStartNewSubscription(boothSubscription?.state)
 		: !hasSubscription;

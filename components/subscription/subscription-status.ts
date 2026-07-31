@@ -8,7 +8,10 @@
  */
 
 import { BRAND_COLOR, StatusColors } from "@/constants/theme";
-import type { BoothSubscriptionState } from "@/api/payments";
+import type {
+	BoothSubscriptionState,
+	SubscriptionStatus,
+} from "@/api/payments";
 
 export interface StatusDisplay {
 	color: string;
@@ -19,7 +22,9 @@ export interface StatusDisplay {
  * Covers the full `SubscriptionStatus` union plus the `null` / unknown cases.
  * Never echoes an unrecognised server value back to the user.
  */
-export function getStatusDisplay(status: string | null | undefined): StatusDisplay {
+export function getStatusDisplay(
+	status: SubscriptionStatus | null | undefined,
+): StatusDisplay {
 	switch (status) {
 		case "active":
 			return { color: StatusColors.success, text: "Active" };

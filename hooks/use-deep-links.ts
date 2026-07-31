@@ -108,7 +108,7 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 			// the auth-session interception in the purchase hooks.
 			case CHECKOUT_RETURN_PATHS.PAYMENT_SUCCESS: {
 				const boothId = parsed.queryParams?.booth_id as string | undefined;
-				invalidateBoothBillingQueries(queryClient, boothId);
+				invalidateBoothBillingQueries(queryClient);
 				if (boothId) {
 					queryClient.invalidateQueries({
 						queryKey: queryKeys.booths.detail(boothId),

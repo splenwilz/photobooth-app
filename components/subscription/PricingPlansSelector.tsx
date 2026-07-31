@@ -169,7 +169,7 @@ export function PricingPlansSelector({
 						// and dismissed the sheet before the success redirect
 						// fired — only the server knows the outcome. Invalidation
 						// is cheap and idempotent; success-only UX stays below.
-						invalidateBoothBillingQueries(queryClient, boothId);
+						invalidateBoothBillingQueries(queryClient);
 						queryClient.invalidateQueries({
 							queryKey: queryKeys.booths.detail(boothId),
 						});

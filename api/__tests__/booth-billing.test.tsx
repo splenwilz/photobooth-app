@@ -39,11 +39,13 @@ import { queryKeys } from "@/api/utils/query-keys";
 
 const mockApiClient = apiClient as jest.Mock;
 
-function makeClient() {
-	// gcTime: 0 so no GC timers keep the Jest process alive after the run.
+function makeClient({ gcTime = 0 }: { gcTime?: number } = {}) {
+	// gcTime defaults to 0 so no GC timers keep the Jest process alive. Tests
+	// that seed the cache directly must raise it: an entry with no observer is
+	// collected immediately at 0, so setQueryData would appear to do nothing.
 	return new QueryClient({
 		defaultOptions: {
-			queries: { retry: false, gcTime: 0 },
+			queries: { retry: false, gcTime },
 			mutations: { retry: false, gcTime: 0 },
 		},
 	});
@@ -225,14 +227,24 @@ describe("state-changing mutations invalidate caches", () => {
 	] as const)(
 		"%s invalidates the booth state, fleet list and access caches",
 		async (_label, hook) => {
-			mockApiClient.mockResolvedValue({
-				subscription_id: "sub_123",
-				status: "active",
+			// Full documented cancel shape: the whole record MINUS `state`.
+			const { state: _omitted, ...cancelShape } = {
+				...STATE_FIXTURE,
 				cancel_at_period_end: true,
-				current_period_end: "2026-08-30T00:00:00Z",
-			});
+			};
+			mockApiClient.mockResolvedValue(cancelShape);
 
-			const client = makeClient();
+			const client = makeClient({ gcTime: 60_000 });
+			// Seed both caches so the patch has something to act on — an unseeded
+			// cache makes setQueryData a no-op and the assertions vacuous.
+			client.setQueryData(
+				queryKeys.payments.boothSubscriptionState("booth-1"),
+				STATE_FIXTURE,
+			);
+			client.setQueryData(queryKeys.payments.boothSubscriptions(), {
+				items: [{ ...STATE_FIXTURE }],
+				total: 1,
+			});
 			const spy = jest.spyOn(client, "invalidateQueries");
 			const { result } = renderHook(() => hook(), {
 				wrapper: makeWrapper(client),
@@ -243,6 +255,21 @@ describe("state-changing mutations invalidate caches", () => {
 			});
 
 			await waitFor(() => expect(spy).toHaveBeenCalled());
+
+			// The response is written into both caches, and `state` — absent from
+			// the cancel response — is preserved rather than clobbered.
+			const patched = client.getQueryData(
+				queryKeys.payments.boothSubscriptionState("booth-1"),
+			) as typeof STATE_FIXTURE;
+			expect(patched.cancel_at_period_end).toBe(true);
+			expect(patched.state).toBe(STATE_FIXTURE.state);
+
+			const list = client.getQueryData(
+				queryKeys.payments.boothSubscriptions(),
+			) as { items: (typeof STATE_FIXTURE)[] };
+			expect(list.items[0].cancel_at_period_end).toBe(true);
+			expect(list.items[0].booth_id).toBe("booth-1");
+
 			const invalidated = spy.mock.calls.map((c) =>
 				JSON.stringify(c[0]?.queryKey),
 			);
@@ -285,9 +312,20 @@ describe("useBoothPortalSession", () => {
 
 		expect(response.portal_url).toBe(portalUrl);
 
-		// The session URL is a bearer credential. Mutations are not cached by
-		// TanStack Query, so no query entry may contain it.
-		const dumped = JSON.stringify(client.getQueryCache().getAll());
-		expect(dumped).not.toContain("secret-bearer");
+		// The session URL is a bearer credential, and the MUTATION cache is where
+		// it lingers — mutations retain state.data until collected, and gcTime
+		// alone does not evict one that still has an observer. So it IS resident
+		// until the caller drops it, which is what the real call sites do:
+		expect(
+			JSON.stringify(client.getMutationCache().getAll()),
+		).toContain("secret-bearer");
+
+		act(() => result.current.reset());
+
+		await waitFor(() => {
+			expect(
+				JSON.stringify(client.getMutationCache().getAll()),
+			).not.toContain("secret-bearer");
+		});
 	});
 });

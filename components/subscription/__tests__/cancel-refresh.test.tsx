@@ -15,13 +15,14 @@ import { Alert } from "react-native";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { apiClient } from "@/api/client";
+import { SubscriptionDetailsModal } from "../SubscriptionDetailsModal";
+
+// Hoisted above the imports by babel-jest regardless of source position.
 jest.mock("@/api/client", () => ({ apiClient: jest.fn() }));
 jest.mock("@/hooks/use-external-purchases", () => ({
 	useExternalPurchases: () => ({ enabled: false, isLoading: false }),
 }));
-
-import { apiClient } from "@/api/client";
-import { SubscriptionDetailsModal } from "../SubscriptionDetailsModal";
 
 const mockApiClient = apiClient as jest.Mock;
 

@@ -143,8 +143,8 @@ export async function getCustomerPortal(
  * Get one booth's subscription state.
  *
  * Always 200 for an owned booth — a booth with no subscription reports
- * `state: "none"` rather than 404. Prefer this over `getBoothSubscription`,
- * which models "never subscribed" as a fetch failure.
+ * `state: "none"` rather than 404, so "never subscribed" arrives as data
+ * instead of a fetch failure.
  */
 export async function getBoothSubscriptionState(
 	boothId: string,

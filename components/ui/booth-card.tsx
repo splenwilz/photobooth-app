@@ -154,7 +154,9 @@ const getSubscriptionDisplay = (
 	// booth. Shares the status map with the card and the details sheet.
 	if (subscriptionStatus.status) {
 		const { text, color } = getStatusDisplay(subscriptionStatus.status);
-		return { label: text, color, icon: "exclamationmark.circle" };
+		// exclamationmark.triangle, not .circle: only the triangle variants are in
+		// the IconSymbol mapping, so .circle rendered nothing on Android.
+		return { label: text, color, icon: "exclamationmark.triangle" };
 	}
 
 	return {
