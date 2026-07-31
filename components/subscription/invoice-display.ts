@@ -91,9 +91,12 @@ export function describeInvoice(
 
 	switch (invoice.status) {
 		case "open":
+			// attempt_count is TOTAL attempts, not retries — 3 attempts is one
+			// initial charge plus two retries, so "retried 3 times" overstates it.
+			// Always plural here: this branch requires attempt_count > 1.
 			return invoice.attempt_count > 1
 				? {
-						label: `Payment failed — retried ${invoice.attempt_count} times`,
+						label: `Payment failed after ${invoice.attempt_count} attempts`,
 						tone: "error",
 					}
 				: { label: "Payment due", tone: "warning" };

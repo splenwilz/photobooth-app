@@ -21,7 +21,7 @@
  */
 
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as WebBrowser from "expo-web-browser";
 import {
 	ActivityIndicator,
@@ -125,16 +125,25 @@ export default function InvoicesScreen() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [firstInvoice?.id, firstInvoice?.status, firstInvoice?.paid]);
 
+	// iOS presents one browser at a time and errors on a second concurrent open,
+	// so a double tap — or taps on two different rows — must not launch twice.
+	// Cleared in `finally` rather than on unmount: this screen has no visible
+	// prop to key a reset off, so the guard has to release on every outcome.
+	const receiptInFlight = useRef(false);
+
 	const openReceipt = useCallback(async (invoice: OwnerInvoice) => {
 		// invoice_pdf, NOT hosted_invoice_url: the hosted page carries a "pay
 		// now" affordance for an unpaid invoice, which makes it a purchasing
 		// mechanism under Guideline 3.1.1(a). A PDF is just a document.
-		if (!invoice.invoice_pdf) return;
+		if (!invoice.invoice_pdf || receiptInFlight.current) return;
+		receiptInFlight.current = true;
 		try {
 			// Never logged — the link is effectively a bearer credential.
 			await WebBrowser.openBrowserAsync(invoice.invoice_pdf);
 		} catch {
 			Alert.alert("Error", "Could not open that invoice.");
+		} finally {
+			receiptInFlight.current = false;
 		}
 	}, []);
 

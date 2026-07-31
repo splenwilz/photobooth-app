@@ -68,7 +68,10 @@ describe("describeInvoice", () => {
 			attempt_count: 3,
 		});
 		expect(first.label).not.toBe(retried.label);
-		expect(retried.label).toMatch(/retr/i);
+		// attempt_count is total attempts, not retries: 3 attempts is one charge
+		// plus two retries, so the copy must not say "retried 3 times".
+		expect(retried.label).toBe("Payment failed after 3 attempts");
+		expect(retried.label).not.toMatch(/retried 3/i);
 	});
 
 	it("translates the remaining unpaid statuses", () => {
