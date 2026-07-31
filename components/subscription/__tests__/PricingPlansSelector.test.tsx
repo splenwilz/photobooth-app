@@ -12,6 +12,7 @@ import { act, fireEvent, render } from "@testing-library/react-native";
 import * as WebBrowser from "expo-web-browser";
 import { usePricingPlans } from "@/api/pricing";
 import { useCreateBoothCheckout } from "@/api/payments";
+import { queryKeys } from "@/api/utils/query-keys";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 import { PricingPlansSelector } from "../PricingPlansSelector";
 
@@ -134,9 +135,11 @@ describe("PricingPlansSelector", () => {
       // The always-200 state read is what the Settings card and details sheet
       // render. Missing it here left users who had just paid looking at
       // "No active subscription" until the 5-minute staleTime expired.
-      // Invalidated by prefix, which partial-matches booth-1.
+      // Invalidated by prefix, which partial-matches booth-1. Derived from the
+      // key factory so a rename cannot leave this assertion green against an
+      // invalidation that no longer matches anything.
       expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ["payments", "boothSubscriptionState"],
+        queryKey: queryKeys.payments.boothSubscriptionState("").slice(0, 2),
       });
       expect(useBoothStore.getState().selectedBoothId).toBe("booth-1");
       expect(onCheckoutComplete).toHaveBeenCalled();

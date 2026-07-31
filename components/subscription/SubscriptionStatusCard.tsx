@@ -28,6 +28,7 @@ import {
 	getStatusDisplay,
 	hasSubscriptionEnded,
 } from "./subscription-status";
+import { useEffect } from "react";
 import { router } from "expo-router";
 import {
 	ActivityIndicator,
@@ -94,8 +95,13 @@ export function SubscriptionStatusCard({
 
 	// The card deliberately shows generic copy, which makes a real failure hard
 	// to diagnose from the device. Surface the status and code in dev only.
-	if (__DEV__ && isBoothError) {
-		const { status, code, message } = (boothStateError ?? {}) as {
+	//
+	// In an effect, not during render: logging is a side effect, and in render it
+	// fired again on every re-render and every query notification rather than
+	// once per distinct failure.
+	useEffect(() => {
+		if (!__DEV__ || !boothStateError) return;
+		const { status, code, message } = boothStateError as {
 			status?: number;
 			code?: string;
 			message?: string;
@@ -103,7 +109,7 @@ export function SubscriptionStatusCard({
 		console.warn(
 			`[Billing] subscription/state failed for booth ${boothId}: status=${status} code=${code} message=${message}`,
 		);
-	}
+	}, [boothStateError, boothId]);
 	const { data: userAccess, isLoading: isUserLoading } = useSubscriptionAccess();
 	const { enabled: canPurchase } = useExternalPurchases();
 

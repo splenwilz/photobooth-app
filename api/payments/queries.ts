@@ -117,6 +117,16 @@ export function useBoothSubscriptions() {
 		queryFn: getBoothSubscriptions,
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		gcTime: 10 * 60 * 1000, // 10 minutes
+		// Billing changes outside the app — a kiosk cancellation, a web
+		// purchase — so returning to the foreground must re-read even when the
+		// cache is still fresh. The screen-focus hook only fires on navigation;
+		// a user sitting on this tab when the app backgrounds gets nothing
+		// without this.
+		//
+		// Set here, never globally: iOS emits `inactive` for Control Centre, the
+		// notification shade and the app switcher, so a global "always" would
+		// refetch every active query on each of those round-trips.
+		refetchOnWindowFocus: "always",
 	});
 }
 
@@ -194,6 +204,9 @@ export function useBoothSubscriptionState(boothId: string | null) {
 			: skipToken,
 		staleTime: 5 * 60 * 1000,
 		gcTime: 10 * 60 * 1000,
+		// See useBoothSubscriptions: same external-change problem, and this is
+		// the read the Settings card and details sheet render from.
+		refetchOnWindowFocus: "always",
 	});
 }
 

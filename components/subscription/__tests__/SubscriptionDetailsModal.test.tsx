@@ -195,6 +195,11 @@ describe("cancellation", () => {
 		alertSpy.mockRestore();
 	});
 
+});
+
+// Rendering rules per subscription state — what the sheet SAYS, as opposed to
+// what the cancellation flow DOES.
+describe("lifecycle states", () => {
 	it("offers Resume instead of Cancel when a cancellation is already scheduled", () => {
 		mockUseBoothSubscriptionState.mockReturnValue({
 			data: { ...activeBooth, cancel_at_period_end: true },
@@ -392,35 +397,6 @@ describe("cancellation", () => {
 		expect(queryByText("Close")).toBeNull();
 	});
 
-	it("hides the card-update button for a cancelled subscription", () => {
-		// Minting payment_method_update against a dead subscription returns
-		// flow_not_available / no_subscription — a button guaranteed to fail.
-		//
-		// Gate OPEN on purpose: with it closed this test passed because of the
-		// storefront, not because of the cancelled-state predicate it names.
-		mockUseExternalPurchases.mockReturnValue({
-			enabled: true,
-			isLoading: false,
-		});
-		mockUseBoothSubscriptionState.mockReturnValue({
-			data: {
-				...activeBooth,
-				state: "canceled",
-				status: "canceled",
-				is_active: false,
-				cancel_at_period_end: false,
-			},
-			isLoading: false,
-			error: null,
-		});
-
-		const { queryByText } = renderWithProviders(
-			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
-		);
-
-		expect(queryByText("Update payment card")).toBeNull();
-	});
-
 	it("renders a real label for statuses the sheet has no case for", () => {
 		// The old switch echoed the raw enum, so a booth in `unpaid` showed
 		// "unpaid" to the user while the status card showed "Unpaid".
@@ -455,6 +431,37 @@ describe("cancellation", () => {
 		);
 
 		expect(queryByText("Cancel subscription")).toBeNull();
+	});
+});
+
+describe("card update", () => {
+	it("hides the card-update button for a cancelled subscription", () => {
+		// Minting payment_method_update against a dead subscription returns
+		// flow_not_available / no_subscription — a button guaranteed to fail.
+		//
+		// Gate OPEN on purpose: with it closed this test passed because of the
+		// storefront, not because of the cancelled-state predicate it names.
+		mockUseExternalPurchases.mockReturnValue({
+			enabled: true,
+			isLoading: false,
+		});
+		mockUseBoothSubscriptionState.mockReturnValue({
+			data: {
+				...activeBooth,
+				state: "canceled",
+				status: "canceled",
+				is_active: false,
+				cancel_at_period_end: false,
+			},
+			isLoading: false,
+			error: null,
+		});
+
+		const { queryByText } = renderWithProviders(
+			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
+		);
+
+		expect(queryByText("Update payment card")).toBeNull();
 	});
 });
 

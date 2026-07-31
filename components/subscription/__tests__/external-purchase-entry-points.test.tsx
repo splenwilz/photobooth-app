@@ -31,6 +31,10 @@ jest.mock("@/hooks/use-external-purchases", () => ({
   useExternalPurchases: jest.fn(),
 }));
 jest.mock("@/api/payments", () => ({
+  // requireActual first: the modal also imports invalidateBoothBillingQueries,
+  // which would be undefined under a bare factory and throw the moment a test
+  // exercises a path that refreshes caches.
+  ...jest.requireActual("@/api/payments"),
   useBoothSubscriptionState: jest.fn(),
   useSubscriptionAccess: jest.fn(),
   useSubscriptionDetails: jest.fn(),

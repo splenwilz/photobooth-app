@@ -353,15 +353,19 @@ export function SubscriptionDetailsModal({
 		if (!boothId || resumeInFlight.current || isMutating) return;
 		resumeInFlight.current = true;
 
+		const release = () => {
+			resumeInFlight.current = false;
+		};
+
 		resumeSubscription.mutate(
 			{ boothId },
 			{
 				onSuccess: () => {
-					resumeInFlight.current = false;
+					release();
 					announce("Auto-renewal is back on.");
 				},
 				onError: (error) => {
-					resumeInFlight.current = false;
+					release();
 					const code = errorCodeOf(error);
 					if (code === "period_elapsed") {
 						// Too late to undo — the only route forward is a new

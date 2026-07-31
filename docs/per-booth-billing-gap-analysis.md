@@ -1,10 +1,16 @@
 # Per-Booth Subscription Management — Gap Analysis & Backend Requests
 
-**Status:** RESOLVED, 2026-07-30. The backend shipped every P0 endpoint in a
-second release and answered all six verification questions; the app has been
-migrated onto them. This document is kept as the record of what was asked and
-why — it is NOT a live to-do list, and several statements below were overtaken
-by events. See **Outcome** immediately after this header for what is still open.
+**Status:** three different things, deliberately not collapsed into one word.
+
+| | State |
+|---|---|
+| **Backend availability** | DONE — every P0 endpoint shipped in the second release, all six verification questions answered. |
+| **Client enablement** | DONE — the app is migrated onto them and the work is in review. |
+| **Production approval** | **NOT DONE** — see release blockers below. Nothing here is cleared to ship. |
+
+This document is kept as the record of what was asked and why. It is NOT a live
+to-do list, and several statements below were overtaken by events — see
+**Outcome** immediately after this header.
 
 ## Outcome
 
@@ -16,9 +22,11 @@ owner-initiated `billing` log entries.
 
 Corrections to this document, established after it was written:
 
-- **§3's ship gate is satisfied differently than described.** Card update ships
-  now; the backfill found nothing to pin, but in TEST MODE only. The app keeps
-  generic "Update payment card" copy until a live-mode dry run confirms it.
+- **§3's ship gate is NOT satisfied.** The backfill found nothing to pin, but in
+  TEST MODE only, which says nothing about production. Card update is *built and
+  enabled in the client*; it is not approved for production. The generic
+  "Update payment card" copy stays until a live-mode dry run confirms per-booth
+  isolation, and the wording must not imply per-booth scope before then.
 - **§7's client fixes were superseded.** `refetchOnMount: "always"` and a 404
   retry guard were NOT added. The 404 endpoint was removed outright instead, and
   staleness is handled by wiring `focusManager` to `AppState` plus an explicit
@@ -34,14 +42,29 @@ Corrections to this document, established after it was written:
   write synchronously; FastAPI commits during dependency teardown, after the
   response is written, so an immediate refetch can beat the commit.
 
-Still open, and tracked here only:
+### Release blockers
 
-1. Production `WEBSITE_URL` / `PORTAL_RETURN_URL_ALLOWED_HOSTS` values.
-2. `payment_method_update` enablement verified against LIVE Stripe keys.
-3. Live-mode backfill dry run — and first, whether production runs test keys at
-   all, which would make that check moot.
-4. A dev-environment allowlist entry (`ngrok-free.app`) so portal calls work
-   against a tunnel.
+These gate production, not this change set. Items 1–3 must be closed before the
+card-update flow is enabled for real customers.
+
+1. **Live-mode backfill dry run.** Until this is clean, per-booth card isolation
+   is unverified and the copy must stay generic. Establish first whether
+   production runs test keys at all, which would make the check moot.
+2. **`payment_method_update` verified against LIVE Stripe keys.** Confirmed
+   enabled in test mode only; a disabled live configuration returns
+   `409 flow_not_available` for every user.
+3. **Production `WEBSITE_URL` / `PORTAL_RETURN_URL_ALLOWED_HOSTS`.** Allowlist
+   matching is downward-only — an apex entry covers subdomains, not the reverse
+   — so confirm the host the app actually sends is covered.
+
+### Development only
+
+4. A dev allowlist entry so portal calls work against a tunnel. Prefer the
+   **exact tunnel hostname**; `ngrok-free.app` is a shared public suffix, so
+   allowing it trusts return URLs on anyone's tunnel. If the suffix is used for
+   convenience while hosts rotate, the configuration should reject shared tunnel
+   domains outright in production rather than relying on them being unset —
+   apex-to-subdomain matching for real hosts is unaffected either way.
 
 ---
 
