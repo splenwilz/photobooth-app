@@ -31,6 +31,7 @@ import { SplashScreen } from "@/components/splash-screen";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useDeepLinks } from "@/hooks/use-deep-links";
 import { useQueryFocusManager } from "@/hooks/use-query-focus-manager";
+import { useTimezoneRefetch } from "@/hooks/use-timezone-refetch";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { useBoothStore } from "@/stores/booth-store";
 
@@ -59,6 +60,10 @@ function RootLayoutNav() {
   // Push notifications: foreground handler, Android channel, and tap routing.
   // Device registration is handled in the tabs layout (authed-only).
   usePushNotifications();
+
+  // Re-slice period aggregates when the device timezone changes (the server
+  // computes "today/week/month/year" in the zone each request asks for).
+  useTimezoneRefetch();
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>

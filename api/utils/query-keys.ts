@@ -5,7 +5,11 @@
  * Follows React Query v5 best practices for query key structure.
  * 
  * @see https://tanstack.com/query/latest/docs/react/guides/query-keys
- * 
+ *
+ * Keys for period-aggregating queries include the operator timezone: the
+ * server slices "today/week/month/year" on the zone we request, so cached
+ * payloads are only valid for the zone they were fetched in.
+ *
  * @example
  * ```ts
  * // In a query hook:
@@ -18,6 +22,8 @@
  * queryClient.invalidateQueries({ queryKey: queryKeys.auth.user() })
  * ```
  */
+import { operatorTz } from './timezone';
+
 export const queryKeys = {
   /**
    * Authentication-related query keys
@@ -57,10 +63,21 @@ export const queryKeys = {
     all: () => ['booths'] as const,
 
     /**
-     * Get booth overview with summary and all booths
+     * Get booth overview with summary and all booths.
+     * Keyed by operator timezone — "today" figures are sliced server-side on
+     * the zone we send, so a zone change must never serve cached data.
      * @see GET /api/v1/booths/overview
      */
-    overview: () => ['booths', 'overview'] as const,
+    overview: () => ['booths', 'overview', operatorTz()] as const,
+
+    /**
+     * Tz-less prefix covering BOTH overview() and dashboard.overview()
+     * (['booths','overview',...] and ['booths','overview','all',...]) across
+     * every zone. Use for invalidation after mutations — invalidating the
+     * tz-keyed overview() alone no longer reaches the dashboard key, since
+     * the tz element displaced the historical prefix relationship.
+     */
+    overviewAll: () => ['booths', 'overview'] as const,
 
     /**
      * Get all booths with filters
@@ -69,9 +86,17 @@ export const queryKeys = {
       ['booths', 'list', filters] as const,
 
     /**
-     * Get single booth by ID
+     * Get single booth by ID (tz-keyed: overview carries period revenue)
      */
-    detail: (boothId: string) => ['booths', 'detail', boothId] as const,
+    detail: (boothId: string) =>
+      ['booths', 'detail', boothId, operatorTz()] as const,
+
+    /**
+     * Tz-less prefix for ONE booth's detail entries across every zone. Use
+     * for invalidation/removal — targeting the tz-keyed detail() would miss
+     * entries cached under a previous zone.
+     */
+    detailPrefix: (boothId: string) => ['booths', 'detail', boothId] as const,
 
     /**
      * Prefix for ALL booth-detail queries (broad invalidation across booths,
@@ -139,10 +164,10 @@ export const queryKeys = {
    */
   analytics: {
     /**
-     * Get revenue dashboard data
+     * Get revenue dashboard data (tz-keyed: periods sliced in operator zone)
      */
     dashboard: (params?: { recent_limit?: number; recent_offset?: number }) =>
-      ['analytics', 'dashboard', params] as const,
+      ['analytics', 'dashboard', operatorTz(), params] as const,
 
     /**
      * Get transactions list with infinite scroll
@@ -151,10 +176,10 @@ export const queryKeys = {
       ['analytics', 'transactions', pageSize] as const,
 
     /**
-     * Get revenue data for a specific booth
+     * Get revenue data for a specific booth (tz-keyed)
      */
     boothRevenue: (boothId: string) =>
-      ['analytics', 'booth', boothId, 'revenue'] as const,
+      ['analytics', 'booth', boothId, 'revenue', operatorTz()] as const,
   },
 
   /**
@@ -193,9 +218,9 @@ export const queryKeys = {
    */
   dashboard: {
     /**
-     * Get dashboard overview (all booths aggregated)
+     * Get dashboard overview (all booths aggregated, tz-keyed)
      */
-    overview: () => ['booths', 'overview', 'all'] as const,
+    overview: () => ['booths', 'overview', 'all', operatorTz()] as const,
   },
 
   /**

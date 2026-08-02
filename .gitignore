@@ -48,3 +48,9 @@ app-example
 
 # Python cache from icon generator
 scripts/__pycache__/
+
+# App Store marketing: competitor inspiration downloads (reference only)
+appstore-screenshots/inspiration/
+
+# App Store marketing: rendered screenshot iterations (regenerable via render.mjs)
+tools/store-screenshots/out/

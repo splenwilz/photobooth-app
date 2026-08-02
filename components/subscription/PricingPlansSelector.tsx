@@ -171,7 +171,7 @@ export function PricingPlansSelector({
 						// is cheap and idempotent; success-only UX stays below.
 						invalidateBoothBillingQueries(queryClient);
 						queryClient.invalidateQueries({
-							queryKey: queryKeys.booths.detail(boothId),
+							queryKey: queryKeys.booths.detailPrefix(boothId),
 						});
 					}
 

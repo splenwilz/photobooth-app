@@ -1,4 +1,5 @@
 import { apiClient } from "../client";
+import { withTzFallback } from "../utils/timezone";
 import type { LogoDeleteResponse, LogoUploadResponse } from "../users/types";
 import type {
 	BoothBusinessSettingsResponse,
@@ -76,13 +77,14 @@ export async function getBoothList(): Promise<BoothListResponse> {
  */
 export async function getBoothDetail(boothId: string): Promise<BoothDetailResponse> {
 	if (!boothId) throw new Error("Booth ID is required for getBoothDetail");
-	const response = await apiClient<BoothDetailResponse>(
-		`/api/v1/booths/${boothId}/overview`,
-		{
-			method: "GET",
-		},
+	return withTzFallback((tz) =>
+		apiClient<BoothDetailResponse>(
+			`/api/v1/booths/${boothId}/overview?tz=${encodeURIComponent(tz)}`,
+			{
+				method: "GET",
+			},
+		),
 	);
-	return response;
 }
 
 /**
@@ -91,13 +93,14 @@ export async function getBoothDetail(boothId: string): Promise<BoothDetailRespon
  * @see GET /api/v1/booths/overview
  */
 export async function getBoothOverview(): Promise<BoothOverviewResponse> {
-	const response = await apiClient<BoothOverviewResponse>(
-		"/api/v1/booths/overview",
-		{
-			method: "GET",
-		},
+	return withTzFallback((tz) =>
+		apiClient<BoothOverviewResponse>(
+			`/api/v1/booths/overview?tz=${encodeURIComponent(tz)}`,
+			{
+				method: "GET",
+			},
+		),
 	);
-	return response;
 }
 
 /**
@@ -107,9 +110,14 @@ export async function getBoothOverview(): Promise<BoothOverviewResponse> {
  * @see GET /api/v1/booths/overview/all
  */
 export async function getDashboardOverview(): Promise<DashboardOverviewResponse> {
-	return apiClient<DashboardOverviewResponse>("/api/v1/booths/overview/all", {
-		method: "GET",
-	});
+	return withTzFallback((tz) =>
+		apiClient<DashboardOverviewResponse>(
+			`/api/v1/booths/overview/all?tz=${encodeURIComponent(tz)}`,
+			{
+				method: "GET",
+			},
+		),
+	);
 }
 
 /**

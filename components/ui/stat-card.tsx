@@ -82,8 +82,16 @@ export const StatCard: React.FC<StatCardProps> = ({
           {label}
         </ThemedText>
         
-        {/* Value */}
-        <ThemedText type="title" style={styles.value}>
+        {/* Value — shrink to fit so large amounts never wrap mid-number;
+            floor the shrink so pathological values ellipsize instead of
+            becoming unreadably small */}
+        <ThemedText
+          type="title"
+          style={styles.value}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.5}
+        >
           {value}
         </ThemedText>
         
@@ -131,7 +139,10 @@ const styles = StyleSheet.create({
   value: {
     fontSize: scaleFont(24),
     fontWeight: 'bold',
-    lineHeight: 28,
+    // Scale with the font: a fixed 28 collides with scaleFont(24) on wide
+    // windows (fontSize rounds up to lineHeight → RN clips tall glyphs,
+    // facebook/react-native#29507).
+    lineHeight: scaleFont(28),
     marginBottom: Spacing.xs,
   },
   footer: {
