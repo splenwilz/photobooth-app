@@ -45,7 +45,9 @@ describe("app/booths/create.tsx — post-creation flow contract", () => {
 	it("still gates the connection flow on an active subscription", () => {
 		// Reads the always-200 state endpoint; the 404-on-empty variant was
 		// removed so this screen and Settings cannot disagree about a booth.
-		expect(CREATE_SOURCE).toMatch(/useBoothSubscriptionState/);
+		// Match the CALL, not the identifier: the bare name also matches the
+		// import, so this would keep passing with the query itself deleted.
+		expect(CREATE_SOURCE).toMatch(/useBoothSubscriptionState\s*\(/);
 		expect(CREATE_SOURCE).toMatch(/is_active/);
 	});
 

@@ -229,8 +229,13 @@ export default function InvoicesScreen() {
 			    is not deployed yet — deliberately indistinguishable, and NEVER "no
 			    invoices". Rendering the empty state for it would tell an owner
 			    they have never been charged, which for a paying customer is the
-			    most alarming thing this screen could say. */}
-			{isError && !isLoading && (
+			    most alarming thing this screen could say.
+
+			    Only blocks when there is nothing to show: a failed BACKGROUND
+			    refetch keeps `data` and sets `error`, and replacing a populated
+			    list with an error card hides invoices the user was already
+			    reading — and the pull-to-refresh that would recover them. */}
+			{isError && !isLoading && invoices.length === 0 && (
 				<View style={styles.centered}>
 					<IconSymbol
 						name="exclamationmark.triangle"
@@ -253,7 +258,7 @@ export default function InvoicesScreen() {
 				</View>
 			)}
 
-			{!isLoading && !isError && (
+			{!isLoading && (isError ? invoices.length > 0 : true) && (
 				<FlatList
 					data={invoices}
 					keyExtractor={(item) => item.id}
