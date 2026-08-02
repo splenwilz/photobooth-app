@@ -1,17 +1,16 @@
 /**
  * HTML template for one App Store screenshot canvas.
  *
- * CURRENT design (v4, full-bleed): feature frames use `bleed: true` — a
- * caption band in the app's own background color on top, the raw capture
- * filling the rest of the canvas edge-to-edge (Airbnb grammar). Cover and
- * closer are ink posters with framed phones. Optional per-shot fields:
- * `viewTop` (raw px to skip at the top of the capture), `bandH` (caption
- * band height; must be re-derived if viewTop changes), `patches` (cosmetic
+ * CURRENT design (v1 poster grammar): dark ink bookends (cover + closer,
+ * framed phones, ghosted brand mark, radial lift) and light feature frames
+ * (centered two-tone caption via *word* markup, upright framed phone, teal
+ * glow, gradient wash, ghosted mark). Per-shot field: `patches` (cosmetic
  * identity text overlays in raw capture px).
  *
- * RETAINED alternative modes from earlier iterations (unused by v4 shots,
- * kept for future design passes): `chip` proof crops, `lift` (Cal-AI-style
- * in-place card raise), `anchor:'top'`, `fit:'full'`, tilted-phone bleed.
+ * RETAINED alternative modes from earlier iterations (unused by current
+ * shots, kept for future design passes): `bleed` full-canvas capture with
+ * caption band (+`viewTop`/`bandH`), `chip` proof crops, `lift` in-place
+ * card raise, `anchor:'top'`, `fit:'full'`, tilted-phone bleed via `rot`.
  *
  * All assets (fonts, captures, frame SVG) arrive as data URIs.
  * NOTE: esc() escapes content only (& < ") — interpolated strings are safe
@@ -62,7 +61,7 @@ function phoneHtml(assets, w, { capture = 'capture', patches } = {}) {
   return `
   <div class="phone" style="width:${w}px; height:${px(PHONE.h)};">
     <div style="position:absolute; left:${px(PHONE.sx)}; top:${px(PHONE.sy)}; width:${px(PHONE.sw)}; height:${px(PHONE.sh)}; border-radius:${px(PHONE.r)}; background:${TOKENS.wash};"></div>
-    <img src="${assets[capture]}" style="position:absolute; left:${px(PHONE.sx)}; top:${px(PHONE.sy + PHONE.padTop)}; width:${px(PHONE.sw)}; height:${px(PHONE.sh)}; border-radius:${px(PHONE.r)}; object-fit:cover; object-position:top;">
+    <img src="${assets[capture]}" style="position:absolute; left:${px(PHONE.sx)}; top:${px(PHONE.sy + PHONE.padTop)}; width:${px(PHONE.sw)}; height:${px(PHONE.sh - PHONE.padTop)}; border-radius:${px(PHONE.r)}; object-fit:cover; object-position:top;">
     ${patchHtml(patches, k)}
     <img src="${assets.frame}" style="position:absolute; inset:0; width:100%; height:100%;">
   </div>`;
@@ -125,13 +124,11 @@ function closerHtml(shot, assets) {
 }
 
 function featureHtml(shot, assets) {
-  const rot = shot.rot ?? -8;
   const opts = { patches: shot.patches };
 
   // Default (v1 poster grammar): same visual language as the cover/closer —
-  // ink background, centered two-tone caption, one upright fully-visible
-  // phone, and floating feature badges overlapping its edges (LumaBooth
-  // grammar; badges are design elements, never mocked UI).
+  // gradient wash, centered two-tone caption, one upright fully-visible
+  // framed phone over a soft teal glow and the ghosted brand mark.
   if (!shot.bleed && !shot.lift && !shot.anchor && !shot.fit && !shot.chip) {
     const w = shot.w ?? 990;
     const top = 700;
@@ -146,6 +143,9 @@ function featureHtml(shot, assets) {
       ${phoneHtml(assets, w, opts)}
     </div>`;
   }
+
+  // Everything below is a retained alternate mode (see file header).
+  const rot = shot.rot ?? -8;
 
   // Full-bleed layout (Airbnb grammar): no device frame. A caption band in
   // the app's own background color sits on top; the capture fills the rest
