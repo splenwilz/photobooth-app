@@ -11,13 +11,15 @@ import React from "react";
 import { render } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { useLocalSearchParams } from "expo-router";
+import InvoicesScreen from "../booths/[boothId]/invoices";
+
 const mockUseBoothInvoices = jest.fn();
+// Hoisted above the imports by babel-jest regardless of source position.
 jest.mock("@/api/payments", () => ({
 	...jest.requireActual("@/api/payments"),
 	useBoothInvoices: () => mockUseBoothInvoices(),
 }));
-
-import InvoicesScreen from "../booths/[boothId]/invoices";
 
 const PAID_INVOICE = {
 	id: "in_1",
@@ -68,7 +70,14 @@ function renderScreen() {
 	);
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+	jest.clearAllMocks();
+	// jest.setup.js already mocks expo-router and returns {} for params. Set the
+	// return value rather than re-mocking the module: a local factory would need
+	// requireActual to keep the other exports, which drags the real router and
+	// its navigation deps into this test for no reason.
+	(useLocalSearchParams as jest.Mock).mockReturnValue({ boothId: "booth-1" });
+});
 
 it("keeps cached invoices on screen when a refetch fails", () => {
 	// data present AND error set — the background-refetch failure case.

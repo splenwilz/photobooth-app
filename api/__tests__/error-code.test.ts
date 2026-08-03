@@ -9,7 +9,10 @@
  * message behaviour every existing caller relies on.
  */
 import { extractErrorCode } from "@/api/client";
-import { isBoothBillingErrorCode } from "@/api/payments/types";
+import {
+	BOOTH_BILLING_ERROR_CODES,
+	isBoothBillingErrorCode,
+} from "@/api/payments/types";
 
 describe("extractErrorCode", () => {
 	it("reads a code from a structured FastAPI detail object", () => {
@@ -60,15 +63,9 @@ describe("isBoothBillingErrorCode", () => {
 	// Without this guard a bare `{"detail": "unauthorized"}` would populate
 	// ApiError.code and could match a branch by accident.
 	it("accepts every code the app routes on", () => {
-		for (const code of [
-			"period_elapsed",
-			"not_scheduled_to_cancel",
-			"no_subscription",
-			"booth_not_found",
-			"flow_not_available",
-			"stripe_unavailable",
-			"invalid_return_url",
-		]) {
+		// Iterate the source array, not a copy: a duplicated list drifts silently
+		// the moment a code is added on one side only.
+		for (const code of BOOTH_BILLING_ERROR_CODES) {
 			expect(isBoothBillingErrorCode(code)).toBe(true);
 		}
 	});

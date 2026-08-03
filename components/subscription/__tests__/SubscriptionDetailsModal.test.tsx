@@ -13,6 +13,7 @@ import React from "react";
 import { Alert } from "react-native";
 import { fireEvent, render } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { queryKeys } from "@/api/utils/query-keys";
 
 import { SubscriptionDetailsModal } from "../SubscriptionDetailsModal";
 
@@ -597,7 +598,7 @@ describe("resume", () => {
 		const qc = new QueryClient({
 			defaultOptions: { queries: { retry: false, gcTime: 60_000 } },
 		});
-		qc.setQueryData(["payments", "boothSubscriptionState", "booth-1"], {
+		qc.setQueryData(queryKeys.payments.boothSubscriptionState("booth-1"), {
 			...activeBooth,
 			cancel_at_period_end: true,
 		});
@@ -623,11 +624,9 @@ describe("resume", () => {
 		fireEvent.press(getByText("Resume subscription"));
 
 		// The cache is reconciled so the sheet stops offering Resume.
-		const patched = qc.getQueryData([
-			"payments",
-			"boothSubscriptionState",
-			"booth-1",
-		]) as { cancel_at_period_end: boolean };
+		const patched = qc.getQueryData(
+			queryKeys.payments.boothSubscriptionState("booth-1"),
+		) as { cancel_at_period_end: boolean };
 		expect(patched.cancel_at_period_end).toBe(false);
 	});
 

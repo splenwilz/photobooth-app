@@ -317,7 +317,7 @@ export type BoothSubscriptionMutationResponse =
  * Machine-readable conflict codes returned by the per-booth billing endpoints.
  * Surfaced on `ApiError.code` so each can be routed to different UI.
  */
-const BOOTH_BILLING_ERROR_CODES = [
+export const BOOTH_BILLING_ERROR_CODES = [
 	"period_elapsed",
 	"not_scheduled_to_cancel",
 	"no_subscription",

@@ -28,9 +28,10 @@ Corrections to this document, established after it was written:
   "Update payment card" copy stays until a live-mode dry run confirms per-booth
   isolation, and the wording must not imply per-booth scope before then.
 - **§7's client fixes were superseded.** `refetchOnMount: "always"` and a 404
-  retry guard were NOT added. The 404 endpoint was removed outright instead, and
-  staleness is handled by wiring `focusManager` to `AppState` plus an explicit
-  refresh-on-focus hook.
+  retry guard were NOT added. The client migrated to the always-200 state
+  endpoint instead and dropped its own hook/service for the 404-on-empty route
+  — that backend route still exists and is unchanged. Staleness is handled by
+  wiring `focusManager` to `AppState` plus an explicit refresh-on-focus hook.
 - **§2.1's stated return host was wrong.** `app.boothiq.com` does not exist; the
   dashboard is `boothiq.com/dashboard/...`. The app sends `WEBSITE_URL`-derived
   URLs, and allowlist matching is downward-only (an apex entry covers

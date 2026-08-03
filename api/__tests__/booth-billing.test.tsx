@@ -242,10 +242,11 @@ describe("state-changing mutations invalidate caches", () => {
 				...STATE_FIXTURE,
 				cancel_at_period_end: true,
 			};
+			// Resume CLEARS the scheduled cancellation, so its response says false.
 			const resumeShape = {
 				...STATE_FIXTURE,
 				state: "trialing" as const,
-				cancel_at_period_end: true,
+				cancel_at_period_end: false,
 			};
 			mockApiClient.mockResolvedValue(isCancel ? cancelShape : resumeShape);
 
@@ -276,7 +277,7 @@ describe("state-changing mutations invalidate caches", () => {
 			const patched = client.getQueryData(
 				queryKeys.payments.boothSubscriptionState("booth-1"),
 			) as typeof STATE_FIXTURE;
-			expect(patched.cancel_at_period_end).toBe(true);
+			expect(patched.cancel_at_period_end).toBe(isCancel);
 			// Cancel must PRESERVE the cached state (its response omits the
 			// field); resume must WRITE the state its response carries.
 			expect(patched.state).toBe(isCancel ? STATE_FIXTURE.state : "trialing");
@@ -284,7 +285,7 @@ describe("state-changing mutations invalidate caches", () => {
 			const list = client.getQueryData(
 				queryKeys.payments.boothSubscriptions(),
 			) as { items: (typeof STATE_FIXTURE)[] };
-			expect(list.items[0].cancel_at_period_end).toBe(true);
+			expect(list.items[0].cancel_at_period_end).toBe(isCancel);
 			expect(list.items[0].booth_id).toBe("booth-1");
 
 			const invalidated = spy.mock.calls.map((c) =>

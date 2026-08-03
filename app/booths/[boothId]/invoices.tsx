@@ -219,7 +219,27 @@ export default function InvoicesScreen() {
 				<View style={styles.headerSpacer} />
 			</View>
 
-			{isLoading && (
+			{/* No booth in the route: the query is disabled, so `invoices` is []
+			    and the list would render "No invoices yet" — telling the user they
+			    have never been billed when we simply have nothing to ask about.
+			    Checked before every other branch. */}
+			{!boothId && (
+				<View style={styles.centered}>
+					<IconSymbol
+						name="exclamationmark.triangle"
+						size={40}
+						color={StatusColors.neutral}
+					/>
+					<ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+						Payment history is unavailable
+					</ThemedText>
+					<ThemedText style={[styles.emptyBody, { color: textSecondary }]}>
+						No booth was selected.
+					</ThemedText>
+				</View>
+			)}
+
+			{boothId && isLoading && (
 				<View style={styles.centered}>
 					<ActivityIndicator size="large" color={BRAND_COLOR} />
 				</View>
@@ -235,7 +255,7 @@ export default function InvoicesScreen() {
 			    refetch keeps `data` and sets `error`, and replacing a populated
 			    list with an error card hides invoices the user was already
 			    reading — and the pull-to-refresh that would recover them. */}
-			{isError && !isLoading && invoices.length === 0 && (
+			{boothId && isError && !isLoading && invoices.length === 0 && (
 				<View style={styles.centered}>
 					<IconSymbol
 						name="exclamationmark.triangle"
@@ -258,7 +278,7 @@ export default function InvoicesScreen() {
 				</View>
 			)}
 
-			{!isLoading && (isError ? invoices.length > 0 : true) && (
+			{boothId && !isLoading && (!isError || invoices.length > 0) && (
 				<FlatList
 					data={invoices}
 					keyExtractor={(item) => item.id}

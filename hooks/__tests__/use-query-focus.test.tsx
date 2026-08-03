@@ -35,13 +35,26 @@ function makeWrapper(client: QueryClient) {
 	};
 }
 
+/**
+ * AppState.currentState is a plain property, not a getter, so jest.spyOn cannot
+ * intercept it. Assign directly and restore after each test.
+ */
+const realCurrentState = AppState.currentState;
+function setCurrentState(value: typeof AppState.currentState) {
+	(AppState as { currentState: typeof AppState.currentState }).currentState =
+		value;
+}
+
 beforeEach(() => {
 	// restoreAllMocks, not clearAllMocks: clear resets calls but KEEPS
 	// implementations, so an AppState.addEventListener stub from one describe
 	// would leak into the next.
 	jest.restoreAllMocks();
+	setCurrentState(realCurrentState);
 	focusCallback = undefined;
 });
+
+afterEach(() => setCurrentState(realCurrentState));
 
 describe("useQueryFocusManager", () => {
 	it("tells React Query the app is focused when AppState becomes active", () => {
@@ -64,6 +77,49 @@ describe("useQueryFocusManager", () => {
 		expect(setFocused).toHaveBeenCalledWith(false);
 
 		setFocused.mockRestore();
+	});
+
+	it("seeds from the current state, so a background launch is not 'focused'", () => {
+		// focusManager defaults to focused. An app launched straight into the
+		// background (a push handler) would otherwise be treated as foreground
+		// until the first transition, refetching everything for a user who is
+		// not looking at the screen.
+		const setFocused = jest.spyOn(focusManager, "setFocused");
+		jest
+			.spyOn(AppState, "addEventListener")
+			.mockImplementation(() => ({ remove: jest.fn() }) as never);
+		setCurrentState("background");
+
+		renderHook(() => useQueryFocusManager());
+
+		expect(setFocused).toHaveBeenCalledWith(false);
+	});
+
+	it("does not fire a redundant focus event on a normal foreground launch", () => {
+		// focusManager already defaults to focused, but setFocused(true) still
+		// notifies subscribers the first time — which would refetch everything
+		// mounted with refetchOnWindowFocus on every launch.
+		const setFocused = jest.spyOn(focusManager, "setFocused");
+		jest
+			.spyOn(AppState, "addEventListener")
+			.mockImplementation(() => ({ remove: jest.fn() }) as never);
+		setCurrentState("active");
+
+		renderHook(() => useQueryFocusManager());
+
+		expect(setFocused).not.toHaveBeenCalled();
+	});
+
+	it("does not act on a null current state", () => {
+		const setFocused = jest.spyOn(focusManager, "setFocused");
+		jest
+			.spyOn(AppState, "addEventListener")
+			.mockImplementation(() => ({ remove: jest.fn() }) as never);
+		setCurrentState(null as never);
+
+		renderHook(() => useQueryFocusManager());
+
+		expect(setFocused).not.toHaveBeenCalled();
 	});
 
 	it("removes the AppState subscription on unmount", () => {

@@ -41,6 +41,25 @@ export function useQueryFocusManager() {
 			"change",
 			onAppStateChange,
 		);
+
+		// Seed from the current state AFTER subscribing, so nothing is missed in
+		// between. Without this, an app launched straight into the background
+		// (a push handler, for instance) is treated as focused until the first
+		// transition, because focusManager defaults to focused.
+		//
+		// Only when NOT active: focusManager's default already reports focused,
+		// and setFocused(true) still notifies subscribers the first time — which
+		// would fire a redundant focus event, and a refetch of anything mounted
+		// with refetchOnWindowFocus, on every launch. Verified against the pinned
+		// query-core rather than assumed.
+		//
+		// `currentState` can also be null before the native module initialises,
+		// and null is not a state to act on.
+		const initial = AppState.currentState;
+		if (initial && initial !== "active") {
+			onAppStateChange(initial);
+		}
+
 		return () => subscription.remove();
 	}, []);
 }
