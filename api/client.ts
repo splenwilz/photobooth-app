@@ -19,10 +19,56 @@ export class ApiError extends Error {
     message: string,
     public originalError?: unknown,
     public isSessionExpired: boolean = false,
+    /**
+     * Machine-readable backend error code when the response carries one
+     * (e.g. "period_elapsed", "flow_not_available", "invalid_return_url").
+     * `message` stays the human-readable string, so existing callers that
+     * only read `.message` are unaffected.
+     */
+    public code?: string,
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+/** A lowercase snake_case token, and nothing that looks like a sentence. */
+const ERROR_CODE_PATTERN = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
+
+function asErrorCode(value: unknown): string | undefined {
+  return typeof value === "string" &&
+    value.length <= 64 &&
+    ERROR_CODE_PATTERN.test(value)
+    ? value
+    : undefined;
+}
+
+/**
+ * Recover a machine-readable code from a parsed error body.
+ *
+ * Accepts the shapes the backend actually uses — `{detail: {code}}`,
+ * `{code}`, `{error_code}`, and a bare `{detail: "snake_case_code"}` — and
+ * deliberately rejects prose so a sentence mentioning `return_url` is never
+ * mistaken for a code.
+ */
+export function extractErrorCode(body: unknown): string | undefined {
+  if (typeof body !== "object" || body === null) return undefined;
+
+  const record = body as Record<string, unknown>;
+  const direct =
+    asErrorCode(record.code) ?? asErrorCode(record.error_code);
+  if (direct) return direct;
+
+  const { detail } = record;
+  if (typeof detail === "string") return asErrorCode(detail);
+  if (typeof detail === "object" && detail !== null) {
+    const detailRecord = detail as Record<string, unknown>;
+    return (
+      asErrorCode(detailRecord.code) ?? asErrorCode(detailRecord.error_code)
+    );
+  }
+
+  return undefined;
 }
 
 /**
@@ -74,13 +120,15 @@ function parseValidationErrors(errorArray: unknown[]): string {
  * Handles Pydantic validation errors (array format)
  * Ensures a string is always returned, even if the error field is an object
  */
-async function parseErrorResponse(response: Response): Promise<string> {
+async function parseErrorResponse(
+  response: Response,
+): Promise<{ message: string; code?: string }> {
   try {
     const errorText = await response.text();
 
     // If response is empty (e.g., 204 No Content), return a default message
     if (!errorText || errorText.trim().length === 0) {
-      return response.statusText || "An error occurred";
+      return { message: response.statusText || "An error occurred" };
     }
 
     // Check if response is HTML (server error page, ngrok offline, etc.)
@@ -90,54 +138,72 @@ async function parseErrorResponse(response: Response): Promise<string> {
     ) {
       // Try to extract meaningful message from ngrok error page
       if (errorText.includes("ngrok") && errorText.includes("offline")) {
-        return "Server is offline. Please check your connection.";
+        return { message: "Server is offline. Please check your connection." };
       }
       if (errorText.includes("502") || errorText.includes("Bad Gateway")) {
-        return "Server is temporarily unavailable. Please try again later.";
+        return {
+          message: "Server is temporarily unavailable. Please try again later.",
+        };
       }
       if (
         errorText.includes("503") ||
         errorText.includes("Service Unavailable")
       ) {
-        return "Service is temporarily unavailable. Please try again later.";
+        return {
+          message: "Service is temporarily unavailable. Please try again later.",
+        };
       }
-      return "Server is unreachable. Please check your connection.";
+      return { message: "Server is unreachable. Please check your connection." };
     }
 
     // Try to parse as JSON
     const errorJson = JSON.parse(errorText);
+
+    // Recovered before the body is flattened for display.
+    const code = extractErrorCode(errorJson);
 
     // Extract detail or message field (common API error formats)
     const errorValue = errorJson.detail || errorJson.message || errorText;
 
     // Handle Pydantic validation errors (array format)
     if (Array.isArray(errorValue)) {
-      return parseValidationErrors(errorValue);
+      return { message: parseValidationErrors(errorValue), code };
     }
 
     // Ensure we always return a string
     if (typeof errorValue === "string") {
-      return errorValue;
+      return { message: errorValue, code };
     }
 
     // If it's an object, try to extract a meaningful message or stringify it
     if (typeof errorValue === "object" && errorValue !== null) {
       // Try common nested error message fields
       if (errorValue.message && typeof errorValue.message === "string") {
-        return errorValue.message;
+        return { message: errorValue.message, code };
       }
       if (errorValue.error && typeof errorValue.error === "string") {
-        return errorValue.error;
+        return { message: errorValue.error, code };
       }
-      // Fallback: stringify the object
-      return JSON.stringify(errorValue);
+      // Last resort. This CAN be raw JSON for a body like
+      // {"detail": {"code": "flow_not_available"}} — display layers must not
+      // echo it blindly (see looksLikeSerialisedObject in
+      // components/subscription/billing-errors.ts).
+      //
+      // Do NOT "fix" this by substituting response.statusText: React Native's
+      // XMLHttpRequest never sets statusText, so it is always "", and a truthy
+      // generic here silently overrides every `error.message || "<specific>"`
+      // fallback in the app.
+      return { message: JSON.stringify(errorValue), code };
     }
 
     // Fallback to error text
-    return errorText || response.statusText || "An error occurred";
+    return {
+      message: errorText || response.statusText || "An error occurred",
+      code,
+    };
   } catch {
     // If parsing fails, use status text
-    return response.statusText || "An error occurred";
+    return { message: response.statusText || "An error occurred" };
   }
 }
 
@@ -656,23 +722,24 @@ export async function apiClient<T>(
 
         // If still 401 after refresh, invalid credentials (not token expiry)
         if (res.status === 401) {
-          const msg = await parseErrorResponse(res);
-          throw new ApiError(401, msg, undefined, false);
+          const { message, code } = await parseErrorResponse(res);
+          throw new ApiError(401, message, undefined, false, code);
         }
       } else {
         // Refresh failed - session expired
-        const msg = await parseErrorResponse(res);
+        const { message, code } = await parseErrorResponse(res);
         throw new ApiError(
           401,
-          msg || "Session expired. Please sign in again.",
+          message || "Session expired. Please sign in again.",
           undefined,
           true,
+          code,
         );
       }
     } else {
       // Public auth endpoint — surface the error directly (e.g. wrong password)
-      const msg = await parseErrorResponse(res);
-      throw new ApiError(401, msg, undefined, false);
+      const { message, code } = await parseErrorResponse(res);
+      throw new ApiError(401, message, undefined, false, code);
     }
   }
 
@@ -682,7 +749,8 @@ export async function apiClient<T>(
   }
 
   if (!res.ok) {
-    const errorMessage = await parseErrorResponse(res);
+    const { message: errorMessage, code: errorCode } =
+      await parseErrorResponse(res);
 
     // Log server errors for debugging
     if (res.status >= 500) {
@@ -693,7 +761,7 @@ export async function apiClient<T>(
       });
     }
 
-    throw new ApiError(res.status, errorMessage);
+    throw new ApiError(res.status, errorMessage, undefined, false, errorCode);
   }
 
   const responseContentType = res.headers.get("content-type") ?? "";

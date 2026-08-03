@@ -13,7 +13,10 @@
  */
 
 import { usePricingPlans, type PricingPlan } from "@/api/pricing";
-import { useCreateBoothCheckout } from "@/api/payments";
+import {
+	invalidateBoothBillingQueries,
+	useCreateBoothCheckout,
+} from "@/api/payments";
 import { queryKeys } from "@/api/utils/query-keys";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -48,6 +51,7 @@ import {
 	type BillingInterval,
 } from "./BillingIntervalToggle";
 import { PlanCard } from "./PlanCard";
+import { readableMessage } from "./billing-errors";
 
 interface PricingPlansSelectorProps {
 	/** Current plan ID if booth is already subscribed */
@@ -165,20 +169,9 @@ export function PricingPlansSelector({
 						// and dismissed the sheet before the success redirect
 						// fired — only the server knows the outcome. Invalidation
 						// is cheap and idempotent; success-only UX stays below.
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.access(),
-						});
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.subscription(),
-						});
+						invalidateBoothBillingQueries(queryClient);
 						queryClient.invalidateQueries({
 							queryKey: queryKeys.booths.detail(boothId),
-						});
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.boothSubscription(boothId),
-						});
-						queryClient.invalidateQueries({
-							queryKey: queryKeys.payments.boothSubscriptions(),
 						});
 					}
 
@@ -196,9 +189,12 @@ export function PricingPlansSelector({
 					}
 				},
 				onError: (error) => {
+					// readableMessage, not error.message: the API client stringifies
+					// object error bodies, and raw JSON is not user-facing copy.
 					Alert.alert(
 						"Error",
-						error.message || "Failed to start checkout. Please try again.",
+						readableMessage(error) ??
+							"Failed to start checkout. Please try again.",
 					);
 				},
 			},

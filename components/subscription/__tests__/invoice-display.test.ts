@@ -1,0 +1,108 @@
+/**
+ * Invoice presentation rules.
+ *
+ * Three of these encode warnings from the backend contract that are easy to get
+ * wrong and expensive when wrong — see BOOTH_BILLING_INTEGRATION.md.
+ */
+import {
+	describeInvoice,
+	formatInvoiceAmount,
+} from "../invoice-display";
+
+describe("formatInvoiceAmount", () => {
+	it("divides by 100 for normal currencies", () => {
+		expect(formatInvoiceAmount(2900, "usd")).toBe("$29.00");
+	});
+
+	it("does NOT divide for zero-decimal currencies", () => {
+		// ¥2900 is 2900 yen, not 29. Dividing would under-report by 100x.
+		expect(formatInvoiceAmount(2900, "jpy")).toMatch(/2,900/);
+		expect(formatInvoiceAmount(2900, "jpy")).not.toMatch(/29\.00/);
+		expect(formatInvoiceAmount(5000, "krw")).toMatch(/5,000/);
+	});
+
+	it("accepts uppercase or lowercase currency codes", () => {
+		expect(formatInvoiceAmount(2900, "USD")).toBe("$29.00");
+	});
+
+	it("falls back to a readable string for an unknown code", () => {
+		const out = formatInvoiceAmount(2900, "zzz");
+		expect(out).toContain("29");
+		expect(out.toUpperCase()).toContain("ZZZ");
+	});
+
+	it("renders zero without crashing", () => {
+		expect(formatInvoiceAmount(0, "usd")).toBe("$0.00");
+	});
+});
+
+describe("describeInvoice", () => {
+	// describeInvoice only needs the three fields it branches on.
+	const base = { attempt_count: 1 };
+
+	it("treats `paid` as the authority, not `status`", () => {
+		// A collected invoice can sit in an unusual Stripe status. Branching on
+		// status would tell a user who HAS paid that they owe money.
+		const odd = describeInvoice({
+			...base,
+			paid: true,
+			status: "uncollectible",
+		});
+		expect(odd.label).toBe("Paid");
+		expect(odd.tone).toBe("success");
+	});
+
+	it("never shows the raw Stripe status to the user", () => {
+		// "uncollectible" tells a user nothing about whether they owe money.
+		const out = describeInvoice({ ...base, paid: false, status: "uncollectible" });
+		expect(out.label.toLowerCase()).not.toContain("uncollectible");
+		expect(out.label).toMatch(/couldn't collect|unpaid/i);
+	});
+
+	it("distinguishes a first attempt from a retried failure", () => {
+		const first = describeInvoice({ ...base, paid: false, status: "open" });
+		const retried = describeInvoice({
+			...base,
+			paid: false,
+			status: "open",
+			attempt_count: 3,
+		});
+		expect(first.label).not.toBe(retried.label);
+		// attempt_count is total attempts, not retries: 3 attempts is one charge
+		// plus two retries, so the copy must not say "retried 3 times".
+		expect(retried.label).toBe("Payment failed after 3 attempts");
+		expect(retried.label).not.toMatch(/retried 3/i);
+	});
+
+	it("translates the remaining unpaid statuses", () => {
+		expect(
+			describeInvoice({ ...base, paid: false, status: "void" }).label,
+		).toMatch(/cancelled/i);
+		expect(
+			describeInvoice({ ...base, paid: false, status: "draft" }).label,
+		).toMatch(/not yet issued/i);
+	});
+
+	it("does not claim 'unpaid' for a status it does not recognise", () => {
+		// Not knowing the state is different from knowing it is unpaid. Asserting
+		// the latter tells the owner of a healthy subscription that they owe
+		// money — which is exactly what happened in the field.
+		const out = describeInvoice({
+			...base,
+			paid: false,
+			status: "some_future_status" as never,
+		});
+		expect(out.label).toBe("Status unavailable");
+		expect(out.label.toLowerCase()).not.toContain("unpaid");
+		expect(out.label).not.toContain("some_future_status");
+	});
+
+	it("does not claim 'unpaid' when status is missing entirely", () => {
+		const out = describeInvoice({
+			...base,
+			paid: false,
+			status: undefined as never,
+		});
+		expect(out.label).toBe("Status unavailable");
+	});
+});

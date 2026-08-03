@@ -103,8 +103,12 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 		expect(invalidateSpy).toHaveBeenCalledWith({
 			queryKey: ["payments", "access"],
 		});
+		// The always-200 state read backs the Settings card and details sheet —
+		// a cold-start return from checkout must refresh it, or the booth the
+		// user just paid for still reads as unsubscribed. Invalidated by prefix,
+		// which partial-matches this booth and every other one.
 		expect(invalidateSpy).toHaveBeenCalledWith({
-			queryKey: ["payments", "boothSubscription", "abc"],
+			queryKey: ["payments", "boothSubscriptionState"],
 		});
 		expect(invalidateSpy).toHaveBeenCalledWith({
 			queryKey: ["booths", "detail", "abc"],
@@ -112,6 +116,21 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 		expect(mockSetSelectedBoothId).toHaveBeenCalledWith("abc");
 		expect(mockReplace).toHaveBeenCalledWith("/(tabs)/booths");
 		expect(alertSpy).toHaveBeenCalled();
+	});
+
+	it("refreshes per-booth state on the portal return, which carries no booth id", async () => {
+		// boothiq://settings is the Stripe customer-portal return path. It has no
+		// booth_id, and an earlier version early-returned before touching the
+		// per-booth key — so after cancelling on the web, Settings kept showing
+		// the old subscription for the full staleTime. Invalidate the prefix.
+		const { invalidateSpy } = await fireDeepLink("boothiq://settings");
+
+		// A prefix, which partial-matches every ['payments','boothSubscriptionState',<id>]
+		// entry. Disabled instances parked on the "" sentinel are skipToken queries
+		// (enabled: false), so React Query filters them out of the refetch itself.
+		expect(invalidateSpy).toHaveBeenCalledWith({
+			queryKey: ["payments", "boothSubscriptionState"],
+		});
 	});
 
 	it("payment-success without booth_id still refreshes and navigates (no booth selection)", async () => {

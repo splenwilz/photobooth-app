@@ -13,16 +13,33 @@
  * @see https://tanstack.com/query/latest - React Query docs
  */
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+	type QueryClient,
+	skipToken,
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { queryKeys } from "@/api/utils/query-keys";
 import {
+	cancelBoothSubscription,
+	DEFAULT_INVOICE_LIMIT,
+	getBoothInvoices,
 	createBoothCheckout,
-	getBoothSubscription,
+	createBoothPortalSession,
 	getBoothSubscriptions,
+	getBoothSubscriptionState,
 	getCustomerPortal,
 	getSubscriptionAccess,
 	getSubscriptionDetails,
+	resumeBoothSubscription,
 } from "./services";
+import type {
+	BoothSubscriptionMutationResponse,
+	BoothSubscriptionsListResponse,
+	BoothSubscriptionStateResponse,
+} from "./types";
 
 /**
  * Hook to check subscription access
@@ -103,33 +120,26 @@ export function useBoothSubscriptions() {
 		queryFn: getBoothSubscriptions,
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		gcTime: 10 * 60 * 1000, // 10 minutes
+		// Billing changes outside the app — a kiosk cancellation, a web
+		// purchase — so returning to the foreground must re-read even when the
+		// cache is still fresh. The screen-focus hook only fires on navigation;
+		// a user sitting on this tab when the app backgrounds gets nothing
+		// without this.
+		//
+		// Set here, never globally: iOS emits `inactive` for Control Centre, the
+		// notification shade and the app switcher, so a global "always" would
+		// refetch every active query on each of those round-trips.
+		refetchOnWindowFocus: "always",
 	});
 }
 
-/**
- * Hook to get single booth subscription status
- *
- * Returns subscription details for a specific booth.
- * Automatically disabled when boothId is null.
- *
- * @param boothId - Booth ID to get subscription for (null to disable)
- * @returns Query result with booth subscription status
- *
- * @example
- * const { data, isLoading } = useBoothSubscription(selectedBoothId);
- * if (data?.is_active) {
- *   // Booth has active subscription
- * }
- */
-export function useBoothSubscription(boothId: string | null) {
-	return useQuery({
-		queryKey: queryKeys.payments.boothSubscription(boothId ?? ""),
-		queryFn: () => getBoothSubscription(boothId!),
-		enabled: !!boothId,
-		staleTime: 5 * 60 * 1000,
-		gcTime: 10 * 60 * 1000,
-	});
-}
+// `useBoothSubscription` (GET /booths/{id}/subscription, 404 when the booth has
+// no subscription) was REMOVED in favour of `useBoothSubscriptionState` below.
+//
+// Keeping both meant two reads of the same booth's billing on every Settings
+// mount, under two cache keys, which could disagree — and only one of them was
+// ever patched after a cancel. If a caller genuinely needs the 404 endpoint,
+// add it back deliberately rather than as a second default.
 
 // ============================================================================
 // EXTERNAL CHECKOUT + PORTAL MUTATIONS (US storefront only)
@@ -147,7 +157,8 @@ export function useBoothSubscription(boothId: string | null) {
  * const { checkout_url } = await checkout.mutateAsync({ booth_id, price_id, success_url, cancel_url });
  */
 export function useCreateBoothCheckout() {
-	return useMutation({ mutationFn: createBoothCheckout });
+	// Non-idempotent: a retried 5xx can mint a second Stripe session.
+	return useMutation({ mutationFn: createBoothCheckout, retry: false });
 }
 
 /**
@@ -157,5 +168,288 @@ export function useCreateBoothCheckout() {
  * which refreshes payment queries (see use-deep-links.ts).
  */
 export function useCustomerPortal() {
-	return useMutation({ mutationFn: getCustomerPortal });
+	return useMutation({
+		mutationFn: getCustomerPortal,
+		// Non-idempotent session creation; see useCreateBoothCheckout.
+		retry: false,
+		// Same bearer-credential reasoning as useBoothPortalSession: reset() at
+		// the call site detaches the observer, but without this the mutation —
+		// and its portal_url — lingers in the cache for the default 5 minutes.
+		gcTime: 0,
+	});
+}
+
+// ============================================================================
+// PER-BOOTH SUBSCRIPTION MANAGEMENT
+// ============================================================================
+
+/**
+ * Hook to read one booth's subscription state.
+ *
+ * Always resolves for an owned booth — a booth that never subscribed reports
+ * `state: "none"` as DATA, so consumers branch on state rather than swallowing
+ * an error. Automatically disabled when boothId is null.
+ *
+ * @example
+ * const { data } = useBoothSubscriptionState(boothId);
+ * if (data?.state === "none") return <SubscribeCta />;
+ */
+export function useBoothSubscriptionState(boothId: string | null) {
+	return useQuery({
+		// `skipToken` rather than `enabled` + a non-null assertion: it is the
+		// documented v5 pattern and it type-narrows, so `boothId!` is gone.
+		// The `""` key below is still shared by every disabled instance —
+		// harmless because nothing ever writes it, but not something skipToken
+		// changes.
+		queryKey: queryKeys.payments.boothSubscriptionState(boothId ?? ""),
+		queryFn: boothId
+			? () => getBoothSubscriptionState(boothId)
+			: skipToken,
+		staleTime: 5 * 60 * 1000,
+		gcTime: 10 * 60 * 1000,
+		// See useBoothSubscriptions: same external-change problem, and this is
+		// the read the Settings card and details sheet render from.
+		refetchOnWindowFocus: "always",
+	});
+}
+
+/**
+ * Invalidate every payments cache that can be affected by something that
+ * happened OUTSIDE the app — a Stripe checkout, a portal session, a kiosk
+ * action.
+ *
+ * Invalidation, not refetching: active queries refetch immediately, inactive
+ * ones are only marked stale and refresh on their next mount.
+ *
+ * Use this when the outcome is only knowable server-side. It is the opposite of
+ * `applyBoothBillingResult`, which is for writes we made ourselves and whose
+ * response is authoritative.
+ *
+ * Centralised deliberately. When per-booth billing briefly lived under two keys,
+ * hand-written call sites invalidated only one of them — leaving users who had
+ * just paid looking at "No active subscription" until the staleTime expired.
+ * Every payments invalidation goes through here so that cannot recur.
+ *
+ * Takes no booth id: the per-booth prefix is always invalidated, which covers
+ * the caller's booth and any other booth the same external action may have
+ * changed — and means a caller that happens not to know the id (the portal
+ * return deep link) cannot silently skip the read the UI renders from.
+ */
+export function invalidateBoothBillingQueries(queryClient: QueryClient) {
+	queryClient.invalidateQueries({ queryKey: queryKeys.payments.access() });
+	queryClient.invalidateQueries({
+		queryKey: queryKeys.payments.subscription(),
+	});
+	queryClient.invalidateQueries({
+		queryKey: queryKeys.payments.boothSubscriptions(),
+	});
+	// Invoices too: a checkout or a portal visit can raise or settle one, and
+	// the prefix matches every booth id and page size.
+	const [invoiceScope, invoiceEntity] = queryKeys.payments.boothInvoices("", 0);
+	queryClient.invalidateQueries({ queryKey: [invoiceScope, invoiceEntity] });
+
+	// Prefix derived from the factory, not written out by hand: a literal would
+	// keep matching nothing if the factory's key ever changed, and the test
+	// asserting it would stay green.
+	const [scope, entity] = queryKeys.payments.boothSubscriptionState("");
+	queryClient.invalidateQueries({ queryKey: [scope, entity] });
+}
+
+/**
+ * Apply a cancel/resume result to every cache that shows a booth's billing.
+ *
+ * Writes the mutation's own response into the cache rather than refetching into
+ * it, and marks the entries stale WITHOUT an immediate refetch.
+ *
+ * The backend applies cancel/resume synchronously and re-reads before
+ * responding, so the response is authoritative. But FastAPI commits during
+ * dependency teardown — after the response is written — so a refetch issued
+ * immediately can land on another pooled connection microseconds before that
+ * commit and read the pre-change row. That is the stale read that made a
+ * cancellation look like it had not registered until the app was reloaded.
+ * (It is NOT Stripe webhook lag; the webhook only reconciles afterwards.)
+ *
+ * Marking stale without refetching means the next natural refetch — screen
+ * focus or remount — picks up the server's own row, by which time the commit
+ * has long landed.
+ *
+ * @see https://tanstack.com/query/latest/docs/framework/react/guides/updates-from-mutation-responses
+ */
+function applyBoothBillingResult(
+	queryClient: ReturnType<typeof useQueryClient>,
+	boothId: string,
+	result: BoothSubscriptionMutationResponse,
+) {
+	// Both responses are subsets of the state shape with identical field types
+	// (confirmed against the backend OpenAPI schema), so the whole result can be
+	// spread over a cached entry. The one asymmetry: `state` comes back from
+	// resume but NOT from cancel, so it must be preserved rather than clobbered
+	// with undefined. A period-end cancel genuinely leaves `state` unchanged —
+	// the subscription stays active until the period elapses.
+	//
+	// Narrowed with `in` rather than cast: a cast would silently accept a future
+	// backend field change, which is exactly the class of drift that would
+	// corrupt the cache without failing a build or a test.
+	const resultState = "state" in result ? result.state : undefined;
+	const common: Omit<BoothSubscriptionStateResponse, "state"> =
+		"state" in result
+			? (({ state: _state, ...rest }) => rest)(result)
+			: result;
+
+	queryClient.setQueryData<BoothSubscriptionStateResponse>(
+		queryKeys.payments.boothSubscriptionState(boothId),
+		(previous) =>
+			previous
+				? { ...previous, ...common, state: resultState ?? previous.state }
+				: previous,
+	);
+
+	queryClient.setQueryData<BoothSubscriptionsListResponse>(
+		queryKeys.payments.boothSubscriptions(),
+		(previous) =>
+			// Array.isArray, not just a truthy check: this runs inside onSuccess,
+			// and a throw here is routed to the mutation's ERROR path — telling the
+			// user "could not cancel" about a cancellation the server committed.
+			previous && Array.isArray(previous.items)
+				? {
+						...previous,
+						items: previous.items.map((item) =>
+							// `common` excludes `state`, which the list rows don't carry.
+							item.booth_id === boothId ? { ...item, ...common } : item,
+						),
+					}
+				: previous,
+	);
+
+	// Mark the patched entries stale so the server's eventual truth is picked up
+	// on the next mount or screen focus — but WITHOUT refetching now, which is
+	// precisely the race described above.
+	//
+	// `access()` is included even though it cannot be patched from this
+	// response: a period-end cancellation does not change account access yet, so
+	// there is nothing to correct now, and refetching it immediately would sit
+	// in the same commit window as the reads above. Consistent treatment beats a
+	// benign-looking exception.
+	for (const queryKey of [
+		queryKeys.payments.boothSubscriptionState(boothId),
+		queryKeys.payments.boothSubscriptions(),
+		queryKeys.payments.access(),
+	]) {
+		queryClient.invalidateQueries({ queryKey, refetchType: "none" });
+	}
+}
+
+/**
+ * Schedule a booth's subscription to cancel at period end.
+ *
+ * Native (no Stripe web surface), so it is available on every storefront —
+ * cancelling is not a call to action directing the user to a purchasing
+ * mechanism. See api/__tests__/payments-queries.test.ts for the policy note.
+ */
+export function useCancelBoothSubscription() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		// No retry: this is a non-idempotent POST with no idempotency key, so a
+		// retry after a 5xx that the server had already applied would send the
+		// write twice. The global default retries mutations once.
+		retry: false,
+		mutationFn: ({ boothId }: { boothId: string }) =>
+			cancelBoothSubscription(boothId),
+		onSuccess: (data, { boothId }) =>
+			applyBoothBillingResult(queryClient, boothId, data),
+	});
+}
+
+/**
+ * Clear a scheduled cancellation before the period elapses.
+ *
+ * Conflicts surface as `ApiError.code` — `period_elapsed`,
+ * `not_scheduled_to_cancel`, `no_subscription`, `stripe_unavailable` — so the
+ * caller can route each one instead of showing a generic failure.
+ */
+export function useResumeBoothSubscription() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		// See cancel: non-idempotent POST, no idempotency key.
+		retry: false,
+		mutationFn: ({ boothId }: { boothId: string }) =>
+			resumeBoothSubscription(boothId),
+		onSuccess: (data, { boothId }) =>
+			applyBoothBillingResult(queryClient, boothId, data),
+	});
+}
+
+/**
+ * Mint a per-booth Stripe portal session deep-linked to a single flow.
+ *
+ * A mutation rather than a query on purpose: `portal_url` is a bearer
+ * credential and query results are cached. No invalidation here — creating a
+ * session changes nothing; the caller refreshes when the browser closes,
+ * because Stripe may show its own confirmation page instead of redirecting to
+ * `return_url`.
+ */
+export function useBoothPortalSession() {
+	return useMutation({
+		mutationFn: createBoothPortalSession,
+		// Non-idempotent session creation; see useCreateBoothCheckout.
+		retry: false,
+		// `portal_url` is a bearer credential. gcTime alone does NOT evict it —
+		// a mutation is only collected once it has no observers, and the sheet
+		// that owns this one never unmounts. The call site calls `.reset()` once
+		// the URL has been handed to the browser; this is defence in depth for
+		// any future caller that does unmount.
+		gcTime: 0,
+	});
+}
+
+/**
+ * Statuses a retry cannot fix: not ours (403/404), a bad cursor (400), an
+ * invalid limit (422), an auth failure (401), or a rate limit that carries its
+ * own backoff (429).
+ */
+const TERMINAL_INVOICE_STATUSES = new Set([400, 401, 403, 404, 422, 429]);
+
+/**
+ * Hook to read a booth's payment history, page by page.
+ *
+ * Cursor pagination, not offset — Stripe's model, so there is no page count and
+ * no jumping to page N. The UI is "load more", never numbered pages.
+ *
+ * `[]` is NOT an error and a `404` is NOT an empty list: an owner with no
+ * invoices gets `200` with an empty array, so the empty state must be driven by
+ * the array. A 404 means the booth is not visible to us, or the route is not
+ * deployed yet.
+ *
+ * Held briefly in memory: responses are `Cache-Control: no-store` and carry
+ * bearer receipt links.
+ */
+export function useBoothInvoices(
+	boothId: string | null,
+	limit = DEFAULT_INVOICE_LIMIT,
+) {
+	return useInfiniteQuery({
+		queryKey: queryKeys.payments.boothInvoices(boothId ?? "", limit),
+		queryFn: boothId
+			? ({ pageParam }: { pageParam?: string }) =>
+					getBoothInvoices(boothId, { limit, startingAfter: pageParam })
+			: skipToken,
+		initialPageParam: undefined as string | undefined,
+		// Trust has_more over the cursor's presence, and stop on an empty page:
+		// requesting the same cursor forever is the classic infinite-scroll bug.
+		getNextPageParam: (lastPage) =>
+			lastPage.has_more && lastPage.next_cursor && lastPage.invoices.length > 0
+				? lastPage.next_cursor
+				: undefined,
+		staleTime: 60 * 1000,
+		gcTime: 60 * 1000,
+		retry: (failureCount, error) => {
+			const status = (error as { status?: number })?.status;
+			// None of these can succeed on a repeat. 429 is nominally retryable but
+			// carries its own backoff, so it is surfaced for the user to trigger
+			// rather than hammered here.
+			if (TERMINAL_INVOICE_STATUSES.has(status ?? 0)) return false;
+			// 503 stripe_unavailable is transient — one retry, then show the error.
+			return failureCount < 1;
+		},
+	});
 }

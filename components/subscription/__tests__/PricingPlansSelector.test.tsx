@@ -12,11 +12,17 @@ import { act, fireEvent, render } from "@testing-library/react-native";
 import * as WebBrowser from "expo-web-browser";
 import { usePricingPlans } from "@/api/pricing";
 import { useCreateBoothCheckout } from "@/api/payments";
+import { queryKeys } from "@/api/utils/query-keys";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
 import { PricingPlansSelector } from "../PricingPlansSelector";
 
 jest.mock("@/api/pricing", () => ({ usePricingPlans: jest.fn() }));
-jest.mock("@/api/payments", () => ({ useCreateBoothCheckout: jest.fn() }));
+// requireActual so the real invalidateBoothBillingQueries runs — the point of
+// these assertions is which cache keys actually get invalidated.
+jest.mock("@/api/payments", () => ({
+  ...jest.requireActual("@/api/payments"),
+  useCreateBoothCheckout: jest.fn(),
+}));
 jest.mock("expo-web-browser", () => ({ openAuthSessionAsync: jest.fn() }));
 
 const mockPlans = usePricingPlans as jest.Mock;
@@ -126,8 +132,14 @@ describe("PricingPlansSelector", () => {
       expect(invalidateSpy).toHaveBeenCalledWith({
         queryKey: ["payments", "access"],
       });
+      // The always-200 state read is what the Settings card and details sheet
+      // render. Missing it here left users who had just paid looking at
+      // "No active subscription" until the 5-minute staleTime expired.
+      // Invalidated by prefix, which partial-matches booth-1. Derived from the
+      // key factory so a rename cannot leave this assertion green against an
+      // invalidation that no longer matches anything.
       expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ["payments", "boothSubscription", "booth-1"],
+        queryKey: queryKeys.payments.boothSubscriptionState("").slice(0, 2),
       });
       expect(useBoothStore.getState().selectedBoothId).toBe("booth-1");
       expect(onCheckoutComplete).toHaveBeenCalled();

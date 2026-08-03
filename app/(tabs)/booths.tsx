@@ -15,8 +15,10 @@
  * @see /api/booths/queries.ts - useBoothOverview hook
  */
 
-import { useFocusEffect, useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "@react-navigation/native";
 import { router } from "expo-router";
+import { queryKeys } from "@/api/utils/query-keys";
+import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	Pressable,
@@ -128,16 +130,18 @@ export default function BoothsScreen() {
 	const { data: subscriptionsData, refetch: refetchSubscriptions } =
 		useBoothSubscriptions();
 
-	// The subscriptions list has a 5-min staleTime and is only invalidated by
-	// in-app cancellation. New booths and subscriptions purchased outside the app
-	// (Stripe) won't appear until the cache goes stale. Refetch whenever the
-	// screen regains focus (e.g. returning from the create/subscribe flow) so the
-	// badges reflect reality without forcing a full app reload.
-	useFocusEffect(
-		useCallback(() => {
-			refetchSubscriptions();
-		}, [refetchSubscriptions]),
-	);
+	// The subscriptions list has a 5-min staleTime, and state can change outside
+	// the app entirely — a subscription cancelled at a kiosk, or bought on the
+	// web. Refresh when the screen regains focus so the badges reflect reality.
+	//
+	// `staleOnly: false` is load-bearing: with the default stale-only filter,
+	// returning to this screen within the staleTime window refetches nothing —
+	// and that window is exactly when a user comes back from an out-of-app
+	// action. The shared hook still skips the first focus, which is the mount
+	// fetch the previous hand-rolled version duplicated.
+	useRefreshOnFocus(queryKeys.payments.boothSubscriptions(), {
+		staleOnly: false,
+	});
 
 	// Create map of boothId → subscription status for quick lookup
 	const subscriptionMap = useMemo(() => {
@@ -149,6 +153,7 @@ export default function BoothsScreen() {
 					is_active: sub.is_active,
 					status: sub.status,
 					cancel_at_period_end: sub.cancel_at_period_end,
+					activation_required: sub.activation_required,
 				},
 			]),
 		);

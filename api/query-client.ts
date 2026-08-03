@@ -44,7 +44,17 @@ export const queryClient = new QueryClient({
             // Cached data kept for 10 minutes after unused
             gcTime: 10 * 60 * 1000,
             refetchOnMount: true,
+            // Native has no window focus event: this only works because
+            // useQueryFocusManager (mounted in app/_layout.tsx) drives
+            // focusManager from AppState. Removing that hook silently disables
+            // this flag.
             refetchOnWindowFocus: true,
+            // TODO: inert on native — React Query's onlineManager needs an
+            // event listener backed by expo-network or NetInfo, neither of
+            // which is installed. Adding one is a native dependency and so a
+            // new build (CNG prebuild), tracked separately. AppState focus
+            // covers the common case, since regaining connectivity usually
+            // coincides with returning to the app.
             refetchOnReconnect: true,
         },
         mutations: {

@@ -21,7 +21,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 // API hooks
 import { useCreateBooth } from "@/api/booths/queries";
-import { useBoothSubscription } from "@/api/payments";
+import { useBoothSubscriptionState } from "@/api/payments";
 import type { CreateBoothResponse } from "@/api/booths/types";
 import { FormInput } from "@/components/auth/form-input";
 import { PrimaryButton } from "@/components/auth/primary-button";
@@ -78,7 +78,7 @@ export default function CreateBoothScreen() {
 	// activated, so the post-creation flow is gated on subscription status.
 	const { enabled: canPurchase, isLoading: isGateLoading } =
 		useExternalPurchases();
-	const { data: createdBoothSubscription } = useBoothSubscription(
+	const { data: createdBoothSubscription } = useBoothSubscriptionState(
 		createdBooth?.id ?? null,
 	);
 	const hasActiveSubscription = createdBoothSubscription?.is_active ?? false;

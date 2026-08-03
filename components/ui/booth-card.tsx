@@ -10,6 +10,7 @@
  */
 
 import type { SubscriptionStatus } from "@/api/payments/types";
+import { getStatusDisplay } from "@/components/subscription/subscription-status";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import {
@@ -35,6 +36,12 @@ interface BoothCardSubscriptionInfo {
 	status: SubscriptionStatus | null;
 	/** Whether subscription will cancel at period end */
 	cancel_at_period_end?: boolean;
+	/**
+	 * Booth is paid but has no hardware identity on file, so it will not run.
+	 * Distinct from a billing problem — shown so the fleet view stops reporting
+	 * such a booth as simply healthy.
+	 */
+	activation_required?: boolean;
 }
 
 interface BoothCardProps {
@@ -116,6 +123,9 @@ const getSubscriptionDisplay = (
 	}
 
 	if (subscriptionStatus.is_active) {
+		// Cancelling outranks activation: "stops billing soon" is the more urgent
+		// signal, and both badges are warning-coloured so there would be no cue
+		// that anything else had changed.
 		if (subscriptionStatus.cancel_at_period_end) {
 			return {
 				label: "Expiring",
@@ -123,11 +133,30 @@ const getSubscriptionDisplay = (
 				icon: "clock",
 			};
 		}
+		// Paid but unrunnable outranks the plain "Subscribed" badge: a booth that
+		// cannot start is the misleading case this field was added to fix.
+		if (subscriptionStatus.activation_required) {
+			return {
+				label: "Not activated",
+				color: StatusColors.warning,
+				icon: "exclamationmark.triangle",
+			};
+		}
 		return {
 			label: "Subscribed",
 			color: StatusColors.success,
 			icon: "checkmark.circle.fill",
 		};
+	}
+
+	// Lapsed states carry real information — rendering them all as
+	// "No Subscription" made the fleet list contradict Settings for the same
+	// booth. Shares the status map with the card and the details sheet.
+	if (subscriptionStatus.status) {
+		const { text, color } = getStatusDisplay(subscriptionStatus.status);
+		// exclamationmark.triangle, not .circle: only the triangle variants are in
+		// the IconSymbol mapping, so .circle rendered nothing on Android.
+		return { label: text, color, icon: "exclamationmark.triangle" };
 	}
 
 	return {

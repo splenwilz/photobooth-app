@@ -51,7 +51,7 @@ import {
   getStoredUser,
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
-import { useBoothSubscription } from "@/api/payments";
+import { useBoothSubscriptionState } from "@/api/payments";
 import { useDeleteAccount } from "@/api/users";
 import {
   BusinessSettingsModal,
@@ -455,7 +455,7 @@ export default function SettingsScreen() {
 		isLoading: isBoothSubscriptionLoading,
 		isError: isBoothSubscriptionError,
 		refetch: refetchSubscription,
-	} = useBoothSubscription(effectiveBoothId);
+	} = useBoothSubscriptionState(effectiveBoothId);
 	// `isLoading` from React Query is only true while the query is enabled and
 	// a response hasn't arrived yet. Treat "no booth selected" the same as
 	// "resolved" (no fetch in flight). Treat an errored fetch as "known" too —
@@ -502,6 +502,7 @@ export default function SettingsScreen() {
 
 	// State for Subscription Details modal
 	const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
 
 	// State for Business Settings modal
 	const [showBusinessSettingsModal, setShowBusinessSettingsModal] = useState(false);

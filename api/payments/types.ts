@@ -101,6 +101,12 @@ export interface BoothSubscriptionItem {
 	cancel_at_period_end: boolean;
 	/** Stripe price ID or null */
 	price_id: string | null;
+	/**
+	 * True when the booth has no hardware identity on file — paid but unable
+	 * to run. Optional because the field post-dates this type; treat a missing
+	 * value as "not flagged" rather than assuming false is authoritative.
+	 */
+	activation_required?: boolean;
 }
 
 /**
@@ -176,4 +182,242 @@ export interface CustomerPortalResponse {
 	success: boolean;
 	/** Stripe-hosted billing portal URL */
 	portal_url: string;
+}
+
+// ============================================================================
+// PER-BOOTH SUBSCRIPTION MANAGEMENT
+// ============================================================================
+
+/**
+ * Booth subscription lifecycle state.
+ *
+ * Distinct from `SubscriptionStatus`: this is the backend's own mapping, which
+ * always resolves to one of these six values. An unmapped Stripe status
+ * reports `past_due`, never `none`, so a paying booth is never rendered as
+ * unsubscribed.
+ */
+export type BoothSubscriptionState =
+	| "none"
+	| "active"
+	| "trialing"
+	| "past_due"
+	| "unpaid"
+	| "canceled";
+
+/**
+ * GET /api/v1/booths/{booth_id}/subscription/state response
+ *
+ * Always 200 for an owned booth, including one with no subscription. Prefer
+ * this over `GET /booths/{booth_id}/subscription`, which returns 404 when
+ * there is no subscription and therefore models a normal state as a failure.
+ */
+export interface BoothSubscriptionStateResponse {
+	/** Booth ID */
+	booth_id: string;
+	/** Booth name for display */
+	booth_name: string;
+	/** Lifecycle state — `none` when the booth has never subscribed */
+	state: BoothSubscriptionState;
+	/** Stripe subscription ID or null */
+	subscription_id: string | null;
+	/** Raw Stripe status or null */
+	status: SubscriptionStatus | null;
+	/** Whether the booth has an active subscription */
+	is_active: boolean;
+	/** End of current billing period (ISO 8601) or null */
+	current_period_end: string | null;
+	/** Whether the subscription will cancel at period end */
+	cancel_at_period_end: boolean;
+	/** Stripe price ID or null */
+	price_id: string | null;
+	/**
+	 * True when the booth has no hardware identity on file. Such a booth can
+	 * be fully paid and still refuse to run; it is fixed by re-linking the
+	 * booth, not by anything billing-related.
+	 */
+	activation_required: boolean;
+}
+
+/**
+ * Stripe `flow_data` deep-link targets exposed by the backend.
+ *
+ * @see https://docs.stripe.com/customer-management/portal-deep-links
+ */
+export type BoothPortalFlow =
+	| "payment_method_update"
+	| "subscription_cancel"
+	| "subscription_update";
+
+/**
+ * POST /api/v1/booths/{booth_id}/subscription/portal request
+ *
+ * No `subscription_id`: the backend resolves it from `booth_id`, which is what
+ * prevents a flow being pointed at another subscription.
+ */
+export interface CreateBoothPortalRequest {
+	/** Booth whose subscription the flow targets (path parameter) */
+	booth_id: string;
+	/** Which Stripe flow to deep-link into */
+	flow: BoothPortalFlow;
+	/**
+	 * Absolute https URL to return to. Validated server-side against a host
+	 * allowlist — an off-domain value is rejected with `422
+	 * invalid_return_url` rather than forwarded to Stripe.
+	 */
+	return_url: string;
+}
+
+/**
+ * POST /api/v1/booths/{booth_id}/subscription/portal response
+ */
+export interface CreateBoothPortalResponse {
+	/** Whether the session was created */
+	success: boolean;
+	/**
+	 * Stripe-hosted URL, deep-linked to `flow`.
+	 *
+	 * A bearer credential: redirect to it, never log, cache or persist it.
+	 */
+	portal_url: string;
+	/** Echoes the requested flow */
+	flow: BoothPortalFlow;
+	/** Echoes the booth */
+	booth_id: string;
+}
+
+/**
+ * `POST .../subscription/cancel` response — the full booth subscription record
+ * WITHOUT `state`.
+ *
+ * Confirmed against the backend OpenAPI schema, not inferred. The omission is
+ * the one real trap in these two shapes: anything derived from `state` is left
+ * stale by a cancel, so cancelled-ness must be read from `cancel_at_period_end`.
+ */
+export type CancelBoothSubscriptionResponse = Omit<
+	BoothSubscriptionStateResponse,
+	"state"
+>;
+
+/**
+ * `POST .../subscription/resume` response — identical to the state read,
+ * `state` included.
+ */
+export type ResumeBoothSubscriptionResponse = BoothSubscriptionStateResponse;
+
+/**
+ * What the cache-patching helper accepts. Both shapes are subsets of the state
+ * response with identical field types, so either can be spread over a cached
+ * entry safely.
+ */
+export type BoothSubscriptionMutationResponse =
+	| CancelBoothSubscriptionResponse
+	| ResumeBoothSubscriptionResponse;
+
+/**
+ * Machine-readable conflict codes returned by the per-booth billing endpoints.
+ * Surfaced on `ApiError.code` so each can be routed to different UI.
+ */
+export const BOOTH_BILLING_ERROR_CODES = [
+	"period_elapsed",
+	"not_scheduled_to_cancel",
+	"no_subscription",
+	"booth_not_found",
+	"flow_not_available",
+	"stripe_unavailable",
+	"invalid_return_url",
+] as const;
+
+/**
+ * Derived from the array above so the two cannot drift: adding a code in one
+ * place and forgetting the other is impossible.
+ */
+export type BoothBillingErrorCode = (typeof BOOTH_BILLING_ERROR_CODES)[number];
+
+/**
+ * Narrow an arbitrary error code to one this app actually routes on.
+ *
+ * `ApiError.code` is a permissive extraction — a single-word `detail` such as
+ * `"unauthorized"` parses as a code. Gating the UI on this guard rather than on
+ * raw string comparison means such values fall through to the generic error
+ * path instead of matching a branch by accident, and a typo in a branch label
+ * becomes a compile error rather than dead code.
+ */
+export function isBoothBillingErrorCode(
+	code: string | undefined,
+): code is BoothBillingErrorCode {
+	return (
+		code !== undefined &&
+		(BOOTH_BILLING_ERROR_CODES as readonly string[]).includes(code)
+	);
+}
+
+// ============================================================================
+// OWNER INVOICES (payment history, read natively — no Stripe redirect)
+// ============================================================================
+
+/** Stripe invoice lifecycle status. Explains WHY unpaid; never shown raw. */
+export type OwnerInvoiceStatus =
+	| "paid"
+	| "open"
+	| "uncollectible"
+	| "void"
+	| "draft";
+
+/**
+ * One invoice from `GET /api/v1/booths/{booth_id}/invoices`.
+ *
+ * Read live from Stripe, not from a local mirror — a mirror had no receipt
+ * links and could serve a stale status for an invoice Stripe had since voided.
+ */
+export interface OwnerInvoice {
+	/** Stripe invoice id (`in_…`) — the first thing support asks for */
+	id: string;
+	/**
+	 * Minor units.
+	 *
+	 * NOT Stripe's `amount_paid`, which sits at 0 on a failed invoice: this is
+	 * what was charged for a paid invoice and what is still owed for an unpaid
+	 * one. Use as-is — see formatInvoiceAmount for the zero-decimal caveat.
+	 */
+	amount_cents: number;
+	/** Lowercase ISO code */
+	currency: string;
+	/** Lifecycle status — use `paid` to decide whether money was collected */
+	status: OwnerInvoiceStatus;
+	/** The authority for "was this collected" */
+	paid: boolean;
+	/** Greater than 1 means Stripe retried */
+	attempt_count: number;
+	/** When Stripe raised the invoice. ISO 8601, UTC. */
+	created: string;
+	/** When it settled. ISO 8601, or null when unpaid. */
+	paid_at: string | null;
+	/**
+	 * Stripe-hosted invoice page. Null until finalised.
+	 *
+	 * NOTE: for an UNPAID invoice this page carries a "pay now" affordance, so
+	 * it is a purchasing mechanism under Guideline 3.1.1(a) and must not be
+	 * opened outside the US storefront. Prefer `invoice_pdf`, which is a static
+	 * document.
+	 */
+	hosted_invoice_url: string | null;
+	/**
+	 * Direct PDF download. Null until finalised.
+	 *
+	 * Like the portal URL, this is effectively a bearer link — anyone holding it
+	 * can read the invoice. Never log or persist it.
+	 */
+	invoice_pdf: string | null;
+}
+
+/** `GET /api/v1/booths/{booth_id}/invoices` response. Cursor-paginated. */
+export interface OwnerInvoiceListResponse {
+	booth_id: string;
+	/** Newest first — render verbatim, do not re-sort */
+	invoices: OwnerInvoice[];
+	/** Another page exists */
+	has_more: boolean;
+	/** Pass as `starting_after`. Null when `has_more` is false. */
+	next_cursor: string | null;
+	server_time: string;
 }
