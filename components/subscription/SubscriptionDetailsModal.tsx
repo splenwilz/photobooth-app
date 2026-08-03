@@ -7,6 +7,7 @@
  * the sheet stays read-only with no management affordance.
  */
 
+import type { BoothSubscriptionStateResponse } from "@/api/payments";
 import {
 	invalidateBoothBillingQueries,
 	useBoothPortalSession,
@@ -403,15 +404,25 @@ export function SubscriptionDetailsModal({
 						return;
 					}
 					if (code === "not_scheduled_to_cancel") {
-						// Someone already resumed it, or it was never cancelling.
-						// Our view was stale, so mark it rather than complain —
-						// `refetchType: "none"`, because an immediate refetch here
-						// sits in the same post-response commit window that
-						// applyBoothBillingResult exists to avoid.
+						// Someone already resumed it, or it was never cancelling — our
+						// view was stale, not the user's mistake. Reconcile the cache
+						// directly so Resume disappears immediately: the earlier
+						// version only marked the entry stale, so the spinner stopped
+						// and nothing on screen changed, which reads as a dead button.
+						queryClient.setQueryData<BoothSubscriptionStateResponse>(
+							queryKeys.payments.boothSubscriptionState(boothId),
+							(previous) =>
+								previous
+									? { ...previous, cancel_at_period_end: false }
+									: previous,
+						);
+						// Marked stale WITHOUT a refetch, for the same commit-window
+						// reason as applyBoothBillingResult.
 						queryClient.invalidateQueries({
 							queryKey: queryKeys.payments.boothSubscriptionState(boothId),
 							refetchType: "none",
 						});
+						announce("This subscription was already set to renew.");
 						return;
 					}
 					Alert.alert("Error", mutationErrorMessage(error, "resume"));

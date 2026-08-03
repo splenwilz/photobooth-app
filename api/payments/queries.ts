@@ -243,6 +243,10 @@ export function invalidateBoothBillingQueries(queryClient: QueryClient) {
 	queryClient.invalidateQueries({
 		queryKey: queryKeys.payments.boothSubscriptions(),
 	});
+	// Invoices too: a checkout or a portal visit can raise or settle one, and
+	// the prefix matches every booth id and page size.
+	const [invoiceScope, invoiceEntity] = queryKeys.payments.boothInvoices("", 0);
+	queryClient.invalidateQueries({ queryKey: [invoiceScope, invoiceEntity] });
 
 	// Prefix derived from the factory, not written out by hand: a literal would
 	// keep matching nothing if the factory's key ever changed, and the test
@@ -399,6 +403,13 @@ export function useBoothPortalSession() {
 }
 
 /**
+ * Statuses a retry cannot fix: not ours (403/404), a bad cursor (400), an
+ * invalid limit (422), an auth failure (401), or a rate limit that carries its
+ * own backoff (429).
+ */
+const TERMINAL_INVOICE_STATUSES = new Set([400, 401, 403, 404, 422, 429]);
+
+/**
  * Hook to read a booth's payment history, page by page.
  *
  * Cursor pagination, not offset — Stripe's model, so there is no page count and
@@ -433,11 +444,10 @@ export function useBoothInvoices(
 		gcTime: 60 * 1000,
 		retry: (failureCount, error) => {
 			const status = (error as { status?: number })?.status;
-			// 404 (not ours / not deployed), 400 (bad cursor), 401 and 422 cannot
-			// succeed on a retry. 429 is retryable but carries its own backoff, so
-			// it is surfaced for the user to trigger rather than hammered here.
-			if (status === 404 || status === 400 || status === 401) return false;
-			if (status === 422 || status === 429) return false;
+			// None of these can succeed on a repeat. 429 is nominally retryable but
+			// carries its own backoff, so it is surfaced for the user to trigger
+			// rather than hammered here.
+			if (TERMINAL_INVOICE_STATUSES.has(status ?? 0)) return false;
 			// 503 stripe_unavailable is transient — one retry, then show the error.
 			return failureCount < 1;
 		},

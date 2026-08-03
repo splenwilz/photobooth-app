@@ -142,10 +142,17 @@ describe("services — exact backend endpoints", () => {
 		expect(mockApiClient.mock.calls[0][1]).not.toHaveProperty("body");
 	});
 
-	it("offers no way to request an immediate cancel", () => {
-		// An immediate cancel drops the booth's access inline, mid-event. The
-		// service takes only a boothId, so the app cannot ask for one.
-		expect(cancelBoothSubscription.length).toBe(1);
+	it("offers no way to request an immediate cancel", async () => {
+		// An immediate cancel drops the booth's access inline, mid-event. Assert
+		// the REQUEST rather than the function's arity, which would break the
+		// moment a default parameter is added and proves nothing about the wire.
+		mockApiClient.mockResolvedValue({ ...STATE_FIXTURE, cancel_at_period_end: true });
+
+		await cancelBoothSubscription("booth-1");
+
+		const url = mockApiClient.mock.calls[0][0] as string;
+		expect(url).toContain("cancel_immediately=false");
+		expect(url).not.toContain("cancel_immediately=true");
 	});
 
 	it("resumeBoothSubscription POSTs to the resume endpoint", async () => {
@@ -227,12 +234,20 @@ describe("state-changing mutations invalidate caches", () => {
 	] as const)(
 		"%s invalidates the booth state, fleet list and access caches",
 		async (_label, hook) => {
-			// Full documented cancel shape: the whole record MINUS `state`.
+			// Distinct shapes: cancel returns the record MINUS `state`, resume
+			// returns it including `state`. Sharing one fixture meant the resume
+			// case never proved the response's state reaches the cache.
+			const isCancel = _label === "cancel";
 			const { state: _omitted, ...cancelShape } = {
 				...STATE_FIXTURE,
 				cancel_at_period_end: true,
 			};
-			mockApiClient.mockResolvedValue(cancelShape);
+			const resumeShape = {
+				...STATE_FIXTURE,
+				state: "trialing" as const,
+				cancel_at_period_end: true,
+			};
+			mockApiClient.mockResolvedValue(isCancel ? cancelShape : resumeShape);
 
 			const client = makeClient({ gcTime: 60_000 });
 			// Seed both caches so the patch has something to act on — an unseeded
@@ -262,7 +277,9 @@ describe("state-changing mutations invalidate caches", () => {
 				queryKeys.payments.boothSubscriptionState("booth-1"),
 			) as typeof STATE_FIXTURE;
 			expect(patched.cancel_at_period_end).toBe(true);
-			expect(patched.state).toBe(STATE_FIXTURE.state);
+			// Cancel must PRESERVE the cached state (its response omits the
+			// field); resume must WRITE the state its response carries.
+			expect(patched.state).toBe(isCancel ? STATE_FIXTURE.state : "trialing");
 
 			const list = client.getQueryData(
 				queryKeys.payments.boothSubscriptions(),

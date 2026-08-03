@@ -68,6 +68,11 @@ function renderWithProviders(ui: React.ReactElement) {
 
 beforeEach(() => {
 	jest.clearAllMocks();
+	// clearAllMocks resets call history but NOT implementations, so a test that
+	// makes cancel/resume reject would leak that behaviour into every test after
+	// it. Reset both back to inert.
+	mockCancelMutate.mockReset();
+	mockResumeMutate.mockReset();
 	mockUseSubscriptionDetails.mockReturnValue({
 		data: undefined,
 		isLoading: false,
@@ -535,6 +540,28 @@ describe("resume", () => {
 		);
 	});
 
+	it("fires one resume for a double tap", () => {
+		// `isPending` propagates through React Query's notifyManager batch, so two
+		// taps in the same frame both reach mutate() — and MutationObserver
+		// overwrites per-call callbacks, so the first call's onError is replaced.
+		mockUseBoothSubscriptionState.mockReturnValue({
+			data: { ...activeBooth, cancel_at_period_end: true },
+			isLoading: false,
+			error: null,
+		});
+
+		const { getByText } = renderWithProviders(
+			<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />,
+		);
+
+		const button = getByText("Resume subscription");
+		fireEvent.press(button);
+		fireEvent.press(button);
+		fireEvent.press(button);
+
+		expect(mockResumeMutate).toHaveBeenCalledTimes(1);
+	});
+
 	it("routes a period_elapsed conflict to re-subscribing rather than an error", () => {
 		mockUseBoothSubscriptionState.mockReturnValue({
 			data: { ...activeBooth, cancel_at_period_end: true },
@@ -561,6 +588,47 @@ describe("resume", () => {
 		expect(title).toMatch(/already ended/i);
 
 		alertSpy.mockRestore();
+	});
+
+	it("swaps Resume for Cancel when the cancellation was already undone", () => {
+		// The conflict means our view was stale, not that the user erred. The
+		// earlier version only marked the entry stale: the spinner stopped and
+		// nothing on screen changed, which reads as a dead button.
+		const qc = new QueryClient({
+			defaultOptions: { queries: { retry: false, gcTime: 60_000 } },
+		});
+		qc.setQueryData(["payments", "boothSubscriptionState", "booth-1"], {
+			...activeBooth,
+			cancel_at_period_end: true,
+		});
+		mockUseBoothSubscriptionState.mockReturnValue({
+			data: { ...activeBooth, cancel_at_period_end: true },
+			isLoading: false,
+			error: null,
+		});
+		mockResumeMutate.mockImplementation((_vars, opts) => {
+			opts?.onError?.(
+				Object.assign(new Error("Nothing to undo"), {
+					code: "not_scheduled_to_cancel",
+				}),
+			);
+		});
+
+		const { getByText } = render(
+			<QueryClientProvider client={qc}>
+				<SubscriptionDetailsModal visible boothId="booth-1" onClose={() => {}} />
+			</QueryClientProvider>,
+		);
+
+		fireEvent.press(getByText("Resume subscription"));
+
+		// The cache is reconciled so the sheet stops offering Resume.
+		const patched = qc.getQueryData([
+			"payments",
+			"boothSubscriptionState",
+			"booth-1",
+		]) as { cancel_at_period_end: boolean };
+		expect(patched.cancel_at_period_end).toBe(false);
 	});
 
 	it("silently refreshes when the cancellation was already undone elsewhere", () => {

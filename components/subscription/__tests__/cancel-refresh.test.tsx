@@ -63,9 +63,12 @@ function autoConfirmAlert() {
 }
 
 beforeEach(() => jest.clearAllMocks());
+// afterEach, not a mockRestore at the end of each test: a failing assertion
+// throws before the restore line and would leak the spy into the next test.
+afterEach(() => jest.restoreAllMocks());
 
 it("reflects the cancellation in the open sheet, with no reload", async () => {
-	const alertSpy = autoConfirmAlert();
+	autoConfirmAlert();
 
 	// The happy path: the backend has applied the change by the time it is read
 	// again. (The lagging-read case is the test below; both must look the same
@@ -95,11 +98,10 @@ it("reflects the cancellation in the open sheet, with no reload", async () => {
 	expect(queryByText("Cancel subscription")).toBeNull();
 	expect(getByText("Off")).toBeTruthy();
 
-	alertSpy.mockRestore();
 });
 
 it("cancels at period end so a booth cannot be killed mid-event", async () => {
-	const alertSpy = autoConfirmAlert();
+	autoConfirmAlert();
 	mockApiClient.mockImplementation((path: string) =>
 		Promise.resolve(
 			path.startsWith("/api/v1/booths/booth-1/subscription/cancel")
@@ -122,14 +124,13 @@ it("cancels at period end so a booth cannot be killed mid-event", async () => {
 		expect(call![1]).not.toHaveProperty("body");
 	});
 
-	alertSpy.mockRestore();
 });
 
 it("keeps `state` when cancelling, since the cancel response omits it", async () => {
 	// The cancel response is the full record MINUS `state`. Spreading it blindly
 	// would overwrite the cached `state` with undefined, and the card branches on
 	// `state` to decide whether a booth is subscribed at all.
-	const alertSpy = autoConfirmAlert();
+	autoConfirmAlert();
 	const { state: _omitted, ...cancelResponse } = { ...CANCELLING };
 	mockApiClient.mockImplementation((path: string) =>
 		Promise.resolve(
@@ -148,7 +149,6 @@ it("keeps `state` when cancelling, since the cancel response omits it", async ()
 	await waitFor(() => expect(getByText("Ends on")).toBeTruthy());
 	expect(getByText("Resume subscription")).toBeTruthy();
 
-	alertSpy.mockRestore();
 });
 
 it("still shows the cancellation when the server read lags behind the write", async () => {
@@ -158,7 +158,7 @@ it("still shows the cancellation when the server read lags behind the write", as
 	// customer.subscription.updated webhook lands. Refetching and taking that
 	// answer would overwrite what we just successfully wrote, and the sheet
 	// would snap back to "Renews on" — the reported symptom.
-	const alertSpy = autoConfirmAlert();
+	autoConfirmAlert();
 
 	mockApiClient.mockImplementation((path: string, opts?: { method?: string }) => {
 		if (path.startsWith("/api/v1/booths/booth-1/subscription/cancel")) {
@@ -182,5 +182,4 @@ it("still shows the cancellation when the server read lags behind the write", as
 	expect(getByText("Resume subscription")).toBeTruthy();
 	expect(queryByText("Cancel subscription")).toBeNull();
 
-	alertSpy.mockRestore();
 });
