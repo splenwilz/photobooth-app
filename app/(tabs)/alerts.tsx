@@ -39,6 +39,7 @@ import {
 import type { AlertSeverity } from "@/api/alerts/types";
 import { useRegisterDevice } from "@/api/push/queries";
 import { usePushPermission } from "@/hooks/use-push-permission";
+import { humanizeDurationsInText } from "@/utils/humanize-durations";
 import { acquireExpoPushToken } from "@/utils/push-notifications";
 import { BoothPickerModal } from "@/components/booth-picker-modal";
 import { CustomHeader } from "@/components/custom-header";
@@ -154,7 +155,7 @@ const AlertCard: React.FC<{
 				</View>
 			</View>
 			<ThemedText style={[styles.alertMessage, { color: textSecondary }]}>
-				{alert.message}
+				{humanizeDurationsInText(alert.message)}
 			</ThemedText>
 			<View style={styles.alertFooter}>
 				<View
@@ -422,35 +423,12 @@ export default function AlertsScreen() {
 			style={[styles.container, { backgroundColor }]}
 			edges={["top"]}
 		>
+			{/* Mark-read lives on the Notifications section header, not here — a
+			    long booth name plus the action used to collide in the title row. */}
 			<CustomHeader
 				title="Alerts"
 				boothContext
 				onBoothPress={() => setIsPickerVisible(true)}
-				rightAction={
-					totalUnread > 0 ? (
-						<TouchableOpacity
-							style={styles.markAllButton}
-							onPress={handleMarkAllRead}
-							disabled={markAllAlertsRead.isPending}
-							accessibilityRole="button"
-							accessibilityLabel={
-								isAllMode
-									? `Mark all ${totalUnread} alerts as read`
-									: `Mark this booth's ${totalUnread} alerts as read`
-							}
-							hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-						>
-							<IconSymbol
-								name="checkmark.circle"
-								size={16}
-								color={BRAND_COLOR}
-							/>
-							<ThemedText style={[styles.markAllText, { color: BRAND_COLOR }]}>
-								{isAllMode ? "Mark all read" : "Mark this booth read"}
-							</ThemedText>
-						</TouchableOpacity>
-					) : undefined
-				}
 			/>
 
 			<ScrollView
@@ -680,6 +658,33 @@ export default function AlertsScreen() {
 					<SectionHeader
 						title="Notifications"
 						subtitle={`${filteredAlerts.length} alert${filteredAlerts.length !== 1 ? "s" : ""}`}
+						rightAction={
+							totalUnread > 0 ? (
+								<TouchableOpacity
+									style={styles.markAllButton}
+									onPress={handleMarkAllRead}
+									disabled={markAllAlertsRead.isPending}
+									accessibilityRole="button"
+									accessibilityLabel={
+										isAllMode
+											? `Mark all ${totalUnread} alerts as read`
+											: `Mark this booth's ${totalUnread} alerts as read`
+									}
+									hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+								>
+									<IconSymbol
+										name="checkmark.circle"
+										size={16}
+										color={BRAND_COLOR}
+									/>
+									<ThemedText
+										style={[styles.markAllText, { color: BRAND_COLOR }]}
+									>
+										{isAllMode ? "Mark all read" : "Mark this booth read"}
+									</ThemedText>
+								</TouchableOpacity>
+							) : undefined
+						}
 					/>
 
 					{filteredAlerts.length > 0 ? (

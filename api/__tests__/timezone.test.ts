@@ -17,6 +17,11 @@ import { queryKeys } from "@/api/utils/query-keys";
 
 // The native calendar read is the primary zone source (Hermes caches the
 // Intl zone at engine start, so Intl alone can't see mid-session changes).
+// The native-module probe must report the module as present for the
+// expo-localization mock to be consulted at all.
+jest.mock("expo-modules-core", () => ({
+	requireOptionalNativeModule: jest.fn(() => ({})),
+}));
 jest.mock("expo-localization", () => ({ getCalendars: jest.fn(() => []) }));
 const mockGetCalendars = Localization.getCalendars as jest.Mock;
 
@@ -46,6 +51,14 @@ describe("operatorTz", () => {
 		mockGetCalendars.mockReturnValue([{ timeZone: "America/Los_Angeles" }]);
 		mockIntlZone("Africa/Lagos");
 		expect(refreshOperatorTz()).toBe("America/Los_Angeles");
+	});
+
+	it("skips the native wrapper when the module probe reports absent (old dev clients)", () => {
+		const { requireOptionalNativeModule } = require("expo-modules-core");
+		(requireOptionalNativeModule as jest.Mock).mockReturnValueOnce(null);
+		mockGetCalendars.mockReturnValue([{ timeZone: "America/Los_Angeles" }]);
+		mockIntlZone("Africa/Lagos");
+		expect(refreshOperatorTz()).toBe("Africa/Lagos"); // Intl path, no throw
 	});
 
 	it("falls back to Intl when the native module throws", () => {

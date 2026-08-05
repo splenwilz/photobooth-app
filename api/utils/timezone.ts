@@ -28,8 +28,13 @@ let cachedTz: string | null = null;
 
 function readNativeZone(): string | null {
 	try {
-		// Lazy require: survives environments where the native module is not
-		// linked (older dev-client builds) by falling through to Intl.
+		// Probe for the native module FIRST: requireOptionalNativeModule
+		// returns null instead of throwing, so dev clients built before
+		// expo-localization was added fall through to Intl without Metro
+		// logging a module-factory exception (a bare require throws inside
+		// the module factory, which LogBox reports even when caught here).
+		const { requireOptionalNativeModule } = require("expo-modules-core");
+		if (!requireOptionalNativeModule?.("ExpoLocalization")) return null;
 		const Localization = require("expo-localization");
 		return Localization.getCalendars?.()?.[0]?.timeZone ?? null;
 	} catch {

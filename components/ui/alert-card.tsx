@@ -15,6 +15,7 @@ import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { StatusColors, BorderRadius, Spacing, withAlpha, scaleFont } from '@/constants/theme';
+import { humanizeDurationsInText } from '@/utils/humanize-durations';
 import type { Alert, AlertType, AlertCategory } from '@/types/photobooth';
 
 interface AlertCardProps {
@@ -127,7 +128,7 @@ export const AlertCard: React.FC<AlertCardProps> = ({
         </View>
         
         <ThemedText style={[styles.message, { color: textSecondary }]} numberOfLines={2}>
-          {alert.message}
+          {humanizeDurationsInText(alert.message)}
         </ThemedText>
         
         <ThemedText style={[styles.booth, { color: alertColor }]}>

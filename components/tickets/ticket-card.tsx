@@ -204,15 +204,16 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, onPress }) => {
 const styles = StyleSheet.create({
 	card: {
 		padding: Spacing.md,
+		paddingVertical: Spacing.md + Spacing.xs,
 		borderRadius: BorderRadius.lg,
 		borderWidth: 1,
-		marginBottom: Spacing.sm,
+		marginBottom: Spacing.md,
 	},
 	header: {
 		flexDirection: "row",
 		justifyContent: "space-between",
 		alignItems: "flex-start",
-		marginBottom: Spacing.xs,
+		marginBottom: Spacing.sm,
 	},
 	ticketInfo: {
 		flex: 1,
@@ -225,7 +226,7 @@ const styles = StyleSheet.create({
 	boothBadge: {
 		flexDirection: "row",
 		alignItems: "center",
-		marginTop: 2,
+		marginTop: Spacing.xs,
 		gap: 4,
 	},
 	boothName: {
@@ -246,8 +247,8 @@ const styles = StyleSheet.create({
 	},
 	subject: {
 		fontSize: scaleFont(15),
-		lineHeight: 20,
-		marginBottom: Spacing.sm,
+		lineHeight: 22,
+		marginBottom: Spacing.md,
 	},
 	footer: {
 		flexDirection: "row",
