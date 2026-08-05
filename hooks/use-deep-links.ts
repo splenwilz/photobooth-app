@@ -88,7 +88,7 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 				if (targetBoothId) {
 					useBoothStore.getState().setSelectedBoothId(targetBoothId);
 					queryClient.invalidateQueries({
-						queryKey: queryKeys.booths.detail(targetBoothId),
+						queryKey: queryKeys.booths.detailPrefix(targetBoothId),
 					});
 				}
 				router.replace("/(tabs)/booths");
@@ -111,7 +111,7 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 				invalidateBoothBillingQueries(queryClient);
 				if (boothId) {
 					queryClient.invalidateQueries({
-						queryKey: queryKeys.booths.detail(boothId),
+						queryKey: queryKeys.booths.detailPrefix(boothId),
 					});
 					useBoothStore.getState().setSelectedBoothId(boothId);
 				}

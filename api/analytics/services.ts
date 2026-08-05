@@ -1,4 +1,5 @@
 import { apiClient } from "../client";
+import { withTzFallback } from "../utils/timezone";
 import type {
 	BoothRevenueParams,
 	BoothRevenueResponse,
@@ -42,15 +43,15 @@ function buildQueryString(params?: Record<string, unknown>): string {
 export async function getRevenueDashboard(
 	params?: RevenueDashboardParams,
 ): Promise<RevenueDashboardResponse> {
-	const queryString = buildQueryString(params as Record<string, unknown>);
-
-	const response = await apiClient<RevenueDashboardResponse>(
-		`/api/v1/analytics/revenue/dashboard${queryString}`,
-		{
-			method: "GET",
-		},
-	);
-	return response;
+	return withTzFallback((tz) => {
+		const queryString = buildQueryString({ ...params, tz });
+		return apiClient<RevenueDashboardResponse>(
+			`/api/v1/analytics/revenue/dashboard${queryString}`,
+			{
+				method: "GET",
+			},
+		);
+	});
 }
 
 /**
@@ -65,14 +66,14 @@ export async function getBoothRevenue(
 	params: BoothRevenueParams,
 ): Promise<BoothRevenueResponse> {
 	const { booth_id, ...queryParams } = params;
-	const queryString = buildQueryString(queryParams as Record<string, unknown>);
-
-	const response = await apiClient<BoothRevenueResponse>(
-		`/api/v1/analytics/revenue/${booth_id}${queryString}`,
-		{
-			method: "GET",
-		},
-	);
-	return response;
+	return withTzFallback((tz) => {
+		const queryString = buildQueryString({ ...queryParams, tz });
+		return apiClient<BoothRevenueResponse>(
+			`/api/v1/analytics/revenue/${booth_id}${queryString}`,
+			{
+				method: "GET",
+			},
+		);
+	});
 }
 

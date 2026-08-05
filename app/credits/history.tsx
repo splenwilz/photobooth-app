@@ -119,16 +119,21 @@ function getTransactionColor(type: CreditTransactionType): string {
 }
 
 /**
- * Format amount with sign based on transaction type
+ * Format amount with sign based on transaction type.
+ * The API may deliver usage amounts already negative, so the sign is applied
+ * to the absolute value — never doubled ("--27").
  */
-function formatAmount(amount: number, type: CreditTransactionType): string {
+export function formatAmount(
+	amount: number,
+	type: CreditTransactionType,
+): string {
 	if (type === "Add") {
-		return `+${amount.toLocaleString()}`;
+		return `+${Math.abs(amount).toLocaleString()}`;
 	}
 	if (type === "Reset") {
 		return amount.toLocaleString();
 	}
-	return `-${amount.toLocaleString()}`;
+	return `-${Math.abs(amount).toLocaleString()}`;
 }
 
 /**

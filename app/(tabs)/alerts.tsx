@@ -18,7 +18,8 @@
 import { useIsFocused } from "@react-navigation/native";
 import * as Linking from "expo-linking";
 import type React from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	Alert as RNAlert,
 	RefreshControl,
@@ -38,6 +39,7 @@ import {
 import type { AlertSeverity } from "@/api/alerts/types";
 import { useRegisterDevice } from "@/api/push/queries";
 import { usePushPermission } from "@/hooks/use-push-permission";
+import { humanizeDurationsInText } from "@/utils/humanize-durations";
 import { acquireExpoPushToken } from "@/utils/push-notifications";
 import { BoothPickerModal } from "@/components/booth-picker-modal";
 import { CustomHeader } from "@/components/custom-header";
@@ -66,6 +68,9 @@ type FilterCategory = "all" | AlertCategory;
 /**
  * Get icon for alert severity
  */
+/** Storage key for the push-permission banner dismissal (persists across launches). */
+export const PUSH_BANNER_DISMISSED_KEY = "alerts.pushBannerDismissed";
+
 function getSeverityIcon(severity: AlertSeverity): string {
 	switch (severity) {
 		case "critical":
@@ -150,7 +155,7 @@ const AlertCard: React.FC<{
 				</View>
 			</View>
 			<ThemedText style={[styles.alertMessage, { color: textSecondary }]}>
-				{alert.message}
+				{humanizeDurationsInText(alert.message)}
 			</ThemedText>
 			<View style={styles.alertFooter}>
 				<View
@@ -305,7 +310,28 @@ export default function AlertsScreen() {
 	const registerDevice = useRegisterDevice();
 	const { state: pushState, refresh: refreshPushState } =
 		usePushPermission(isFocused);
-	const [bannerDismissed, setBannerDismissed] = useState(false);
+	// null = persisted value not read yet; treat as dismissed so the banner
+	// never flashes for users who already dismissed it.
+	const [bannerDismissed, setBannerDismissed] = useState<boolean | null>(null);
+	useEffect(() => {
+		let cancelled = false;
+		AsyncStorage.getItem(PUSH_BANNER_DISMISSED_KEY)
+			.then((value) => {
+				if (!cancelled) setBannerDismissed(value === "true");
+			})
+			.catch(() => {
+				if (!cancelled) setBannerDismissed(false);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+	const handleDismissBanner = useCallback(() => {
+		setBannerDismissed(true);
+		AsyncStorage.setItem(PUSH_BANNER_DISMISSED_KEY, "true").catch(() => {
+			// Storage failure just means the nudge returns next launch.
+		});
+	}, []);
 
 	const bannerBusy = useRef(false);
 	const handleEnableFromBanner = useCallback(async () => {
@@ -343,7 +369,7 @@ export default function AlertsScreen() {
 	}, [registerDevice, refreshPushState]);
 
 	const showPushBanner =
-		!bannerDismissed &&
+		bannerDismissed === false &&
 		(pushState === "denied" || pushState === "undetermined");
 
 	// Loading state - show skeleton instead of spinner
@@ -397,35 +423,12 @@ export default function AlertsScreen() {
 			style={[styles.container, { backgroundColor }]}
 			edges={["top"]}
 		>
+			{/* Mark-read lives on the Notifications section header, not here — a
+			    long booth name plus the action used to collide in the title row. */}
 			<CustomHeader
 				title="Alerts"
 				boothContext
 				onBoothPress={() => setIsPickerVisible(true)}
-				rightAction={
-					totalUnread > 0 ? (
-						<TouchableOpacity
-							style={styles.markAllButton}
-							onPress={handleMarkAllRead}
-							disabled={markAllAlertsRead.isPending}
-							accessibilityRole="button"
-							accessibilityLabel={
-								isAllMode
-									? `Mark all ${totalUnread} alerts as read`
-									: `Mark this booth's ${totalUnread} alerts as read`
-							}
-							hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-						>
-							<IconSymbol
-								name="checkmark.circle"
-								size={16}
-								color={BRAND_COLOR}
-							/>
-							<ThemedText style={[styles.markAllText, { color: BRAND_COLOR }]}>
-								{isAllMode ? "Mark all read" : "Mark this booth read"}
-							</ThemedText>
-						</TouchableOpacity>
-					) : undefined
-				}
 			/>
 
 			<ScrollView
@@ -498,7 +501,7 @@ export default function AlertsScreen() {
 							</ThemedText>
 						</TouchableOpacity>
 						<TouchableOpacity
-							onPress={() => setBannerDismissed(true)}
+							onPress={handleDismissBanner}
 							hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
 							accessibilityRole="button"
 							accessibilityLabel="Dismiss"
@@ -655,6 +658,33 @@ export default function AlertsScreen() {
 					<SectionHeader
 						title="Notifications"
 						subtitle={`${filteredAlerts.length} alert${filteredAlerts.length !== 1 ? "s" : ""}`}
+						rightAction={
+							totalUnread > 0 ? (
+								<TouchableOpacity
+									style={styles.markAllButton}
+									onPress={handleMarkAllRead}
+									disabled={markAllAlertsRead.isPending}
+									accessibilityRole="button"
+									accessibilityLabel={
+										isAllMode
+											? `Mark all ${totalUnread} alerts as read`
+											: `Mark this booth's ${totalUnread} alerts as read`
+									}
+									hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+								>
+									<IconSymbol
+										name="checkmark.circle"
+										size={16}
+										color={BRAND_COLOR}
+									/>
+									<ThemedText
+										style={[styles.markAllText, { color: BRAND_COLOR }]}
+									>
+										{isAllMode ? "Mark all read" : "Mark this booth read"}
+									</ThemedText>
+								</TouchableOpacity>
+							) : undefined
+						}
 					/>
 
 					{filteredAlerts.length > 0 ? (

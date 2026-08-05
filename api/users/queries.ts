@@ -58,7 +58,7 @@ export function useUpdateBusinessName() {
 			});
 			// Invalidate booth queries affected by business name / display name toggle
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.booths.overview(),
+				queryKey: queryKeys.booths.overviewAll(),
 			});
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.booths.list(),
@@ -99,7 +99,7 @@ export function useUploadAccountLogo() {
 			});
 			// Account logo affects booth business settings and overview
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.booths.overview(),
+				queryKey: queryKeys.booths.overviewAll(),
 			});
 			queryClient.invalidateQueries({
 				queryKey: ["booths", "businessSettings"],
@@ -126,7 +126,7 @@ export function useDeleteAccountLogo() {
 				queryKey: queryKeys.users.profile(variables.userId),
 			});
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.booths.overview(),
+				queryKey: queryKeys.booths.overviewAll(),
 			});
 			queryClient.invalidateQueries({
 				queryKey: ["booths", "businessSettings"],

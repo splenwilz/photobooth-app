@@ -1,11 +1,12 @@
 /**
  * Alerts screen — push-permission banner behavior.
  */
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import * as Linking from "expo-linking";
 import React from "react";
-import AlertsScreen from "../alerts";
+import AlertsScreen, { PUSH_BANNER_DISMISSED_KEY } from "../alerts";
 import {
 	acquireExpoPushToken,
 	getPushPermissionState,
@@ -48,7 +49,12 @@ const mockOpenSettings = Linking.openSettings as jest.Mock;
 
 function renderScreen() {
 	const qc = new QueryClient({
-		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+		// gcTime: 0 — without it every client leaks a non-unref'd 5-minute GC
+		// timer and the jest process idles for exactly 300s after the run.
+		defaultOptions: {
+			queries: { retry: false, gcTime: 0 },
+			mutations: { retry: false },
+		},
 	});
 	return render(
 		<QueryClientProvider client={qc}>
@@ -58,7 +64,10 @@ function renderScreen() {
 }
 
 describe("Alerts push-permission banner", () => {
-	beforeEach(() => jest.clearAllMocks());
+	beforeEach(async () => {
+		jest.clearAllMocks();
+		await AsyncStorage.clear(); // dismissal persists in the mock store too
+	});
 
 	it("opens Settings when denied and a re-request is also denied", async () => {
 		mockState.mockResolvedValue("denied");
@@ -109,5 +118,52 @@ describe("Alerts push-permission banner", () => {
 			}),
 		);
 		expect(mockOpenSettings).not.toHaveBeenCalled();
+	});
+
+	it("persists dismissal so the banner stays gone after a remount", async () => {
+		mockState.mockResolvedValue("undetermined");
+		const first = renderScreen();
+
+		await waitFor(() =>
+			expect(first.getByText("Turn on push alerts")).toBeTruthy(),
+		);
+		fireEvent.press(first.getByLabelText("Dismiss"));
+
+		await waitFor(() =>
+			expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+				PUSH_BANNER_DISMISSED_KEY,
+				"true",
+			),
+		);
+		expect(first.queryByText("Turn on push alerts")).toBeNull();
+		first.unmount();
+
+		// Fresh mount (new navigation, new app launch): banner must stay gone —
+		// including this very first synchronous frame (the anti-flash guarantee:
+		// unknown persisted state renders as dismissed, never as visible).
+		const second = renderScreen();
+		expect(second.queryByText("Turn on push alerts")).toBeNull();
+		await waitFor(() => expect(mockState).toHaveBeenCalled());
+		await waitFor(() =>
+			expect(AsyncStorage.getItem).toHaveBeenCalledWith(
+				PUSH_BANNER_DISMISSED_KEY,
+			),
+		);
+		expect(second.queryByText("Turn on push alerts")).toBeNull();
+	});
+
+	it("shows the banner on mount when dismissal was never persisted", async () => {
+		mockState.mockResolvedValue("undetermined");
+		const { getByText } = renderScreen();
+		await waitFor(() => expect(getByText("Turn on push alerts")).toBeTruthy());
+	});
+
+	it("shows the banner when the persisted read fails (nudge over silence)", async () => {
+		mockState.mockResolvedValue("undetermined");
+		jest
+			.spyOn(AsyncStorage, "getItem")
+			.mockRejectedValueOnce(new Error("disk error"));
+		const { getByText } = renderScreen();
+		await waitFor(() => expect(getByText("Turn on push alerts")).toBeTruthy());
 	});
 });

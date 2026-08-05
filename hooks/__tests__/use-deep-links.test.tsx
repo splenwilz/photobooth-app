@@ -55,6 +55,7 @@ jest.mock("@/stores/booth-store", () => ({
 
 import { router } from "expo-router";
 import { useDeepLinks } from "@/hooks/use-deep-links";
+import { queryKeys } from "@/api/utils/query-keys";
 
 const mockReplace = router.replace as jest.Mock;
 
@@ -111,7 +112,7 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 			queryKey: ["payments", "boothSubscriptionState"],
 		});
 		expect(invalidateSpy).toHaveBeenCalledWith({
-			queryKey: ["booths", "detail", "abc"],
+			queryKey: queryKeys.booths.detailPrefix("abc"),
 		});
 		expect(mockSetSelectedBoothId).toHaveBeenCalledWith("abc");
 		expect(mockReplace).toHaveBeenCalledWith("/(tabs)/booths");
