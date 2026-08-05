@@ -168,8 +168,9 @@ describe("useUpdatePricing cache behavior", () => {
 		result.current.mutate({ boothId: BOOTH_ID, photo_strips_price: 15 });
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
+		// Tz-less prefix: reaches detail entries cached under any zone.
 		expect(invalidateSpy).toHaveBeenCalledWith({
-			queryKey: queryKeys.booths.detail(BOOTH_ID),
+			queryKey: queryKeys.booths.detailPrefix(BOOTH_ID),
 		});
 	});
 });

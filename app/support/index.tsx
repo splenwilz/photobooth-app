@@ -200,7 +200,7 @@ export default function SupportTicketsScreen() {
 					data={ticketsData?.tickets ?? []}
 					renderItem={renderTicket}
 					keyExtractor={(item) => item.id.toString()}
-					contentContainerStyle={styles.listContent}
+					contentContainerStyle={[styles.listContent, styles.listContentTopGap]}
 					showsVerticalScrollIndicator={false}
 					ListEmptyComponent={EmptyState}
 					refreshControl={
@@ -251,6 +251,11 @@ const styles = StyleSheet.create({
 	},
 	filterContainer: {
 		paddingBottom: Spacing.sm,
+	},
+	// Air between the filter row and the first ticket card (24px total with
+	// the filter container's own paddingBottom).
+	listContentTopGap: {
+		paddingTop: Spacing.md,
 	},
 	filterList: {
 		paddingHorizontal: Spacing.lg,

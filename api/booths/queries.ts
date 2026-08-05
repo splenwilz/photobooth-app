@@ -299,9 +299,10 @@ export function useUpdatePricing() {
 					},
 				);
 			}
-			// Invalidate booth detail to refresh pricing info
+			// Invalidate booth detail to refresh pricing info (tz-less prefix:
+			// reaches entries cached under any zone)
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.booths.detail(variables.boothId),
+				queryKey: queryKeys.booths.detailPrefix(variables.boothId),
 			});
 		},
 	});
@@ -475,9 +476,10 @@ export function useDeleteBooth() {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.dashboard.overview(),
 			});
-			// Remove detail cache for deleted booth
+			// Remove detail cache for deleted booth (tz-less prefix: entries
+			// cached under a previous zone must not outlive the booth)
 			queryClient.removeQueries({
-				queryKey: queryKeys.booths.detail(variables.boothId),
+				queryKey: queryKeys.booths.detailPrefix(variables.boothId),
 			});
 			// Remove credentials cache for deleted booth
 			queryClient.removeQueries({
@@ -565,7 +567,7 @@ export function useUpdateBoothSettings() {
 		},
 		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.booths.overview(),
+				queryKey: queryKeys.booths.overviewAll(),
 			});
 		},
 		onSettled: (_, __, variables) => {
@@ -573,7 +575,7 @@ export function useUpdateBoothSettings() {
 				queryKey: queryKeys.booths.businessSettings(variables.boothId),
 			});
 			queryClient.invalidateQueries({
-				queryKey: queryKeys.booths.detail(variables.boothId),
+				queryKey: queryKeys.booths.detailPrefix(variables.boothId),
 			});
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.booths.list(),
