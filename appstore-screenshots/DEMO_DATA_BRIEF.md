@@ -114,7 +114,7 @@ With Downtown Event Center selected:
 
 ## 8. Settings & account (`06-settings.png` — identity polish)
 
-- Business/account name: "Premier Booth Co. (initial must stay P to match the avatar monogram)" (or similar), NOT "Photobooth".
+- Business/account name: "Sunset Booth Co." (or similar), NOT "Photobooth".
   (The account EMAIL is not a backend task — the screenshot pipeline
   retouches it to `demo@boothiq.com` in the design layer; see
   `tools/store-screenshots/shots.mjs` patches.)

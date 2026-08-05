@@ -76,11 +76,10 @@ export const SHOTS = [
     capture: '06-settings.png',
     big: 'Your business,\nyour *brand*',
     small: 'Logo, branding, subscription, and booth licensing',
-    // Cosmetic identity only: swap the dev account name + Gmail for the
-    // demo brand. Never patch numbers/statuses (Guideline 2.3.3).
+    // Cosmetic identity only: mask the dev Gmail. The business name is now
+    // real backend data ("Sunset Booth Co."). Never patch numbers/statuses
+    // (Guideline 2.3.3).
     patches: [
-      // "P" matches the avatar monogram baked into the capture.
-      { x: 388, y: 618, w: 610, h: 80, text: 'Premier Booth Co.', fontSize: 64, weight: 600, color: '#11181C' },
       { x: 388, y: 700, w: 610, h: 66, text: 'demo@boothiq.com' },
     ],
   },

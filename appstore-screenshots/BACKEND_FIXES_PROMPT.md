@@ -76,7 +76,7 @@ shows **"Active · Expires: Sep 1, 2026 · Subscription will not renew"**.
 
 **Expected:**
 - Business/account display name: a believable operator brand — suggest
-  **"Premier Booth Co. (initial must stay P to match the avatar monogram)"** (any tasteful name works; avoid real trademarks).
+  **"Sunset Booth Co."** (any tasteful name works; avoid real trademarks).
 - Subscription in the **renewing** state: auto-renew on / no
   cancel-at-period-end, so the card reads "Renews Sep 1, 2026" (or
   equivalent) instead of the churn message. A marketing screenshot and an
