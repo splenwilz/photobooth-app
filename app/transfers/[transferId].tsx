@@ -118,7 +118,12 @@ export default function TransferReviewScreen() {
 	const textSecondary = useThemeColor({}, "textSecondary");
 	const textColor = useThemeColor({}, "text");
 
-	const { data: transfer, isPending, error } = useTransfer(transferId);
+	const {
+		data: transfer,
+		isPending,
+		error,
+		dataUpdatedAt,
+	} = useTransfer(transferId);
 	const acceptMutation = useAcceptTransfer();
 	const declineMutation = useDeclineTransfer();
 
@@ -211,6 +216,19 @@ export default function TransferReviewScreen() {
 		acceptMutation.isSuccess && acceptMutation.data?.id === transferId;
 	const declineSucceeded =
 		declineMutation.isSuccess && declineMutation.data?.id === transferId;
+
+	// An ambiguous accept failure (timeout / 502 / 504) may still have
+	// completed the handover server-side. Until a transfer read lands AFTER
+	// the attempt, the real outcome is unknown — so both actions are blocked.
+	// Telling the user "don't accept again" while leaving the button live is
+	// exactly the double-POST the NO_RETRY design exists to prevent. The
+	// pending poll and the mutation's onSettled invalidation both deliver
+	// that fresh read, which clears this on its own.
+	const acceptOutcomeUnknown =
+		!!acceptMutation.error &&
+		!acceptSucceeded &&
+		isAmbiguousFailure(acceptMutation.error) &&
+		dataUpdatedAt <= acceptMutation.submittedAt;
 	const status = displayed ? displayStatus(displayed, now) : null;
 	const remaining = displayed
 		? formatTimeRemaining(displayed.expires_at, now)
@@ -376,10 +394,17 @@ export default function TransferReviewScreen() {
 											style={[
 												styles.declineButton,
 												{ borderColor },
-												{ opacity: isAccepting || isDeclining ? 0.5 : 1 },
+												{
+													opacity:
+														isAccepting || isDeclining || acceptOutcomeUnknown
+															? 0.5
+															: 1,
+												},
 											]}
 											onPress={handleDecline}
-											disabled={isAccepting || isDeclining}
+											disabled={
+												isAccepting || isDeclining || acceptOutcomeUnknown
+											}
 										>
 											{isDeclining ? (
 												<ActivityIndicator
@@ -397,11 +422,21 @@ export default function TransferReviewScreen() {
 												styles.acceptButton,
 												{
 													opacity:
-														!token || isAccepting || isDeclining ? 0.5 : 1,
+														!token ||
+														isAccepting ||
+														isDeclining ||
+														acceptOutcomeUnknown
+															? 0.5
+															: 1,
 												},
 											]}
 											onPress={handleAccept}
-											disabled={!token || isAccepting || isDeclining}
+											disabled={
+												!token ||
+												isAccepting ||
+												isDeclining ||
+												acceptOutcomeUnknown
+											}
 										>
 											<ThemedText style={styles.acceptButtonText}>
 												Accept Transfer

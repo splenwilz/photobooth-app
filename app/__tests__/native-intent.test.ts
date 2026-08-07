@@ -74,6 +74,20 @@ describe("+native-intent — external checkout return links", () => {
 		).toBe("/transfers");
 	});
 
+	it("does NOT host-filter — that split belongs to routeDeepLink", () => {
+		// This function only decides which screen MOUNTS underneath; a foreign
+		// host resolves to a real route here and is then dropped by
+		// use-deep-links' allowlist, so nothing is invalidated or navigated.
+		// Asserting the split explicitly so a future "harden native-intent"
+		// change doesn't silently move the security boundary.
+		expect(
+			redirectSystemPath({
+				path: "https://evil.com/redirect?target=alerts",
+				initial: true,
+			}),
+		).toBe("/(tabs)/alerts");
+	});
+
 	it("warm links: suppresses the router's own navigation for transfers/redirect", () => {
 		// expo-router ALSO navigates on this function's return value for warm
 		// URL events — returning "" leaves use-deep-links as the single

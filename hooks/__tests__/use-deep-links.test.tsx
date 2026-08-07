@@ -361,7 +361,7 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 		expect(invalidateSpy).not.toHaveBeenCalled();
 	});
 
-	it("allows an allowlisted host with a port and mixed case", async () => {
+	it("allows an allowlisted host regardless of case", async () => {
 		await fireDeepLink("HTTPS://WWW.BOOTHIQ.COM/redirect?target=alerts");
 		expect(mockReplace).toHaveBeenCalledWith("/(tabs)/alerts");
 	});

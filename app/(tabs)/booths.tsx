@@ -122,7 +122,7 @@ export default function BoothsScreen() {
 
 	// Incoming transfer offers addressed to this account — surfaced as a
 	// banner so a buyer who lost the offer email still finds it.
-	const { data: myTransfers } = useMyTransfers();
+	const { data: myTransfers, refetch: refetchTransfers } = useMyTransfers();
 	// Live clock, not a mount-time snapshot: tab screens stay mounted for the
 	// whole app session and the server stamps `expired` lazily, so a frozen
 	// timestamp would keep a lapsed offer counting as "pending" forever.
@@ -322,8 +322,11 @@ export default function BoothsScreen() {
 				queryKey: ["booths", "criticalEvents"],
 				type: "active",
 			}),
+			// The pending-offers banner rides this query — without it, pulling
+			// to refresh leaves a withdrawn or accepted offer still advertised.
+			refetchTransfers(),
 		]);
-	}, [refetch, refetchSubscriptions, queryClient]);
+	}, [refetch, refetchSubscriptions, refetchTransfers, queryClient]);
 
 	// Loading state
 	// Loading state - show skeleton instead of spinner
