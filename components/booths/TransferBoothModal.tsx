@@ -201,7 +201,12 @@ export function TransferBoothModal({
 	};
 
 	// Once the booth has changed hands there is nothing left for the seller to
-	// act on, so stale banners from earlier attempts would only confuse.
+	// act on, so stale banners from earlier attempts would only confuse. This
+	// state is reachable mid-session: resend/withdraw can fail precisely
+	// BECAUSE the buyer just accepted, and the refetch then returns
+	// completed/settled. It gets its own render branch below — suppressing
+	// the error while falling through to the offer form would silently
+	// replace the pending card with a form whose every submit fails.
 	const handedOver =
 		current?.status === "completed" || current?.status === "settled";
 
@@ -290,18 +295,36 @@ export function TransferBoothModal({
 								color={BRAND_COLOR}
 								style={styles.loadingIndicator}
 							/>
-						) : latestError && !current && !createMutation.isPending ? (
+						) : latestError &&
+							!current &&
+							!createMutation.isPending &&
+							!createMutation.error ? (
 							// Only when we have NOTHING to show: TanStack keeps `data`
 							// and sets `error` on a background refetch failure, so
 							// gating on `latestError` alone would let a poll blip
 							// replace the live pending card (withdraw/resend controls
 							// and all) — or an in-flight submit — with an error card.
+							// `!createMutation.error` too: when a submit AND its
+							// follow-up refetch both fail, the user needs the form
+							// (with its error banner) to retry, not a dead-end card.
 							<View style={styles.errorBox}>
 								<ThemedText style={styles.errorText}>
 									{/* Mapped copy, never error.message: the client
 									    stringifies object error bodies */}
 									Couldn&apos;t load this booth&apos;s transfer status.{" "}
 									{transferErrorMessage(latestError)}
+								</ThemedText>
+							</View>
+						) : handedOver ? (
+							// Terminal: the buyer accepted. No action remains, and the
+							// offer form must not be reachable — every submit would fail
+							// with booth_not_found.
+							<View style={styles.successBox}>
+								<ThemedText style={styles.successText}>
+									{current?.buyer_email
+										? `${boothName} now belongs to ${current.buyer_email}.`
+										: `${boothName} has been transferred.`}{" "}
+									It will drop off your booths list once things sync up.
 								</ThemedText>
 							</View>
 						) : pendingOffer ? (

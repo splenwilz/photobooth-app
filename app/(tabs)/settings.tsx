@@ -509,6 +509,15 @@ export default function SettingsScreen() {
 	const [transferModalBoothId, setTransferModalBoothId] = useState<
 		string | null
 	>(null);
+	// Release the latch as soon as the selection moves off the booth the sheet
+	// was opened for. Without this it is only cleared by an explicit close, so
+	// a PROGRAMMATIC switch (deep link, or the dashboard resetting to "all"
+	// when a booth detail fetch fails) hides the sheet while leaving the latch
+	// armed — and reselecting that booth later would pop the sheet open
+	// unbidden. Render-phase, so visibility still resolves in one pass.
+	if (transferModalBoothId !== null && transferModalBoothId !== effectiveBoothId) {
+		setTransferModalBoothId(null);
+	}
 	const showTransferModal =
 		!!effectiveBoothId && transferModalBoothId === effectiveBoothId;
 
