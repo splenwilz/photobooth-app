@@ -33,7 +33,7 @@ import {
   saveUser, 
   getPendingPassword, 
   clearPendingPassword,
-  clearQueryCache,
+  clearAccountScopedState,
   ApiError,
 } from '@/api/client';
 import type { AuthResponse } from '@/api/auth/types';
@@ -129,7 +129,7 @@ export default function VerifyEmailScreen() {
           await clearPendingPassword();
           
           // Save tokens and user
-          clearQueryCache();
+          clearAccountScopedState();
           await saveTokens(response.access_token, response.refresh_token);
           await saveUser(response.user);
 

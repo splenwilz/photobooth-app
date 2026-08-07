@@ -87,6 +87,10 @@ export const useBoothStore = create<BoothState>((set, get) => ({
 	hydrate: async () => {
 		try {
 			const storedId = await SecureStore.getItemAsync(STORAGE_KEY);
+			if (storedId !== null && !isValidSelectedBoothId(storedId)) {
+				// Evict rather than re-reading and re-discarding it every launch.
+				await SecureStore.deleteItemAsync(STORAGE_KEY).catch(() => {});
+			}
 			set({
 				// Default to "all" mode if nothing stored. Anything that isn't a
 				// booth UUID (or the sentinel) is discarded: the selected id

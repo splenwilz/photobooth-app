@@ -178,14 +178,22 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 		const parsed = Linking.parse(url);
 		const scheme = parsed.scheme?.toLowerCase();
 
-		// Assert web-ness on the RAW string, not the parsed scheme.
-		// `Linking.parse` populates queryParams BEFORE scheme/hostname inside
-		// one try block (expo-linking createURL.js), so a malformed escape
-		// anywhere in the query (`&z=%`) throws mid-parse and yields
-		// {scheme: null, hostname: null, path: <the whole raw URL>} with the
-		// attacker's params already collected. Trusting `parsed.scheme` there
-		// would let an https://evil.com/... URL slip into the custom-scheme
-		// lane and skip the host allowlist entirely.
+		// Web-ness must be asserted from EITHER signal, because the raw string
+		// and the parser disagree in both directions:
+		// - raw says web / parser says not: `Linking.parse` populates
+		//   queryParams BEFORE scheme/hostname inside one try block
+		//   (expo-linking createURL.js), so a malformed escape in the query
+		//   (`&z=%`) throws mid-parse and yields {scheme: null, hostname:
+		//   null, path: <the whole raw URL>} with the params already
+		//   collected — the parsed scheme cannot be trusted.
+		// - raw says not-web / parser says web: WHATWG `new URL()` strips
+		//   leading C0-control/space characters and removes embedded
+		//   tab/CR/LF anywhere in the input, so " https://evil.com/..." and
+		//   "ht\ntps://evil.com/..." parse as clean https URLs while failing
+		//   a `^https?:` test on the raw string.
+		// Requiring only one of them would leave the other as a lane that
+		// skips the allowlist entirely. Note `url.trim()` is NOT sufficient:
+		// it does not catch the embedded-control-character form.
 		const looksWebLink = /^https?:/i.test(url);
 		const isWebLink = scheme === "http" || scheme === "https";
 
@@ -193,7 +201,10 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 		// explicit intents deliver arbitrary https URLs to the app regardless
 		// of the verified intent filter, so https://evil.com/redirect?...
 		// would otherwise route as if it came from boothiq.com.
-		if (looksWebLink && !(isWebLink && isAllowedLinkHost(parsed.hostname))) {
+		if (
+			(looksWebLink || isWebLink) &&
+			!(isWebLink && isAllowedLinkHost(parsed.hostname))
+		) {
 			return;
 		}
 

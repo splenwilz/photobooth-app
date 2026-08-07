@@ -22,7 +22,7 @@
 
 import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useSyncExternalStore } from "react";
+import React, { useEffect, useSyncExternalStore } from "react";
 import {
 	ActivityIndicator,
 	Alert,
@@ -203,6 +203,14 @@ export default function TransferReviewScreen() {
 				? declineMutation.data
 				: null;
 	const displayed = mutationResult ?? transfer;
+	// Banners are id-guarded for the same reason as `mutationResult`: on a
+	// route reuse (a link for a different offer lands on this screen) the
+	// reset effect runs post-paint, so an unguarded read paints one frame of
+	// the previous offer's outcome under the new offer's name.
+	const acceptSucceeded =
+		acceptMutation.isSuccess && acceptMutation.data?.id === transferId;
+	const declineSucceeded =
+		declineMutation.isSuccess && declineMutation.data?.id === transferId;
 	const status = displayed ? displayStatus(displayed, now) : null;
 	const remaining = displayed
 		? formatTimeRemaining(displayed.expires_at, now)
@@ -271,7 +279,7 @@ export default function TransferReviewScreen() {
 				) : displayed && status ? (
 					<>
 						{/* Post-accept banner */}
-						{acceptMutation.isSuccess && (
+						{acceptSucceeded && (
 							<View style={styles.successBox}>
 								<ThemedText style={styles.successText}>
 									Transfer complete. {displayed.booth_name} is now in your
@@ -281,7 +289,7 @@ export default function TransferReviewScreen() {
 						)}
 
 						{/* Accept failure banner */}
-						{acceptError && !acceptMutation.isSuccess && (
+						{acceptError && !acceptSucceeded && (
 							<View style={styles.errorBox}>
 								<ThemedText style={styles.errorText}>
 									{isAmbiguousFailure(acceptError)
@@ -305,7 +313,7 @@ export default function TransferReviewScreen() {
 
 						{/* Decline failure banner — a silent failure would leave the
 						    pending card looking untouched with no hint to retry */}
-						{declineError && !declineMutation.isSuccess && (
+						{declineError && !declineSucceeded && (
 							<View style={styles.errorBox}>
 								<ThemedText style={styles.errorText}>
 									Couldn&apos;t decline the offer.{" "}

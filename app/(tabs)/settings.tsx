@@ -47,7 +47,7 @@ import {
   PENDING_PASSWORD_KEY,
   REFRESH_TOKEN_KEY,
   USER_STORAGE_KEY,
-  clearQueryCache,
+  clearAccountScopedState,
   getStoredUser,
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
@@ -277,7 +277,7 @@ export default function SettingsScreen() {
 						try {
 							// Clear React Query cache FIRST to stop all running queries
 							// This prevents 401 errors from background queries after tokens are deleted
-							clearQueryCache();
+							clearAccountScopedState();
 
 							// All SecureStore keys used in the app
 							// Imported from their source modules to prevent drift

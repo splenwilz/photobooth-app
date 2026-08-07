@@ -328,6 +328,31 @@ describe("useDeepLinks — Apple-compliance contract", () => {
 		expect(getTransferToken(id)).toBeNull();
 	});
 
+	// WHATWG URL strips leading C0-control/space characters and removes
+	// embedded tab/CR/LF, so a raw string that does NOT match /^https?:/
+	// can still parse as a perfectly good https URL. Web-ness must be
+	// asserted from EITHER signal, or the raw check becomes a lane that
+	// skips the host allowlist entirely.
+	it.each([
+		[" leading space", " https://evil.com/redirect"],
+		["embedded newline in scheme", "ht\ntps://evil.com/redirect"],
+		["embedded tab in scheme", "ht\ttps://evil.com/redirect"],
+	])("drops a foreign https link disguised by %s", async (_label, prefix) => {
+		const id = "6f0c6f2e-1234-4abc-9def-0123456789ab";
+		const { invalidateSpy } = await fireDeepLink(
+			`${prefix}?target=transfers&transfer_id=${id}&token=STOLEN`,
+		);
+		expect(mockNavigate).not.toHaveBeenCalled();
+		expect(mockReplace).not.toHaveBeenCalled();
+		expect(invalidateSpy).not.toHaveBeenCalled();
+		expect(getTransferToken(id)).toBeNull();
+	});
+
+	it("still routes an allowlisted https link with incidental leading whitespace", async () => {
+		await fireDeepLink(" https://www.boothiq.com/redirect?target=alerts");
+		expect(mockReplace).toHaveBeenCalledWith("/(tabs)/alerts");
+	});
+
 	it("drops a link whose path isn't a bare route segment", async () => {
 		// The parse catch-path puts the whole raw URL in `path`; only single
 		// segments may reach the switch.
