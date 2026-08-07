@@ -68,7 +68,7 @@ export async function getBoothAlerts(
 	const queryString = buildQueryString(params as Record<string, unknown>);
 
 	const response = await apiClient<AlertsResponse>(
-		`/api/v1/analytics/alerts/${boothId}${queryString}`,
+		`/api/v1/analytics/alerts/${encodeURIComponent(boothId)}${queryString}`,
 		{
 			method: "GET",
 		},

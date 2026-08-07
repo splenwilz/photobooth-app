@@ -1,6 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import type { AuthUser } from "./auth/types";
 import { queryClient } from "./query-client";
+import { clearTransferTokens } from "./transfers/token-handoff";
 
 // SecureStore keys - exported for use in clear data functionality
 export const ACCESS_TOKEN_KEY = "auth_access_token";
@@ -26,6 +27,18 @@ export class ApiError extends Error {
      * only read `.message` are unaffected.
      */
     public code?: string,
+    /**
+     * The structured `detail` object from the response body, when the API
+     * sent one (e.g. transfer errors carry `{ code, message }` and the
+     * subscription_included 409 adds `included_until`). `undefined` when the
+     * body had no object-shaped detail. Callers branch on its shape.
+     */
+    public detail?: unknown,
+    /**
+     * Seconds from the `Retry-After` response header (429/503), when the
+     * server sent one. `undefined` otherwise.
+     */
+    public retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = "ApiError";
@@ -122,7 +135,7 @@ function parseValidationErrors(errorArray: unknown[]): string {
  */
 async function parseErrorResponse(
   response: Response,
-): Promise<{ message: string; code?: string }> {
+): Promise<{ message: string; code?: string; detail?: unknown }> {
   try {
     const errorText = await response.text();
 
@@ -162,27 +175,37 @@ async function parseErrorResponse(
     // Recovered before the body is flattened for display.
     const code = extractErrorCode(errorJson);
 
+    // Object-shaped `detail` payloads (e.g. transfer errors' `{code, message}`)
+    // ride through verbatim so callers can branch on their full shape —
+    // `code` alone drops fields like `included_until`.
+    const detail =
+      typeof errorJson.detail === "object" &&
+      errorJson.detail !== null &&
+      !Array.isArray(errorJson.detail)
+        ? errorJson.detail
+        : undefined;
+
     // Extract detail or message field (common API error formats)
     const errorValue = errorJson.detail || errorJson.message || errorText;
 
     // Handle Pydantic validation errors (array format)
     if (Array.isArray(errorValue)) {
-      return { message: parseValidationErrors(errorValue), code };
+      return { message: parseValidationErrors(errorValue), code, detail };
     }
 
     // Ensure we always return a string
     if (typeof errorValue === "string") {
-      return { message: errorValue, code };
+      return { message: errorValue, code, detail };
     }
 
     // If it's an object, try to extract a meaningful message or stringify it
     if (typeof errorValue === "object" && errorValue !== null) {
       // Try common nested error message fields
       if (errorValue.message && typeof errorValue.message === "string") {
-        return { message: errorValue.message, code };
+        return { message: errorValue.message, code, detail };
       }
       if (errorValue.error && typeof errorValue.error === "string") {
-        return { message: errorValue.error, code };
+        return { message: errorValue.error, code, detail };
       }
       // Last resort. This CAN be raw JSON for a body like
       // {"detail": {"code": "flow_not_available"}} — display layers must not
@@ -193,18 +216,34 @@ async function parseErrorResponse(
       // XMLHttpRequest never sets statusText, so it is always "", and a truthy
       // generic here silently overrides every `error.message || "<specific>"`
       // fallback in the app.
-      return { message: JSON.stringify(errorValue), code };
+      return { message: JSON.stringify(errorValue), code, detail };
     }
 
     // Fallback to error text
     return {
       message: errorText || response.statusText || "An error occurred",
       code,
+      detail,
     };
   } catch {
     // If parsing fails, use status text
     return { message: response.statusText || "An error occurred" };
   }
+}
+
+/**
+ * Parse a Retry-After header into seconds. Accepts both the delta-seconds
+ * and HTTP-date forms.
+ * @see https://www.rfc-editor.org/rfc/rfc9110#field.retry-after
+ */
+function parseRetryAfterSeconds(header: string | null): number | undefined {
+  if (!header) return undefined;
+  // delay-seconds is a non-negative decimal integer per the ABNF; anything
+  // else falls through to the HTTP-date form.
+  if (/^\d+$/.test(header.trim())) return Number(header.trim());
+  const dateMs = Date.parse(header);
+  if (Number.isNaN(dateMs)) return undefined;
+  return Math.max(0, Math.ceil((dateMs - Date.now()) / 1000));
 }
 
 export function getApiBaseUrl(): string {
@@ -431,6 +470,19 @@ export async function clearTokens(): Promise<void> {
  * Clear React Query cache
  * Should be called on logout and signin to prevent stale data from previous user
  */
+/**
+ * Wipe every credential-bearing client-side store for the outgoing account.
+ *
+ * Beyond the query cache: booth-transfer accept tokens are account-scoped
+ * bearer credentials held in process memory, and an in-app session expiry
+ * never tears the JS context down — so on a shared device they would
+ * otherwise outlive their account into the next sign-in.
+ */
+export function clearAccountScopedState(): void {
+  clearQueryCache();
+  clearTransferTokens();
+}
+
 export function clearQueryCache(): void {
   try {
     queryClient.clear();
@@ -463,6 +515,12 @@ async function handleSessionExpiration(): Promise<void> {
     // propagate causes useQuery hooks to re-enter loading state (skeleton),
     // and the errors from in-flight requests are lost. The cache is cleared
     // on the signin page instead, which prevents stale data from a previous session.
+
+    // Transfer accept tokens are NOT query data — clearing them has no
+    // effect on in-flight requests, and they must not survive into the next
+    // account: this redirect keeps the JS context alive, so on a shared
+    // device the next signed-in user would inherit them.
+    clearTransferTokens();
 
     // Dynamically import router to avoid React context issues
     const { router } = await import("expo-router");
@@ -722,24 +780,25 @@ export async function apiClient<T>(
 
         // If still 401 after refresh, invalid credentials (not token expiry)
         if (res.status === 401) {
-          const { message, code } = await parseErrorResponse(res);
-          throw new ApiError(401, message, undefined, false, code);
+          const { message, code, detail } = await parseErrorResponse(res);
+          throw new ApiError(401, message, undefined, false, code, detail);
         }
       } else {
         // Refresh failed - session expired
-        const { message, code } = await parseErrorResponse(res);
+        const { message, code, detail } = await parseErrorResponse(res);
         throw new ApiError(
           401,
           message || "Session expired. Please sign in again.",
           undefined,
           true,
           code,
+          detail,
         );
       }
     } else {
       // Public auth endpoint — surface the error directly (e.g. wrong password)
-      const { message, code } = await parseErrorResponse(res);
-      throw new ApiError(401, message, undefined, false, code);
+      const { message, code, detail } = await parseErrorResponse(res);
+      throw new ApiError(401, message, undefined, false, code, detail);
     }
   }
 
@@ -749,8 +808,11 @@ export async function apiClient<T>(
   }
 
   if (!res.ok) {
-    const { message: errorMessage, code: errorCode } =
-      await parseErrorResponse(res);
+    const {
+      message: errorMessage,
+      code: errorCode,
+      detail: errorDetail,
+    } = await parseErrorResponse(res);
 
     // Log server errors for debugging
     if (res.status >= 500) {
@@ -761,7 +823,15 @@ export async function apiClient<T>(
       });
     }
 
-    throw new ApiError(res.status, errorMessage, undefined, false, errorCode);
+    throw new ApiError(
+      res.status,
+      errorMessage,
+      undefined,
+      false,
+      errorCode,
+      errorDetail,
+      parseRetryAfterSeconds(res.headers?.get("Retry-After") ?? null),
+    );
   }
 
   const responseContentType = res.headers.get("content-type") ?? "";

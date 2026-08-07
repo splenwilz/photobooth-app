@@ -32,6 +32,83 @@ describe("+native-intent — external checkout return links", () => {
 		).toBe("/(tabs)/store");
 	});
 
+	it("cold start: mounts the right screen for the website's /redirect universal links", () => {
+		// Web URLs have a real host — the leading PATH segment is what matches,
+		// and the token-bearing transfers target mounts the bare list route.
+		expect(
+			redirectSystemPath({
+				path: "https://www.boothiq.com/redirect?target=transfers&transfer_id=6f0c6f2e-1234-4abc-9def-0123456789ab&token=secret",
+				initial: true,
+			}),
+		).toBe("/transfers");
+		expect(
+			redirectSystemPath({
+				path: "https://www.boothiq.com/redirect?target=booths",
+				initial: true,
+			}),
+		).toBe("/(tabs)/booths");
+		expect(
+			redirectSystemPath({
+				path: "https://www.boothiq.com/redirect?target=alerts",
+				initial: true,
+			}),
+		).toBe("/(tabs)/alerts");
+		// Unknown target still mounts a sensible screen, and prototype-member
+		// names can't walk the chain past the fallback
+		expect(
+			redirectSystemPath({
+				path: "https://www.boothiq.com/redirect?target=constructor",
+				initial: true,
+			}),
+		).toBe("/(tabs)/booths");
+	});
+
+	it("cold start: mounts the bare transfers list for token-bearing transfer links", () => {
+		// The accept token must not enter navigation state as a search param;
+		// use-deep-links receives the original URL and routes the review screen.
+		expect(
+			redirectSystemPath({
+				path: "boothiq://transfers?transfer_id=6f0c6f2e-1234-4abc-9def-0123456789ab&token=secret",
+				initial: true,
+			}),
+		).toBe("/transfers");
+	});
+
+	it("does NOT host-filter — that split belongs to routeDeepLink", () => {
+		// This function only decides which screen MOUNTS underneath; a foreign
+		// host resolves to a real route here and is then dropped by
+		// use-deep-links' allowlist, so nothing is invalidated or navigated.
+		// Asserting the split explicitly so a future "harden native-intent"
+		// change doesn't silently move the security boundary.
+		expect(
+			redirectSystemPath({
+				path: "https://evil.com/redirect?target=alerts",
+				initial: true,
+			}),
+		).toBe("/(tabs)/alerts");
+	});
+
+	it("warm links: suppresses the router's own navigation for transfers/redirect", () => {
+		// expo-router ALSO navigates on this function's return value for warm
+		// URL events — returning "" leaves use-deep-links as the single
+		// navigator, so the bare list can't land on top of the review screen.
+		expect(
+			redirectSystemPath({ path: "boothiq://transfers", initial: false }),
+		).toBe("");
+		expect(
+			redirectSystemPath({
+				path: "https://www.boothiq.com/redirect?target=transfers&transfer_id=6f0c6f2e-1234-4abc-9def-0123456789ab&token=secret",
+				initial: false,
+			}),
+		).toBe("");
+		expect(
+			redirectSystemPath({
+				path: "https://www.boothiq.com/redirect?target=alerts",
+				initial: false,
+			}),
+		).toBe("");
+	});
+
 	it("leaves every other URL untouched", () => {
 		expect(
 			redirectSystemPath({ path: "boothiq://settings", initial: false }),

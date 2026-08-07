@@ -39,6 +39,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import type { BoothOverviewItem } from "@/api/booths/types";
 import { useBoothSubscriptions } from "@/api/payments/queries";
+import { displayStatus, useMyTransfers } from "@/api/transfers";
 import { CustomHeader } from "@/components/custom-header";
 import { BoothsSkeleton } from "@/components/skeletons";
 import { ThemedText } from "@/components/themed-text";
@@ -54,7 +55,9 @@ import {
 	Spacing,
 	StatusColors,
 	scaleFont,
+	withAlpha,
 } from "@/constants/theme";
+import { useMinuteTick } from "@/hooks/use-minute-tick";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { useAttentionStore } from "@/stores/attention-store";
 import { ALL_BOOTHS_ID, useBoothStore } from "@/stores/booth-store";
@@ -116,6 +119,22 @@ export default function BoothsScreen() {
 		isRefetching: isQueryRefetching,
 		refetch,
 	} = useBoothOverview();
+
+	// Incoming transfer offers addressed to this account — surfaced as a
+	// banner so a buyer who lost the offer email still finds it.
+	const { data: myTransfers, refetch: refetchTransfers } = useMyTransfers();
+	// Live clock, not a mount-time snapshot: tab screens stay mounted for the
+	// whole app session and the server stamps `expired` lazily, so a frozen
+	// timestamp would keep a lapsed offer counting as "pending" forever.
+	// Only ticks while there are offers to age out — otherwise this would
+	// re-render the whole Booths tab every minute for every user forever.
+	const offersNow = useMinuteTick((myTransfers?.length ?? 0) > 0);
+	const pendingOfferCount = useMemo(() => {
+		if (!myTransfers) return 0;
+		return myTransfers.filter(
+			(t) => displayStatus(t, offersNow) === "pending",
+		).length;
+	}, [myTransfers, offersNow]);
 
 	// Fetch alerts for notification badge
 	// @see GET /api/v1/analytics/alerts
@@ -303,8 +322,11 @@ export default function BoothsScreen() {
 				queryKey: ["booths", "criticalEvents"],
 				type: "active",
 			}),
+			// The pending-offers banner rides this query — without it, pulling
+			// to refresh leaves a withdrawn or accepted offer still advertised.
+			refetchTransfers(),
 		]);
-	}, [refetch, refetchSubscriptions, queryClient]);
+	}, [refetch, refetchSubscriptions, refetchTransfers, queryClient]);
 
 	// Loading state
 	// Loading state - show skeleton instead of spinner
@@ -368,6 +390,26 @@ export default function BoothsScreen() {
 					/>
 				}
 			>
+				{/* Incoming transfer offers banner — a buyer who lost the offer
+				    email still finds their pending offers here */}
+				{pendingOfferCount > 0 && (
+					<TouchableOpacity
+						style={styles.transferBanner}
+						onPress={() => router.push("/transfers")}
+						activeOpacity={0.7}
+						accessibilityRole="button"
+					>
+						<ThemedText style={styles.transferBannerText}>
+							{pendingOfferCount === 1
+								? "A booth transfer offer is waiting for you"
+								: `${pendingOfferCount} booth transfer offers are waiting for you`}
+						</ThemedText>
+						<ThemedText style={styles.transferBannerAction}>
+							Review →
+						</ThemedText>
+					</TouchableOpacity>
+				)}
+
 				{/* Aggregated Stats */}
 				<View style={styles.section}>
 					<View style={styles.statsRow}>
@@ -626,6 +668,29 @@ const styles = StyleSheet.create({
 	},
 	section: {
 		marginTop: Spacing.lg,
+	},
+	transferBanner: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "space-between",
+		gap: Spacing.sm,
+		marginTop: Spacing.lg,
+		padding: Spacing.md,
+		borderRadius: BorderRadius.lg,
+		borderWidth: 1,
+		borderColor: withAlpha(BRAND_COLOR, 0.2),
+		backgroundColor: withAlpha(BRAND_COLOR, 0.05),
+	},
+	transferBannerText: {
+		flex: 1,
+		color: BRAND_COLOR,
+		fontSize: scaleFont(14),
+		fontWeight: "500",
+	},
+	transferBannerAction: {
+		color: BRAND_COLOR,
+		fontSize: scaleFont(14),
+		fontWeight: "600",
 	},
 	statsRow: {
 		flexDirection: "row",

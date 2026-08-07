@@ -35,7 +35,7 @@ import { Spacing, BRAND_COLOR, scaleFont } from '@/constants/theme';
 // API hooks
 import { useSignup } from '@/api/auth/signup/queries';
 import { useSignin } from '@/api/auth/signin/queries';
-import { savePendingPassword, saveTokens, saveUser, clearQueryCache } from '@/api/client';
+import { savePendingPassword, saveTokens, saveUser, clearAccountScopedState } from '@/api/client';
 import { useSocialOAuth } from '@/hooks/use-social-oauth';
 import type { AuthResponse } from '@/api/auth/types';
 import type { EmailVerificationResponse } from '@/api/auth/signin/types';
@@ -193,7 +193,7 @@ export default function SignUpScreen() {
 
       // If no verification required (unlikely for new signup), complete login
       const authResponse = loginResponse as AuthResponse;
-      clearQueryCache();
+      clearAccountScopedState();
       await saveTokens(authResponse.access_token, authResponse.refresh_token);
       await saveUser(authResponse.user);
       router.replace('/(tabs)');

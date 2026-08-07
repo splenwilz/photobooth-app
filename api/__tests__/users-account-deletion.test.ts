@@ -10,13 +10,15 @@ jest.mock("@/api/client", () => ({
 	apiClient: jest.fn(),
 	clearTokens: jest.fn(),
 	clearPendingResetData: jest.fn(),
-	clearQueryCache: jest.fn(),
+	// Account-scoped teardown: query cache PLUS bearer credentials held in
+	// process memory (booth-transfer accept tokens).
+	clearAccountScopedState: jest.fn(),
 }));
 
 import {
 	apiClient,
+	clearAccountScopedState,
 	clearPendingResetData,
-	clearQueryCache,
 	clearTokens,
 } from "@/api/client";
 import * as users from "@/api/users";
@@ -43,7 +45,7 @@ describe("api/users — account deletion (Apple 5.1.1(v))", () => {
 			await deleteAccount("user-123");
 			expect(clearTokens).toHaveBeenCalledTimes(1);
 			expect(clearPendingResetData).toHaveBeenCalledTimes(1);
-			expect(clearQueryCache).toHaveBeenCalledTimes(1);
+			expect(clearAccountScopedState).toHaveBeenCalledTimes(1);
 		});
 
 		it("tears down the local session only AFTER the server confirms deletion", async () => {
@@ -61,8 +63,8 @@ describe("api/users — account deletion (Apple 5.1.1(v))", () => {
 			(clearPendingResetData as jest.Mock).mockImplementation(async () => {
 				callOrder.push("clearPendingResetData");
 			});
-			(clearQueryCache as jest.Mock).mockImplementation(() => {
-				callOrder.push("clearQueryCache");
+			(clearAccountScopedState as jest.Mock).mockImplementation(() => {
+				callOrder.push("clearAccountScopedState");
 			});
 
 			await deleteAccount("user-123");
@@ -71,7 +73,7 @@ describe("api/users — account deletion (Apple 5.1.1(v))", () => {
 				"apiClient",
 				"clearTokens",
 				"clearPendingResetData",
-				"clearQueryCache",
+				"clearAccountScopedState",
 			]);
 		});
 
@@ -79,7 +81,7 @@ describe("api/users — account deletion (Apple 5.1.1(v))", () => {
 			mockApiClient.mockRejectedValue(new Error("500"));
 			await expect(deleteAccount("user-123")).rejects.toThrow();
 			expect(clearTokens).not.toHaveBeenCalled();
-			expect(clearQueryCache).not.toHaveBeenCalled();
+			expect(clearAccountScopedState).not.toHaveBeenCalled();
 		});
 	});
 

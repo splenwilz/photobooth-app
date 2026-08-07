@@ -55,6 +55,7 @@ const MAPPING: IconMapping = {
   'chart.line.uptrend.xyaxis': 'trending-up',
   'arrow.up': 'arrow-upward',
   'arrow.down': 'arrow-downward',
+  'arrow.left.arrow.right': 'swap-horiz',
   
   // Business
   'dollarsign.circle': 'attach-money',

@@ -34,7 +34,7 @@ export async function getBoothCredits(
 ): Promise<BoothCreditsResponse> {
 	if (!boothId) throw new Error("Booth ID is required for getBoothCredits");
 	const response = await apiClient<BoothCreditsResponse>(
-		`/api/v1/booths/${boothId}/credits`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/credits`,
 		{ method: "GET" },
 	);
 	return response;
@@ -57,7 +57,7 @@ export async function addBoothCredits(
 ): Promise<AddCreditsResponse> {
 	if (!boothId) throw new Error("Booth ID is required for addBoothCredits");
 	const response = await apiClient<AddCreditsResponse>(
-		`/api/v1/booths/${boothId}/credits`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/credits`,
 		{
 			method: "POST",
 			body: JSON.stringify(data),
@@ -92,7 +92,7 @@ export async function getCreditsHistory(
 	if (params?.date_to) queryParams.append("date_to", params.date_to);
 
 	const queryString = queryParams.toString();
-	const url = `/api/v1/booths/${boothId}/credits/history${queryString ? `?${queryString}` : ""}`;
+	const url = `/api/v1/booths/${encodeURIComponent(boothId)}/credits/history${queryString ? `?${queryString}` : ""}`;
 
 	const response = await apiClient<CreditsHistoryResponse>(url, {
 		method: "GET",
@@ -127,7 +127,7 @@ export async function deleteCreditsHistory(
 	if (params?.date_to) queryParams.append("date_to", params.date_to);
 
 	const queryString = queryParams.toString();
-	const url = `/api/v1/booths/${boothId}/credits/history${queryString ? `?${queryString}` : ""}`;
+	const url = `/api/v1/booths/${encodeURIComponent(boothId)}/credits/history${queryString ? `?${queryString}` : ""}`;
 
 	const response = await apiClient<DeleteCreditsHistoryResponse>(url, {
 		method: "DELETE",

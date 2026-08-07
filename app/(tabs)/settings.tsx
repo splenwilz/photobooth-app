@@ -47,7 +47,7 @@ import {
   PENDING_PASSWORD_KEY,
   REFRESH_TOKEN_KEY,
   USER_STORAGE_KEY,
-  clearQueryCache,
+  clearAccountScopedState,
   getStoredUser,
 } from "@/api/client";
 import { useBoothCredits } from "@/api/credits";
@@ -58,6 +58,7 @@ import {
   DeleteBoothModal,
   DownloadLogsModal,
   EmergencyPasswordModal,
+  TransferBoothModal,
 } from "@/components/booths";
 import {
   SubscriptionDetailsModal,
@@ -276,7 +277,7 @@ export default function SettingsScreen() {
 						try {
 							// Clear React Query cache FIRST to stop all running queries
 							// This prevents 401 errors from background queries after tokens are deleted
-							clearQueryCache();
+							clearAccountScopedState();
 
 							// All SecureStore keys used in the app
 							// Imported from their source modules to prevent drift
@@ -499,6 +500,26 @@ export default function SettingsScreen() {
 
 	// State for Delete Booth modal
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+	// Transfer Booth modal: track WHICH booth it was opened for rather than a
+	// bare boolean. A deep link can switch the selected booth (booth_id param)
+	// while the sheet is open; deriving visibility means the sheet closes in
+	// the same render as the switch — a boolean + a post-paint effect would
+	// commit one frame (and start a fetch) for a booth the user never picked.
+	const [transferModalBoothId, setTransferModalBoothId] = useState<
+		string | null
+	>(null);
+	// Release the latch as soon as the selection moves off the booth the sheet
+	// was opened for. Without this it is only cleared by an explicit close, so
+	// a PROGRAMMATIC switch (deep link, or the dashboard resetting to "all"
+	// when a booth detail fetch fails) hides the sheet while leaving the latch
+	// armed — and reselecting that booth later would pop the sheet open
+	// unbidden. Render-phase, so visibility still resolves in one pass.
+	if (transferModalBoothId !== null && transferModalBoothId !== effectiveBoothId) {
+		setTransferModalBoothId(null);
+	}
+	const showTransferModal =
+		!!effectiveBoothId && transferModalBoothId === effectiveBoothId;
 
 	// State for Subscription Details modal
 	const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
@@ -1005,6 +1026,13 @@ export default function SettingsScreen() {
 						/>
 
 						<SettingsItem
+							icon="arrow.left.arrow.right"
+							title="Transfer Booth"
+							subtitle="Offer this booth to another operator"
+							onPress={() => setTransferModalBoothId(effectiveBoothId)}
+						/>
+
+						<SettingsItem
 							icon="trash"
 							title="Delete Booth"
 							subtitle="Permanently remove this booth"
@@ -1140,6 +1168,18 @@ export default function SettingsScreen() {
 				onClose={() => setShowDeleteModal(false)}
 				onDeleted={handleBoothDeleted}
 			/>
+
+			{/* Transfer Booth Modal — keyed per booth so a booth switch remounts
+			    it and no typed email/error state carries over even for a frame */}
+			{effectiveBoothId && (
+				<TransferBoothModal
+					key={effectiveBoothId}
+					visible={showTransferModal}
+					boothId={effectiveBoothId}
+					boothName={boothName}
+					onClose={() => setTransferModalBoothId(null)}
+				/>
+			)}
 
 			{/* Subscription Details Modal */}
 			<SubscriptionDetailsModal

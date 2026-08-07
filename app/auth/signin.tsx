@@ -38,7 +38,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSignin } from '@/api/auth/signin/queries';
 import type { EmailVerificationResponse } from '@/api/auth/signin/types';
 import type { AuthResponse } from '@/api/auth/types';
-import { clearQueryCache, saveTokens, saveUser } from '@/api/client';
+import { clearAccountScopedState, saveTokens, saveUser } from '@/api/client';
 import { useSocialOAuth } from '@/hooks/use-social-oauth';
 
 interface FormData {
@@ -65,9 +65,10 @@ export default function SignInScreen() {
   const textSecondary = useThemeColor({}, 'textSecondary');
   const borderColor = useThemeColor({}, 'border');
 
-  // Clear stale query cache on mount (e.g. after session expiration redirect)
+  // Clear stale per-account state on mount (e.g. after a session-expiry
+  // redirect) — query cache plus transfer accept tokens.
   useEffect(() => {
-    clearQueryCache();
+    clearAccountScopedState();
   }, []);
 
   // Form state
@@ -125,8 +126,9 @@ export default function SignInScreen() {
   const handleSignIn = () => {
     if (!validateForm()) return;
 
-    // Clear previous query cache before signing in (prevents stale data from previous user)
-    clearQueryCache();
+    // Clear previous account's state before signing in (prevents stale data
+    // — and stale bearer credentials — from a previous user)
+    clearAccountScopedState();
 
     signin(
       { email: formData.email, password: formData.password },

@@ -13,15 +13,25 @@ jest.mock("expo-secure-store", () => ({
 // Mock expo-router with stable references
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
+const mockNavigate = jest.fn();
 const mockBack = jest.fn();
 jest.mock("expo-router", () => ({
   router: {
     replace: mockReplace,
     push: mockPush,
+    navigate: mockNavigate,
     back: mockBack,
     canGoBack: jest.fn(() => true),
+    setParams: jest.fn(),
   },
-  useRouter: () => ({ replace: mockReplace, push: mockPush, back: mockBack }),
+  useRouter: () => ({
+    replace: mockReplace,
+    push: mockPush,
+    navigate: mockNavigate,
+    back: mockBack,
+    canGoBack: jest.fn(() => true),
+    setParams: jest.fn(),
+  }),
   useLocalSearchParams: jest.fn(() => ({})),
 }));
 
@@ -102,8 +112,23 @@ jest.mock("expo-crypto", () => ({
   randomUUID: jest.fn(() => "test-device-uuid"),
 }));
 
-// expo-constants: provide an EAS projectId so token acquisition can proceed.
+// expo-constants: provide an EAS projectId so token acquisition can proceed,
+// plus the execution-environment surface expo-linking's real `parse` reads
+// (Schemes.js compares Constants.executionEnvironment against
+// ExecutionEnvironment.Bare) — tests that exercise the real parser need it.
 jest.mock("expo-constants", () => ({
   __esModule: true,
-  default: { expoConfig: { extra: { eas: { projectId: "test-project-id" } } } },
+  ExecutionEnvironment: {
+    Bare: "bare",
+    Standalone: "standalone",
+    StoreClient: "storeClient",
+  },
+  default: {
+    executionEnvironment: "bare",
+    linkingUri: "boothiq://",
+    expoConfig: {
+      scheme: "boothiq",
+      extra: { eas: { projectId: "test-project-id" } },
+    },
+  },
 }));

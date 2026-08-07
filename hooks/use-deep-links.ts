@@ -16,6 +16,12 @@
  * - boothiq://booths - Navigate to booths (optional booth_id param)
  * - boothiq://alerts - Navigate to alerts
  * - boothiq://billing - Navigate to billing settings
+ * - boothiq://transfers - Incoming booth-transfer offers (optional
+ *   transfer_id + token params open the review screen; the token is the
+ *   accept credential and only ever travels in the accept POST body)
+ * - https://www.boothiq.com/redirect?target=... - the website's email deep-link
+ *   dispatcher, delivered to the app via verified Universal/App Links; its
+ *   target param routes like the matching boothiq:// links above
  * - boothiq://payment-success?booth_id= - Subscription checkout completed
  * - boothiq://payment-cancel - Subscription checkout abandoned
  * - boothiq://template-purchase-success - Template checkout completed
@@ -30,8 +36,9 @@ import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Alert } from "react-native";
 import { invalidateBoothBillingQueries } from "@/api/payments";
+import { stashTransferToken } from "@/api/transfers/token-handoff";
 import { queryKeys } from "@/api/utils/query-keys";
-import { CHECKOUT_RETURN_PATHS } from "@/constants/config";
+import { CHECKOUT_RETURN_PATHS, EXTERNAL_PURCHASES } from "@/constants/config";
 import { useBoothStore } from "@/stores/booth-store";
 
 /**
@@ -46,6 +53,114 @@ function invalidatePaymentQueries(queryClient: QueryClient): void {
 }
 
 /**
+ * Booth and transfer ids are UUIDs; anything else in a link is not ours to
+ * route. Link params are untrusted external input, and an unvalidated id
+ * would flow into API URL paths and the persisted booth store.
+ */
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Accept tokens are opaque; cap length defensively (matches the web dispatcher). */
+const MAX_TRANSFER_TOKEN_LENGTH = 512;
+
+/**
+ * Hosts whose https links we treat as our own website dispatcher. Hardcoded
+ * on purpose: deriving this from EXPO_PUBLIC_WEBSITE_URL would let a dev
+ * .env value (ngrok) become the trust anchor in a production bundle via an
+ * eas update. Android explicit intents bypass intent-filter verification
+ * entirely, so any app can deliver an arbitrary https URL to us — the OS
+ * check on `applinks`/`autoVerify` domains is NOT a guarantee about `url`.
+ * In dev, the current WEBSITE_URL host is unioned in so tunnel links route.
+ */
+const APP_LINK_HOSTS = ["boothiq.com", "www.boothiq.com"];
+
+function isAllowedLinkHost(hostname: string | null | undefined): boolean {
+	if (!hostname) return false;
+	const host = hostname.toLowerCase();
+	if (APP_LINK_HOSTS.includes(host)) return true;
+	if (__DEV__) {
+		try {
+			const devHost = new URL(
+				EXTERNAL_PURCHASES.WEBSITE_URL,
+			).hostname.toLowerCase();
+			return host === devHost;
+		} catch {
+			return false;
+		}
+	}
+	return false;
+}
+
+/**
+ * Defensive first-value pick: expo-linking's types declare queryParams
+ * values as `string | string[]`, so validation must run on a string, never
+ * on an array's coerced form. (The current parser implementation keeps the
+ * last duplicate as a plain string, so the array branch is types-driven
+ * belt-and-braces.)
+ */
+function firstParam(value: string | string[] | undefined): string | undefined {
+	return Array.isArray(value) ? value[0] : value;
+}
+
+/**
+ * Validate and apply a link-supplied booth id: select the booth and refresh
+ * its detail. Non-UUID values are dropped — the id would otherwise reach
+ * API URL paths and be persisted to the booth store.
+ */
+function selectBoothFromLink(
+	boothId: string | undefined,
+	queryClient: QueryClient,
+): void {
+	if (!boothId || !UUID_RE.test(boothId)) return;
+	useBoothStore.getState().setSelectedBoothId(boothId);
+	queryClient.invalidateQueries({
+		queryKey: queryKeys.booths.detailPrefix(boothId),
+	});
+}
+
+/**
+ * Route a transfer link (buyer side). With a valid transfer_id the review
+ * screen opens. All params are untrusted input from an external link: the
+ * id must be a UUID and the token is length-capped (matching the web
+ * dispatcher's validation).
+ *
+ * The token NEVER enters the href — expo-router keeps the original path
+ * (query string included) on `route.path` in navigation state, where
+ * setParams can't clear it. It goes through the in-memory handoff instead;
+ * the review screen SUBSCRIBES to that store, because navigating to an
+ * already-focused route emits no focus event.
+ *
+ * `navigate`, not `push`/`replace`: transfers screens live outside `(tabs)`
+ * (replace would leave no back stack), and navigate unwinds to an existing
+ * instance of the same transfer instead of stacking duplicates when the
+ * same email link or push is tapped repeatedly.
+ *
+ * Shared by the `boothiq://transfers` deep link and the website's
+ * `/redirect?target=transfers` universal link.
+ */
+function routeTransferLink(
+	queryParams: Record<string, string | string[] | undefined> | null | undefined,
+	queryClient: QueryClient,
+): void {
+	const transferId = firstParam(queryParams?.transfer_id);
+	queryClient.invalidateQueries({
+		queryKey: queryKeys.transfers.list(),
+	});
+	if (transferId && UUID_RE.test(transferId)) {
+		const token = firstParam(queryParams?.token);
+		if (token && token.length <= MAX_TRANSFER_TOKEN_LENGTH) {
+			stashTransferToken(transferId, token);
+		}
+		router.navigate({
+			pathname: "/transfers/[transferId]",
+			params: { transferId },
+		});
+	} else {
+		router.navigate("/transfers");
+	}
+}
+
+/**
  * Route a single `boothiq://` deep link to the right screen and refresh any
  * data that screen depends on.
  *
@@ -53,7 +168,7 @@ function invalidatePaymentQueries(queryClient: QueryClient): void {
  * notifications (`usePushNotifications`) route identically — the push payload's
  * `data.deep_link` is one of these same URLs.
  *
- * @param url - a `boothiq://...` URL
+ * @param url - a `boothiq://...` URL, or an `https://.../redirect` universal link
  * @param queryClient - the active React Query client for cache invalidation
  */
 export function routeDeepLink(url: string, queryClient: QueryClient): void {
@@ -61,15 +176,59 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 
 	try {
 		const parsed = Linking.parse(url);
-		// `||` (not `??`) so an empty-string path (trailing-slash URL) falls back
-		// to the hostname instead of dropping the link.
-		const path = parsed.path || parsed.hostname;
+		const scheme = parsed.scheme?.toLowerCase();
+
+		// Web-ness must be asserted from EITHER signal, because the raw string
+		// and the parser disagree in both directions:
+		// - raw says web / parser says not: `Linking.parse` populates
+		//   queryParams BEFORE scheme/hostname inside one try block
+		//   (expo-linking createURL.js), so a malformed escape in the query
+		//   (`&z=%`) throws mid-parse and yields {scheme: null, hostname:
+		//   null, path: <the whole raw URL>} with the params already
+		//   collected — the parsed scheme cannot be trusted.
+		// - raw says not-web / parser says web: WHATWG `new URL()` strips
+		//   leading C0-control/space characters and removes embedded
+		//   tab/CR/LF anywhere in the input, so " https://evil.com/..." and
+		//   "ht\ntps://evil.com/..." parse as clean https URLs while failing
+		//   a `^https?:` test on the raw string.
+		// Requiring only one of them would leave the other as a lane that
+		// skips the allowlist entirely. Note `url.trim()` is NOT sufficient:
+		// it does not catch the embedded-control-character form.
+		const looksWebLink = /^https?:/i.test(url);
+		const isWebLink = scheme === "http" || scheme === "https";
+
+		// A web link is only ours if it points at OUR website. Android
+		// explicit intents deliver arbitrary https URLs to the app regardless
+		// of the verified intent filter, so https://evil.com/redirect?...
+		// would otherwise route as if it came from boothiq.com.
+		if (
+			(looksWebLink || isWebLink) &&
+			!(isWebLink && isAllowedLinkHost(parsed.hostname))
+		) {
+			return;
+		}
+
+		// `||` (not `??`) so an empty-string path (trailing-slash URL) falls
+		// back to the hostname instead of dropping the link. Trailing slashes
+		// are stripped so /redirect/ routes like /redirect.
+		const path = (parsed.path || parsed.hostname || "").replace(/\/+$/, "");
+
+		// Every route we handle is a single bare segment. Anything else is a
+		// parse artifact (the raw URL on the catch path, a `+`-truncated
+		// remainder, a nested path) and must not reach the switch.
+		if (!/^[a-z][a-z0-9-]*$/i.test(path)) return;
 
 		if (__DEV__) {
-			// Checkout return URLs carry Stripe session ids — never log in prod.
-			console.log("[DeepLink] Received:", url);
+			// Path only, never the full URL: checkout returns carry Stripe
+			// session ids and transfer links carry the accept token (a bearer
+			// credential) — neither belongs in logcat/Console even in dev.
 			console.log("[DeepLink] Parsed path:", path);
 		}
+
+		// The /redirect dispatcher is by definition a web URL; a custom-scheme
+		// boothiq://redirect has no legitimate sender and is dropped so the
+		// host allowlist above can't be sidestepped via the scheme.
+		if (path === "redirect" && !isWebLink) return;
 
 		switch (path) {
 			case "settings":
@@ -81,23 +240,51 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 				break;
 
 			// Email notification / push deep links
-			case "booths": {
-				const targetBoothId = parsed.queryParams?.booth_id as
-					| string
-					| undefined;
-				if (targetBoothId) {
-					useBoothStore.getState().setSelectedBoothId(targetBoothId);
-					queryClient.invalidateQueries({
-						queryKey: queryKeys.booths.detailPrefix(targetBoothId),
-					});
-				}
+			case "booths":
+				selectBoothFromLink(
+					firstParam(parsed.queryParams?.booth_id),
+					queryClient,
+				);
 				router.replace("/(tabs)/booths");
 				break;
-			}
 
 			case "alerts":
 				router.replace("/(tabs)/alerts");
 				break;
+
+			// Booth-transfer offers (buyer side)
+			case "transfers":
+				routeTransferLink(parsed.queryParams, queryClient);
+				break;
+
+			// The website's email deep-link dispatcher, delivered directly to
+			// the app via verified Universal/App Links
+			// (https://www.boothiq.com/redirect?target=...). Map `target` the same
+			// way the web dispatcher does; unknown targets land on Booths.
+			case "redirect": {
+				const target = firstParam(parsed.queryParams?.target);
+				switch (target) {
+					case "transfers":
+						routeTransferLink(parsed.queryParams, queryClient);
+						break;
+					case "alerts":
+						router.replace("/(tabs)/alerts");
+						break;
+					case "billing":
+						invalidatePaymentQueries(queryClient);
+						router.replace("/(tabs)/settings");
+						break;
+					default:
+						// booths / pricing / anything unrecognized
+						selectBoothFromLink(
+							firstParam(parsed.queryParams?.booth_id),
+							queryClient,
+						);
+						router.replace("/(tabs)/booths");
+						break;
+				}
+				break;
+			}
 
 			case "billing":
 				invalidatePaymentQueries(queryClient);
@@ -107,14 +294,11 @@ export function routeDeepLink(url: string, queryClient: QueryClient): void {
 			// External checkout returns (US storefront) — cold-start fallback for
 			// the auth-session interception in the purchase hooks.
 			case CHECKOUT_RETURN_PATHS.PAYMENT_SUCCESS: {
-				const boothId = parsed.queryParams?.booth_id as string | undefined;
 				invalidateBoothBillingQueries(queryClient);
-				if (boothId) {
-					queryClient.invalidateQueries({
-						queryKey: queryKeys.booths.detailPrefix(boothId),
-					});
-					useBoothStore.getState().setSelectedBoothId(boothId);
-				}
+				selectBoothFromLink(
+					firstParam(parsed.queryParams?.booth_id),
+					queryClient,
+				);
 				router.replace("/(tabs)/booths");
 				// Deep links are spoofable by any app — assert only what we know:
 				// the server-side refresh will surface the real state.

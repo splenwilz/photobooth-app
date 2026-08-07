@@ -1,4 +1,5 @@
 import { apiClient, clearTokens, clearPendingResetData, clearQueryCache } from "@/api/client";
+import { clearTransferTokens } from "@/api/transfers/token-handoff";
 import type { SignoutResponse } from "./types";
 
 /**
@@ -17,6 +18,8 @@ export const signout = async (): Promise<SignoutResponse> => {
         await clearTokens();
         await clearPendingResetData();
         clearQueryCache();
+        // Transfer accept tokens are account-scoped bearer credentials
+        clearTransferTokens();
 
         return response;
     } catch (error) {
@@ -24,6 +27,7 @@ export const signout = async (): Promise<SignoutResponse> => {
         await clearTokens();
         await clearPendingResetData();
         clearQueryCache();
+        clearTransferTokens();
         throw error;
     }
 };
