@@ -69,7 +69,7 @@ export async function getBoothRevenue(
 	return withTzFallback((tz) => {
 		const queryString = buildQueryString({ ...queryParams, tz });
 		return apiClient<BoothRevenueResponse>(
-			`/api/v1/analytics/revenue/${booth_id}${queryString}`,
+			`/api/v1/analytics/revenue/${encodeURIComponent(booth_id)}${queryString}`,
 			{
 				method: "GET",
 			},

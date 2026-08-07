@@ -64,7 +64,7 @@ export async function getTemplates(
  * @see GET /api/v1/templates/{id}
  */
 export async function getTemplateById(id: string): Promise<Template> {
-  return apiClient<Template>(`${BASE}/${id}`);
+  return apiClient<Template>(`${BASE}/${encodeURIComponent(id)}`);
 }
 
 /**
@@ -100,7 +100,7 @@ export async function getTemplateReviews(
   params: { page?: number; per_page?: number } = {},
 ): Promise<ReviewsResponse> {
   const qs = buildQueryString(params);
-  return apiClient<ReviewsResponse>(`${BASE}/${templateId}/reviews${qs}`);
+  return apiClient<ReviewsResponse>(`${BASE}/${encodeURIComponent(templateId)}/reviews${qs}`);
 }
 
 /**
@@ -111,7 +111,7 @@ export async function submitReview(
   templateId: string,
   data: { rating: number; title?: string; comment?: string },
 ): Promise<void> {
-  return apiClient(`${BASE}/${templateId}/reviews`, {
+  return apiClient(`${BASE}/${encodeURIComponent(templateId)}/reviews`, {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -127,7 +127,7 @@ export async function updateReview(
   data: { rating?: number; title?: string; comment?: string },
 ): Promise<TemplateReview> {
   return apiClient<TemplateReview>(
-    `${BASE}/${templateId}/reviews/${reviewId}`,
+    `${BASE}/${encodeURIComponent(templateId)}/reviews/${encodeURIComponent(reviewId)}`,
     {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -143,7 +143,7 @@ export async function deleteReview(
   templateId: string,
   reviewId: number,
 ): Promise<void> {
-  return apiClient(`${BASE}/${templateId}/reviews/${reviewId}`, {
+  return apiClient(`${BASE}/${encodeURIComponent(templateId)}/reviews/${encodeURIComponent(reviewId)}`, {
     method: "DELETE",
   });
 }
@@ -155,7 +155,7 @@ export async function deleteReview(
 export async function downloadTemplate(
   id: string,
 ): Promise<{ download_url: string }> {
-  return apiClient<{ download_url: string }>(`${BASE}/${id}/download`, {
+  return apiClient<{ download_url: string }>(`${BASE}/${encodeURIComponent(id)}/download`, {
     method: "POST",
   });
 }

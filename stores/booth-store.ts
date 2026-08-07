@@ -20,6 +20,17 @@ export const STORAGE_KEY = "selected_booth_id";
 /** Special value for "All Booths" mode */
 export const ALL_BOOTHS_ID = "all";
 
+/** Booth ids are UUIDs server-side; the sentinel is the only other legal value. */
+const BOOTH_ID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidSelectedBoothId(value: string | null): value is string {
+	return (
+		typeof value === "string" &&
+		(value === ALL_BOOTHS_ID || BOOTH_ID_RE.test(value))
+	);
+}
+
 interface BoothState {
 	/** Currently selected booth ID, or "all" for aggregate mode */
 	selectedBoothId: string | null;
@@ -77,8 +88,13 @@ export const useBoothStore = create<BoothState>((set, get) => ({
 		try {
 			const storedId = await SecureStore.getItemAsync(STORAGE_KEY);
 			set({
-				// Default to "all" mode if nothing stored
-				selectedBoothId: storedId ?? ALL_BOOTHS_ID,
+				// Default to "all" mode if nothing stored. Anything that isn't a
+				// booth UUID (or the sentinel) is discarded: the selected id
+				// flows into API URL paths, and a value persisted by an earlier
+				// build could otherwise survive indefinitely.
+				selectedBoothId: isValidSelectedBoothId(storedId)
+					? storedId
+					: ALL_BOOTHS_ID,
 				isHydrated: true,
 			});
 		} catch (error) {

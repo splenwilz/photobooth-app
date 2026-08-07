@@ -13,6 +13,7 @@
  */
 
 import { usePricingPlans, type PricingPlan } from "@/api/pricing";
+import { getSubscriptionIncludedDetail } from "@/api/transfers";
 import {
 	invalidateBoothBillingQueries,
 	useCreateBoothCheckout,
@@ -189,6 +190,34 @@ export function PricingPlansSelector({
 					}
 				},
 				onError: (error) => {
+					// 409 subscription_included: this booth arrived via transfer and
+					// is riding out the previous owner's subscription — checkout is
+					// closed until it settles, and that's good news, not an error.
+					const included = getSubscriptionIncludedDetail(error);
+					if (included) {
+						// NaN guard: a malformed timestamp must fall back to the
+						// generic copy, not render the literal "Invalid Date"
+						const untilDate = included.included_until
+							? new Date(included.included_until)
+							: null;
+						const until =
+							untilDate && !Number.isNaN(untilDate.getTime())
+								? untilDate.toLocaleDateString("en-US", {
+										month: "long",
+										day: "numeric",
+										year: "numeric",
+									})
+								: null;
+						Alert.alert(
+							"Subscription Included",
+							`${
+								until
+									? `This booth's subscription is included until ${until}.`
+									: "This booth's subscription is included until the current billing period ends."
+							} It came with its previous owner's subscription. You'll get an email when it's time to subscribe.`,
+						);
+						return;
+					}
 					// readableMessage, not error.message: the API client stringifies
 					// object error bodies, and raw JSON is not user-facing copy.
 					Alert.alert(

@@ -8,7 +8,7 @@
 import {
 	apiClient,
 	clearPendingResetData,
-	clearQueryCache,
+	clearAccountScopedState,
 	clearTokens,
 } from "../client";
 import type {
@@ -128,7 +128,7 @@ export async function deleteAccount(
 	// Account is gone server-side — clear all local state.
 	await clearTokens();
 	await clearPendingResetData();
-	clearQueryCache();
+	clearAccountScopedState();
 
 	return response;
 }

@@ -10,6 +10,7 @@ import { Alert } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render } from "@testing-library/react-native";
 import * as WebBrowser from "expo-web-browser";
+import { ApiError } from "@/api/client";
 import { usePricingPlans } from "@/api/pricing";
 import { useCreateBoothCheckout } from "@/api/payments";
 import { queryKeys } from "@/api/utils/query-keys";
@@ -234,6 +235,44 @@ describe("PricingPlansSelector", () => {
         "Error",
         "Payment service unavailable",
       );
+      alertSpy.mockRestore();
+    });
+
+    it("subscription_included 409 gets its own copy, not the generic error alert", () => {
+      const alertSpy = jest
+        .spyOn(Alert, "alert")
+        .mockImplementation(() => {});
+      mockPlans.mockReturnValue({
+        data: { plans: [plan(1, "BoothIQ Pro")], trial_period_days: 0 },
+        isLoading: false,
+        error: null,
+      });
+      let mutateOptions: { onError: (e: Error) => void } | null = null;
+      mutate.mockImplementation((_vars, opts) => {
+        mutateOptions = opts;
+      });
+      const { getByText } = renderSelector();
+
+      fireEvent.press(getByText("Subscribe Now"));
+      mutateOptions!.onError(
+        new ApiError(
+          409,
+          "Subscription included",
+          undefined,
+          false,
+          "subscription_included",
+          {
+            code: "subscription_included",
+            message: "Subscription included",
+            included_until: "2026-09-01T00:00:00Z",
+          },
+        ),
+      );
+
+      const [title, message] = alertSpy.mock.calls.at(-1)!;
+      expect(title).toBe("Subscription Included");
+      expect(message).toContain("September 1, 2026");
+      expect(message).toContain("previous owner");
       alertSpy.mockRestore();
     });
   });

@@ -79,7 +79,7 @@ export async function getBoothDetail(boothId: string): Promise<BoothDetailRespon
 	if (!boothId) throw new Error("Booth ID is required for getBoothDetail");
 	return withTzFallback((tz) =>
 		apiClient<BoothDetailResponse>(
-			`/api/v1/booths/${boothId}/overview?tz=${encodeURIComponent(tz)}`,
+			`/api/v1/booths/${encodeURIComponent(boothId)}/overview?tz=${encodeURIComponent(tz)}`,
 			{
 				method: "GET",
 			},
@@ -131,7 +131,7 @@ export async function getBoothPricing(
 ): Promise<BoothPricingResponse> {
 	if (!boothId) throw new Error("Booth ID is required for getBoothPricing");
 	const response = await apiClient<BoothPricingResponse>(
-		`/api/v1/booths/${boothId}/pricing`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/pricing`,
 		{
 			method: "GET",
 		},
@@ -152,7 +152,7 @@ export async function updateBoothPricing(
 	data: UpdatePricingRequest,
 ): Promise<UpdatePricingResponse> {
 	const response = await apiClient<UpdatePricingResponse>(
-		`/api/v1/booths/${boothId}/pricing`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/pricing`,
 		{
 			method: "PATCH",
 			body: JSON.stringify(data),
@@ -177,7 +177,7 @@ export async function restartBoothApp(
 	data?: RestartRequest,
 ): Promise<RestartAppResponse> {
 	const response = await apiClient<RestartAppResponse>(
-		`/api/v1/booths/${boothId}/restart-app`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/restart-app`,
 		{
 			method: "POST",
 			body: JSON.stringify(data ?? { delay_seconds: 5, force: false }),
@@ -198,7 +198,7 @@ export async function restartBoothSystem(
 	data?: RestartRequest,
 ): Promise<RestartSystemResponse> {
 	const response = await apiClient<RestartSystemResponse>(
-		`/api/v1/booths/${boothId}/restart-system`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/restart-system`,
 		{
 			method: "POST",
 			body: JSON.stringify(data ?? { delay_seconds: 15, force: false }),
@@ -217,7 +217,7 @@ export async function cancelBoothRestart(
 	boothId: string,
 ): Promise<CancelRestartResponse> {
 	const response = await apiClient<CancelRestartResponse>(
-		`/api/v1/booths/${boothId}/cancel-restart`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/cancel-restart`,
 		{
 			method: "POST",
 			body: JSON.stringify({}),
@@ -240,7 +240,7 @@ export async function getBoothCredentials(
 	boothId: string,
 ): Promise<BoothCredentialsResponse> {
 	const response = await apiClient<BoothCredentialsResponse>(
-		`/api/v1/booths/${boothId}/credentials`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/credentials`,
 		{
 			method: "GET",
 		},
@@ -261,7 +261,7 @@ export async function generateBoothCode(
 	boothId: string,
 ): Promise<GenerateCodeResponse> {
 	const response = await apiClient<GenerateCodeResponse>(
-		`/api/v1/booths/${boothId}/generate-code`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/generate-code`,
 		{
 			method: "POST",
 			body: JSON.stringify({}),
@@ -284,7 +284,7 @@ export async function deleteBooth(
 	boothId: string,
 ): Promise<DeleteBoothResponse> {
 	const response = await apiClient<DeleteBoothResponse>(
-		`/api/v1/booths/${boothId}`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}`,
 		{
 			method: "DELETE",
 		},
@@ -303,7 +303,7 @@ export async function syncBoothTemplates(
 	boothId: string,
 ): Promise<SyncTemplatesResponse> {
 	const response = await apiClient<SyncTemplatesResponse>(
-		`/api/v1/booths/${boothId}/sync-templates`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/sync-templates`,
 		{
 			method: "POST",
 		},
@@ -326,7 +326,7 @@ export async function getBoothBusinessSettings(
 	boothId: string,
 ): Promise<BoothBusinessSettingsResponse> {
 	const response = await apiClient<BoothBusinessSettingsResponse>(
-		`/api/v1/booths/${boothId}/business-settings`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/business-settings`,
 		{ method: "GET" },
 	);
 	return response;
@@ -344,7 +344,7 @@ export async function updateBoothSettings(
 	data: UpdateBoothSettingsRequest,
 ): Promise<UpdateBoothSettingsResponse> {
 	const response = await apiClient<UpdateBoothSettingsResponse>(
-		`/api/v1/booths/${boothId}`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}`,
 		{
 			method: "PATCH",
 			body: JSON.stringify(data),
@@ -377,7 +377,7 @@ export async function uploadBoothLogo(
 	} as any);
 
 	const response = await apiClient<LogoUploadResponse>(
-		`/api/v1/booths/${boothId}/logo`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/logo`,
 		{
 			method: "PUT",
 			body: formData,
@@ -397,7 +397,7 @@ export async function deleteBoothLogo(
 	boothId: string,
 ): Promise<LogoDeleteResponse> {
 	const response = await apiClient<LogoDeleteResponse>(
-		`/api/v1/booths/${boothId}/logo`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/logo`,
 		{ method: "DELETE" },
 	);
 	return response;
@@ -423,7 +423,7 @@ export async function requestEmergencyPassword(
 ): Promise<EmergencyPasswordResponse> {
 	if (!boothId) throw new Error("Booth ID is required for requestEmergencyPassword");
 	const response = await apiClient<EmergencyPasswordResponse>(
-		`/api/v1/booths/${boothId}/emergency-password`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/emergency-password`,
 		{
 			method: "POST",
 			body: JSON.stringify(data),
@@ -453,7 +453,7 @@ export async function downloadBoothLogs(
 ): Promise<DownloadLogsResponse> {
 	if (!boothId) throw new Error("Booth ID is required for downloadBoothLogs");
 	const response = await apiClient<DownloadLogsResponse>(
-		`/api/v1/booths/${boothId}/download-logs`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/download-logs`,
 		{
 			method: "POST",
 			body: JSON.stringify(data ?? {}),
@@ -485,7 +485,7 @@ export async function getBoothTransactions(
 	const limit = params?.limit ?? 50;
 	const offset = params?.offset ?? 0;
 	const response = await apiClient<BoothTransactionsResponse>(
-		`/api/v1/booths/${boothId}/transactions?limit=${limit}&offset=${offset}`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/transactions?limit=${limit}&offset=${offset}`,
 		{ method: "GET" },
 	);
 	return response;
@@ -514,7 +514,7 @@ export async function getBoothCriticalEvents(
 	const limit = params?.limit ?? 50;
 	const offset = params?.offset ?? 0;
 	const response = await apiClient<BoothCriticalEventsResponse>(
-		`/api/v1/booths/${boothId}/critical-events?limit=${limit}&offset=${offset}`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/critical-events?limit=${limit}&offset=${offset}`,
 		{ method: "GET" },
 	);
 	return response;
@@ -554,7 +554,7 @@ export async function refundBoothTransaction(
 	};
 
 	const response = await apiClient<RefundTransactionResponse>(
-		`/api/v1/booths/${boothId}/transactions/${encodeURIComponent(transactionCode)}/refund`,
+		`/api/v1/booths/${encodeURIComponent(boothId)}/transactions/${encodeURIComponent(transactionCode)}/refund`,
 		{ method: "POST", body: JSON.stringify(body) },
 	);
 	return response;

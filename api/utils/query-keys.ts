@@ -164,6 +164,12 @@ export const queryKeys = {
    */
   analytics: {
     /**
+     * Base prefix for all analytics queries (used for broad invalidation,
+     * e.g. after a booth changes hands via transfer)
+     */
+    all: () => ['analytics'] as const,
+
+    /**
      * Get revenue dashboard data (tz-keyed: periods sliced in operator zone)
      */
     dashboard: (params?: { recent_limit?: number; recent_offset?: number }) =>
@@ -252,6 +258,12 @@ export const queryKeys = {
    */
   payments: {
     /**
+     * Base prefix for all payments queries (used for broad invalidation,
+     * e.g. after a booth changes hands via transfer)
+     */
+    all: () => ['payments'] as const,
+
+    /**
      * Check subscription access (lightweight check)
      */
     access: () => ['payments', 'access'] as const,
@@ -281,6 +293,35 @@ export const queryKeys = {
      */
     boothInvoices: (boothId: string, limit: number) =>
       ['payments', 'boothInvoices', boothId, limit] as const,
+  },
+
+  /**
+   * Booth ownership transfer query keys
+   * @see /api/transfers/queries.ts
+   */
+  transfers: {
+    /**
+     * Base prefix for all transfer queries
+     */
+    all: () => ['transfers'] as const,
+
+    /**
+     * Offers addressed to the signed-in user's email, newest first
+     * @see GET /api/v1/transfers
+     */
+    list: () => ['transfers', 'list'] as const,
+
+    /**
+     * Single offer detail (buyer review screen)
+     * @see GET /api/v1/transfers/{transfer_id}
+     */
+    detail: (transferId: string) => ['transfers', 'detail', transferId] as const,
+
+    /**
+     * Latest transfer (any status) for a booth the caller owns or sold
+     * @see GET /api/v1/booths/{booth_id}/transfer
+     */
+    boothLatest: (boothId: string) => ['transfers', 'booth', boothId] as const,
   },
 
   /**

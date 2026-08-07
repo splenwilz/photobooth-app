@@ -102,7 +102,7 @@ export async function getTicketDetail(
 	ticketId: number,
 ): Promise<TicketDetailResponse> {
 	const response = await apiClient<TicketDetailResponse>(
-		`/api/v1/tickets/${ticketId}`,
+		`/api/v1/tickets/${encodeURIComponent(ticketId)}`,
 		{ method: "GET" },
 	);
 	return response;
@@ -128,7 +128,7 @@ export async function addMessage(
 	data: AddMessageRequest,
 ): Promise<AddMessageResponse> {
 	const response = await apiClient<AddMessageResponse>(
-		`/api/v1/tickets/${ticketId}/messages`,
+		`/api/v1/tickets/${encodeURIComponent(ticketId)}/messages`,
 		{
 			method: "POST",
 			body: JSON.stringify(data),
@@ -172,7 +172,7 @@ export async function getUploadUrl(
 	data: GetUploadUrlRequest,
 ): Promise<GetUploadUrlResponse> {
 	const response = await apiClient<GetUploadUrlResponse>(
-		`/api/v1/tickets/${ticketId}/upload-url`,
+		`/api/v1/tickets/${encodeURIComponent(ticketId)}/upload-url`,
 		{
 			method: "POST",
 			body: JSON.stringify(data),
